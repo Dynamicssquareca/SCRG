@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.env
+.env*
 server/storage/uploads/*
 server/storage/reports/*
 !server/storage/uploads/.gitkeep
