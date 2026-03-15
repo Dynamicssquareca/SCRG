@@ -102,11 +102,40 @@ export async function download(req: Request, res: Response, next: NextFunction) 
     if (!report) throw new NotFoundError('Report not found');
 
     if (!report.file_path) throw new ValidationError('This is a seeded historical report and has no downloadable file.');
-    if (!fs.existsSync(report.file_path)) throw new NotFoundError('Report file not found on disk');
+
+    // Try multiple path resolutions to find the file
+    let resolvedPath: string | null = null;
+    const candidatePaths = [
+      report.file_path,
+      path.resolve(report.file_path),
+      path.join(__dirname, '../../', report.file_path),
+    ];
+
+    // Also try reconstructing from REPORT_DIR + relative portion
+    if (report.file_name) {
+      const { env } = require('../config/env');
+      candidatePaths.push(
+        path.join(env.REPORT_DIR, String(report.year), String(report.month), report.file_name)
+      );
+    }
+
+    for (const candidate of candidatePaths) {
+      if (fs.existsSync(candidate)) {
+        resolvedPath = candidate;
+        break;
+      }
+    }
+
+    if (!resolvedPath) throw new NotFoundError('Report file not found on disk. Try re-generating the report.');
+
+    // Update the stored path if it was wrong
+    if (resolvedPath !== report.file_path) {
+      await Report.findByIdAndUpdate(report._id, { file_path: resolvedPath });
+    }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${report.file_name || 'report.xlsx'}"`);
-    fs.createReadStream(report.file_path).pipe(res);
+    fs.createReadStream(resolvedPath).pipe(res);
   } catch (err) { next(err); }
 }
 
@@ -115,7 +144,7 @@ export async function downloadAll(req: Request, res: Response, next: NextFunctio
     const { month, year } = req.query;
     if (!month || !year) throw new ValidationError('Month and year are required');
 
-    const reports = await Report.find({ month: Number(month), year: Number(year) });
+    const reports = await Report.find({ month: Number(month), year: Number(year), file_name: { $ne: null } });
 
     if (reports.length === 0) throw new NotFoundError('No reports found for this period');
 
@@ -125,15 +154,29 @@ export async function downloadAll(req: Request, res: Response, next: NextFunctio
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
 
+    const { env } = require('../config/env');
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.pipe(res);
 
     for (const report of reports) {
-      if (report.file_path && fs.existsSync(report.file_path)) {
-        archive.file(report.file_path, { name: report.file_name || 'report.xlsx' });
+      if (!report.file_path || !report.file_name) continue;
+
+      const candidatePaths = [
+        report.file_path,
+        path.resolve(report.file_path),
+        path.join(__dirname, '../../', report.file_path),
+        path.join(env.REPORT_DIR, String(report.year), String(report.month), report.file_name),
+      ];
+
+      for (const candidate of candidatePaths) {
+        if (fs.existsSync(candidate)) {
+          archive.file(candidate, { name: report.file_name || 'report.xlsx' });
+          break;
+        }
       }
     }
 
     await archive.finalize();
   } catch (err) { next(err); }
 }
+
