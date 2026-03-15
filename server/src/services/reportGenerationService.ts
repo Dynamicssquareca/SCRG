@@ -390,21 +390,29 @@ export async function generateAllReports(uploadId: string, month: number, year: 
       buildOpenCaseSheet(workbook, reportData.openCases);
       buildResolvedCaseSheet(workbook, reportData.resolvedCases);
 
-      // Save file
+      // Save file - generate buffer first for MongoDB storage
       const sanitizedName = sanitizeFileName(reportData.clientInfo.client_name);
       const monthName = dayjs().month(month - 1).format('MMM');
       const fileName = `${sanitizedName}_Support_Report_${monthName}${year}.xlsx`;
-      const dirPath = path.join(env.REPORT_DIR, String(year), String(month));
-      fs.mkdirSync(dirPath, { recursive: true });
-      const filePath = path.join(dirPath, fileName);
 
-      await workbook.xlsx.writeFile(filePath);
-      const stats = fs.statSync(filePath);
+      // Generate Excel buffer
+      const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+      // Also save to disk for local development
+      let filePath: string | null = null;
+      try {
+        const dirPath = path.join(env.REPORT_DIR, String(year), String(month));
+        fs.mkdirSync(dirPath, { recursive: true });
+        filePath = path.join(dirPath, fileName);
+        fs.writeFileSync(filePath, buffer);
+      } catch (diskErr) {
+        logger.warn(`Could not save report to disk (expected on Vercel): ${(diskErr as Error).message}`);
+      }
 
       // Delete existing report for same client/month/year if exists
       await Report.findOneAndDelete({ client_id, month, year });
 
-      // Save to database
+      // Save to database (including file buffer)
       const report = await Report.create({
         client_id: new mongoose.Types.ObjectId(client_id),
         upload_id: new mongoose.Types.ObjectId(uploadId),
@@ -412,7 +420,8 @@ export async function generateAllReports(uploadId: string, month: number, year: 
         year,
         file_name: fileName,
         file_path: filePath,
-        file_size_bytes: stats.size,
+        file_data: buffer,
+        file_size_bytes: buffer.length,
         tickets_opened: reportData.summary.totalOpened,
         tickets_closed: reportData.summary.totalClosed,
         tickets_pending: reportData.summary.pending,

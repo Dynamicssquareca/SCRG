@@ -33,7 +33,7 @@ export async function getAll(req: Request, res: Response, next: NextFunction) {
     if (month) filter.month = Number(month);
     if (year) filter.year = Number(year);
 
-    let query = Report.find(filter).populate({
+    let query = Report.find(filter).select('-file_data').populate({
       path: 'client_id',
       match: clientName ? { client_name: { $regex: clientName, $options: 'i' } } : {},
       select: 'client_name',
@@ -100,42 +100,35 @@ export async function download(req: Request, res: Response, next: NextFunction) 
   try {
     const report = await Report.findById(req.params.id);
     if (!report) throw new NotFoundError('Report not found');
+    if (!report.file_name) throw new ValidationError('This is a seeded historical report and has no downloadable file.');
 
-    if (!report.file_path) throw new ValidationError('This is a seeded historical report and has no downloadable file.');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${report.file_name}"`);
 
-    // Try multiple path resolutions to find the file
-    let resolvedPath: string | null = null;
-    const candidatePaths = [
-      report.file_path,
-      path.resolve(report.file_path),
-      path.join(__dirname, '../../', report.file_path),
-    ];
-
-    // Also try reconstructing from REPORT_DIR + relative portion
-    if (report.file_name) {
-      const { env } = require('../config/env');
-      candidatePaths.push(
-        path.join(env.REPORT_DIR, String(report.year), String(report.month), report.file_name)
-      );
+    // Priority 1: Serve from MongoDB buffer (works on Vercel)
+    if (report.file_data) {
+      res.end(report.file_data);
+      return;
     }
 
-    for (const candidate of candidatePaths) {
-      if (fs.existsSync(candidate)) {
-        resolvedPath = candidate;
-        break;
+    // Priority 2: Serve from disk (local dev fallback)
+    if (report.file_path) {
+      const { env } = require('../config/env');
+      const candidatePaths = [
+        report.file_path,
+        path.resolve(report.file_path),
+        path.join(env.REPORT_DIR, String(report.year), String(report.month), report.file_name),
+      ];
+
+      for (const candidate of candidatePaths) {
+        if (fs.existsSync(candidate)) {
+          fs.createReadStream(candidate).pipe(res);
+          return;
+        }
       }
     }
 
-    if (!resolvedPath) throw new NotFoundError('Report file not found on disk. Try re-generating the report.');
-
-    // Update the stored path if it was wrong
-    if (resolvedPath !== report.file_path) {
-      await Report.findByIdAndUpdate(report._id, { file_path: resolvedPath });
-    }
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${report.file_name || 'report.xlsx'}"`);
-    fs.createReadStream(resolvedPath).pipe(res);
+    throw new NotFoundError('Report file not available. Please re-generate the report.');
   } catch (err) { next(err); }
 }
 
@@ -159,19 +152,27 @@ export async function downloadAll(req: Request, res: Response, next: NextFunctio
     archive.pipe(res);
 
     for (const report of reports) {
-      if (!report.file_path || !report.file_name) continue;
+      if (!report.file_name) continue;
 
-      const candidatePaths = [
-        report.file_path,
-        path.resolve(report.file_path),
-        path.join(__dirname, '../../', report.file_path),
-        path.join(env.REPORT_DIR, String(report.year), String(report.month), report.file_name),
-      ];
+      // Priority 1: From MongoDB buffer
+      if (report.file_data) {
+        archive.append(report.file_data, { name: report.file_name });
+        continue;
+      }
 
-      for (const candidate of candidatePaths) {
-        if (fs.existsSync(candidate)) {
-          archive.file(candidate, { name: report.file_name || 'report.xlsx' });
-          break;
+      // Priority 2: From disk
+      if (report.file_path) {
+        const candidatePaths = [
+          report.file_path,
+          path.resolve(report.file_path),
+          path.join(env.REPORT_DIR, String(report.year), String(report.month), report.file_name),
+        ];
+
+        for (const candidate of candidatePaths) {
+          if (fs.existsSync(candidate)) {
+            archive.file(candidate, { name: report.file_name });
+            break;
+          }
         }
       }
     }
@@ -179,4 +180,5 @@ export async function downloadAll(req: Request, res: Response, next: NextFunctio
     await archive.finalize();
   } catch (err) { next(err); }
 }
+
 

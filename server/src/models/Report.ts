@@ -10,6 +10,7 @@ export interface IReport extends Document {
   year: number;
   file_name: string | null;
   file_path: string | null;
+  file_data: Buffer | null;
   file_size_bytes: number | null;
   tickets_opened: number;
   tickets_closed: number;
@@ -29,6 +30,7 @@ const ReportSchema: Schema = new Schema(
     year: { type: Number, required: true },
     file_name: { type: String, default: null },
     file_path: { type: String, default: null },
+    file_data: { type: Buffer, default: null },
     file_size_bytes: { type: Number, default: null },
     tickets_opened: { type: Number, default: 0 },
     tickets_closed: { type: Number, default: 0 },
