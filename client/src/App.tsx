@@ -8,6 +8,7 @@ import UploadPage from './pages/UploadPage';
 import ReportsPage from './pages/ReportsPage';
 import ClientMasterPage from './pages/ClientMasterPage';
 import UsageReportPage from './pages/UsageReportPage';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const ProtectedRoute = ({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { isAuthenticated, user } = useAuth();
@@ -37,6 +38,7 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <SpeedInsights />
         <AppRoutes />
       </AuthProvider>
     </BrowserRouter>
