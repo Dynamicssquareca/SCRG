@@ -35,61 +35,28 @@ export async function getAllClients(query: any) {
     }
   ]);
 
-  const reportMap: Record<string, { current_balance: number | null; last_month_balance: number | null }> = {};
+  const reportMap: Record<string, { current_balance: number; last_month_balance: number | null }> = {};
   for (const r of recentReports) {
     reportMap[r._id.toString()] = {
-      current_balance: r.reports[0]?.remaining_balance ?? null,
-      last_month_balance: r.reports[1]?.remaining_balance ?? null,
+      current_balance: r.reports[0]?.remaining_balance ?? 0,
+      last_month_balance: r.reports.length > 1 ? r.reports[1].remaining_balance : null,
     };
-  }
-
-  // For clients with no matching reports (orphaned IDs), try name-based lookup
-  const unmatchedClients = clients.filter(c => !reportMap[c._id.toString()]);
-  if (unmatchedClients.length > 0) {
-    // Build a name-to-report lookup by resolving ALL reports through a full aggregation
-    const allReports = await Report.aggregate([
-      { $sort: { year: -1, month: -1 } },
-      {
-        $group: {
-          _id: '$client_id',
-          reports: { $push: { remaining_balance: '$remaining_balance', month: '$month', year: '$year' } }
-        }
-      },
-      {
-        $lookup: {
-          from: 'clients',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'client'
-        }
-      }
-    ]);
-
-    // Try matching by client name (case-insensitive)
-    for (const uc of unmatchedClients) {
-      const nameMatch = allReports.find(ar => {
-        const clientName = ar.client?.[0]?.client_name;
-        return clientName && clientName.toLowerCase() === uc.client_name.toLowerCase();
-      });
-      // If still no name match, look through cases or just use report data by position
-      if (nameMatch) {
-        reportMap[uc._id.toString()] = {
-          current_balance: nameMatch.reports[0]?.remaining_balance ?? null,
-          last_month_balance: nameMatch.reports[1]?.remaining_balance ?? null,
-        };
-      }
-    }
   }
 
   const enrichedClients = clients.map(c => {
     const obj = c.toObject() as any;
     const id = c._id.toString();
-    const reportData = reportMap[id];
-    // Fallback to static previous_balance_hours when no report data exists
-    obj.current_balance = reportData?.current_balance ?? obj.previous_balance_hours ?? 0;
-    obj.last_month_balance = reportData?.last_month_balance ?? null;
+    if (reportMap[id]) {
+      obj.current_balance = reportMap[id].current_balance;
+      obj.last_month_balance = reportMap[id].last_month_balance;
+    } else {
+      // Fallback: use static previous_balance_hours from Client when no reports exist
+      obj.current_balance = obj.previous_balance_hours;
+      obj.last_month_balance = null;
+    }
     return obj;
   });
+
 
 
   return {
