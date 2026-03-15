@@ -4,7 +4,7 @@
   "description": "SCRG Backend API",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node src/server.ts",
+    "dev": "npx ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "knex migrate:latest --knexfile src/config/knexfile.ts",
