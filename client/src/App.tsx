@@ -11,10 +11,10 @@ import UsageReportPage from './pages/UsageReportPage';
 
 const ProtectedRoute = ({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { isAuthenticated, user } = useAuth();
-  
+
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (requireAdmin && user?.role !== 'admin') return <Navigate to="/" replace />;
-  
+
   return <>{children}</>;
 };
 
