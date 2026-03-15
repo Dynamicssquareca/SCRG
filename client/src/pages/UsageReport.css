@@ -1,0 +1,92 @@
+
+.usage-report-container {
+  padding: 0;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.report-header {
+  margin-bottom: 24px;
+}
+
+.stats-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #eef2f5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+.premium-table {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #eef2f5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.premium-table .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  color: #1b3a5c !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #eef2f5 !important;
+}
+
+.balance-cell {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.balance-cell.positive {
+  color: #006b7b;
+}
+
+.balance-cell.negative {
+  color: #ff4d4f;
+}
+
+.client-name-bold {
+  font-weight: 700;
+  color: #1b3a5c;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #1b3a5c;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.section-title i {
+  color: #006b7b;
+}
+
+/* Custom scrollbar for wide tables */
+.premium-table .ant-table-body::-webkit-scrollbar {
+  height: 8px;
+}
+
+.premium-table .ant-table-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.premium-table .ant-table-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.premium-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

@@ -1,0 +1,19 @@
+{
+  "name": "support-case-report-generator",
+  "version": "1.0.0",
+  "description": "Support Case Report Generator - MPG Business Information Systems",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "vercel-build": "npm run build",
+    "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run seed",
+    "setup": "npm install && cd server && npm install && cd ../client && npm install && cd .. && npm run migrate && npm run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

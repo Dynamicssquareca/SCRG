@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+storage/uploads/*
+storage/reports/*
+!storage/uploads/.gitkeep
+!storage/reports/.gitkeep
+*.sqlite3
+*.db
+logs/
+*.log
+.DS_Store
+client/dist/
+server/dist/
+.vercel
