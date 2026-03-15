@@ -1,10 +1,10 @@
 node_modules/
 dist/
 .env
-storage/uploads/*
-storage/reports/*
-!storage/uploads/.gitkeep
-!storage/reports/.gitkeep
+server/storage/uploads/*
+server/storage/reports/*
+!server/storage/uploads/.gitkeep
+!server/storage/reports/.gitkeep
 *.sqlite3
 *.db
 logs/
@@ -13,3 +13,5 @@ logs/
 client/dist/
 server/dist/
 .vercel
+temp/
+tmp/
