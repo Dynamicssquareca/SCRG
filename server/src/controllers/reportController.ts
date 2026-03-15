@@ -29,7 +29,7 @@ export async function getAll(req: Request, res: Response, next: NextFunction) {
   try {
     const { page = 1, limit = 20, month, year, clientName, sortBy = 'generated_at', sortOrder = 'desc' } = req.query;
 
-    const filter: any = {};
+    const filter: any = { file_name: { $ne: null } }; // Only show reports with generated files
     if (month) filter.month = Number(month);
     if (year) filter.year = Number(year);
 
