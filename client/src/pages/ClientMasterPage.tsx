@@ -156,9 +156,21 @@ const ClientMasterPage: React.FC = () => {
     { title: 'Contracted Hours', dataIndex: 'total_contracted_hours', key: 'hours' },
     { 
       title: 'Current Balance', 
-      dataIndex: 'previous_balance_hours', 
+      dataIndex: 'current_balance', 
       key: 'balance',
       render: (val: any) => {
+        if (val === null || val === undefined) return <span style={{ color: '#999' }}>—</span>;
+        const num = Number(val);
+        const color = num < 0 ? '#cf1322' : '#389e0d';
+        return <span style={{ color, fontWeight: 500 }}>{num.toFixed(2)}</span>;
+      }
+    },
+    { 
+      title: 'Last Month Balance', 
+      dataIndex: 'last_month_balance', 
+      key: 'last_month_balance',
+      render: (val: any) => {
+        if (val === null || val === undefined) return <span style={{ color: '#999' }}>—</span>;
         const num = Number(val);
         const color = num < 0 ? '#cf1322' : '#389e0d';
         return <span style={{ color, fontWeight: 500 }}>{num.toFixed(2)}</span>;

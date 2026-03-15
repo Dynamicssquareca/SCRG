@@ -1,11 +1,11 @@
 import { Client, IClient } from '../models/Client';
+import { Report } from '../models/Report';
 import { NotFoundError, ConflictError } from '../utils/apiResponse';
 import mongoose from 'mongoose';
 
 export async function getAllClients(query: any) {
   const { search, isActive, page = 1, limit = 50 } = query;
   
-  // @ts-ignore
   const filter: any = {};
 
   if (isActive !== undefined) {
@@ -22,8 +22,37 @@ export async function getAllClients(query: any) {
     .limit(Number(limit))
     .skip((Number(page) - 1) * Number(limit));
 
+  // Fetch the two most recent reports per client to get current + last month balance
+  const clientIds = clients.map(c => c._id);
+  const recentReports = await Report.aggregate([
+    { $match: { client_id: { $in: clientIds } } },
+    { $sort: { year: -1, month: -1 } },
+    {
+      $group: {
+        _id: '$client_id',
+        reports: { $push: { remaining_balance: '$remaining_balance', month: '$month', year: '$year' } }
+      }
+    }
+  ]);
+
+  const reportMap: Record<string, { current_balance: number; last_month_balance: number | null }> = {};
+  for (const r of recentReports) {
+    reportMap[r._id.toString()] = {
+      current_balance: r.reports[0]?.remaining_balance ?? null,
+      last_month_balance: r.reports[1]?.remaining_balance ?? null,
+    };
+  }
+
+  const enrichedClients = clients.map(c => {
+    const obj = c.toObject() as any;
+    const id = c._id.toString();
+    obj.current_balance = reportMap[id]?.current_balance ?? null;
+    obj.last_month_balance = reportMap[id]?.last_month_balance ?? null;
+    return obj;
+  });
+
   return {
-    clients,
+    clients: enrichedClients,
     pagination: { 
       page: Number(page), 
       limit: Number(limit), 
