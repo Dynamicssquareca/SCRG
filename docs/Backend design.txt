@@ -1,0 +1,332 @@
+================================================================================
+                    BACKEND DESIGN DOCUMENT
+              Support Case Report Generator — v1.0
+================================================================================
+
+1. ARCHITECTURE PATTERN
+--------------------------------------------------------------------------------
+Pattern: Layered Architecture (Controller → Service → Data Access)
+
+  Request ──► Route ──► Controller ──► Service ──► Knex/DB
+                │                                      │
+                │           Middleware                  │
+                │  (Auth, Validation, Upload, Error)   │
+                └──────────────────────────────────────┘
+
+
+2. DIRECTORY STRUCTURE
+--------------------------------------------------------------------------------
+  server/src/
+  ├── app.ts                    ← Express app initialization
+  ├── server.ts                 ← Entry point (starts HTTP server)
+  ├── config/
+  │   ├── database.ts           ← Knex config (dev/prod/test)
+  │   ├── env.ts                ← Environment variable loader
+  │   └── constants.ts          ← App-wide constants
+  ├── middleware/
+  │   ├── authMiddleware.ts     ← JWT verification
+  │   ├── roleMiddleware.ts     ← Role-based access (admin/operator)
+  │   ├── uploadMiddleware.ts   ← Multer config for file upload
+  │   ├── validationMiddleware.ts ← Joi schema validation
+  │   └── errorHandler.ts      ← Global error handler
+  ├── routes/
+  │   ├── index.ts              ← Route aggregator
+  │   ├── authRoutes.ts         ← /api/v1/auth/*
+  │   ├── uploadRoutes.ts       ← /api/v1/uploads/*
+  │   ├── reportRoutes.ts       ← /api/v1/reports/*
+  │   ├── clientRoutes.ts       ← /api/v1/clients/*
+  │   └── dashboardRoutes.ts    ← /api/v1/dashboard/*
+  ├── controllers/
+  │   ├── authController.ts
+  │   ├── uploadController.ts
+  │   ├── reportController.ts
+  │   ├── clientController.ts
+  │   └── dashboardController.ts
+  ├── services/
+  │   ├── authService.ts        ← Login, JWT issue/verify, password hash
+  │   ├── uploadService.ts      ← File handling, triggers processing
+  │   ├── dataProcessingService.ts ← Parse Excel, validate, normalize
+  │   ├── reportGenerationService.ts ← ExcelJS report builder
+  │   ├── clientService.ts      ← CRUD client master
+  │   └── dashboardService.ts   ← Aggregate stats queries
+  ├── migrations/
+  │   ├── 001_create_users.ts
+  │   ├── 002_create_clients.ts
+  │   ├── 003_create_uploads.ts
+  │   ├── 004_create_cases.ts
+  │   └── 005_create_reports.ts
+  ├── seeds/
+  │   └── 001_admin_user.ts
+  ├── types/
+  │   ├── express.d.ts          ← Extend Express Request with user
+  │   ├── case.ts               ← Case interface
+  │   ├── client.ts             ← Client interface
+  │   └── report.ts             ← Report interface
+  └── utils/
+      ├── dateParser.ts         ← Multi-format date parsing
+      ├── fileNaming.ts         ← Sanitize filenames
+      ├── logger.ts             ← Winston logger setup
+      └── apiResponse.ts        ← Standard success/error response
+
+
+3. EXPRESS APP SETUP (app.ts)
+--------------------------------------------------------------------------------
+  import express from 'express';
+  import cors from 'cors';
+  import compression from 'compression';
+  import rateLimit from 'express-rate-limit';
+  import routes from './routes';
+  import { errorHandler } from './middleware/errorHandler';
+
+  const app = express();
+
+  // Middleware stack (order matters)
+  app.use(cors({ origin: process.env.CLIENT_URL }));
+  app.use(compression());
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true }));
+  app.use(rateLimit({ windowMs: 60000, max: 100 }));
+
+  // API routes
+  app.use('/api/v1', routes);
+
+  // Serve React build in production
+  if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../../client/dist')));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+    });
+  }
+
+  // Global error handler (must be last)
+  app.use(errorHandler);
+
+  export default app;
+
+
+4. AUTHENTICATION FLOW
+--------------------------------------------------------------------------------
+  Login:
+    1. POST /auth/login → authController.login
+    2. authService.authenticate(email, password)
+       - Find user by email
+       - bcrypt.compare(password, user.password_hash)
+       - If valid: issue JWT access token (15 min) + refresh token (7 days)
+    3. Return tokens + user info
+
+  Token Verification (authMiddleware):
+    1. Extract Bearer token from Authorization header
+    2. jwt.verify(token, ACCESS_TOKEN_SECRET)
+    3. Attach user to req.user = { id, email, role }
+    4. If expired → 401 Unauthorized
+
+  Role Check (roleMiddleware):
+    export const requireRole = (...roles: string[]) => {
+      return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+          return res.status(403).json({ error: 'Forbidden' });
+        }
+        next();
+      };
+    };
+    // Usage: router.post('/clients', requireRole('admin'), ...)
+
+
+5. UPLOAD PROCESSING FLOW
+--------------------------------------------------------------------------------
+  1. uploadMiddleware (Multer):
+     - Stores file to /storage/uploads/
+     - Renames to UUID
+     - Limits: 50MB, .xlsx/.xls/.csv only
+
+  2. uploadController.create:
+     - Validate month + year from request body
+     - Create upload record (status = 'processing')
+     - Call dataProcessingService.processFile()
+     - Return result or error
+
+  3. dataProcessingService.processFile():
+     - Parse Excel with xlsx (SheetJS)
+     - Validate column schema
+     - Normalize each row (dates, numbers, strings)
+     - Match/create clients
+     - Batch insert into cases table (transaction)
+     - Update upload status to 'completed'
+     - Return: { rowCount, clientsDetected, warnings }
+
+
+6. REPORT GENERATION FLOW
+--------------------------------------------------------------------------------
+  1. reportController.generate:
+     - Validate uploadId, month, year
+     - Call reportGenerationService.generateAll()
+
+  2. reportGenerationService.generateAll():
+     - Query unique clients from cases for this upload
+     - For each client:
+       a. Query client master data
+       b. Query open cases
+       c. Query resolved cases
+       d. Compute summary + hours
+       e. Build Excel workbook (ExcelJS) with 3 styled sheets
+       f. Save to /storage/reports/{year}/{month}/
+       g. Insert report record
+     - Return list of generated reports
+
+  3. reportController.download:
+     - Find report by ID → get file_path
+     - Verify file exists on disk
+     - Stream file as response with proper headers
+
+  4. reportController.downloadAll:
+     - Query all reports for month/year
+     - Use archiver to create ZIP stream
+     - Pipe ZIP stream to response
+
+
+7. ERROR HANDLING STRATEGY
+--------------------------------------------------------------------------------
+  Custom Error Classes:
+    class AppError extends Error {
+      constructor(message, statusCode, code) { ... }
+    }
+    class ValidationError extends AppError { ... }   // 400
+    class UnauthorizedError extends AppError { ... }  // 401
+    class ForbiddenError extends AppError { ... }     // 403
+    class NotFoundError extends AppError { ... }      // 404
+    class ConflictError extends AppError { ... }      // 409
+
+  Global Error Handler (errorHandler.ts):
+    export const errorHandler = (err, req, res, next) => {
+      logger.error(err.message, { stack: err.stack });
+      
+      if (err instanceof AppError) {
+        return res.status(err.statusCode).json({
+          success: false,
+          error: { code: err.code, message: err.message }
+        });
+      }
+      // Unexpected errors
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: 'Something went wrong' }
+      });
+    };
+
+
+8. ENVIRONMENT VARIABLES (.env)
+--------------------------------------------------------------------------------
+  # Server
+  PORT=3001
+  NODE_ENV=development
+  CLIENT_URL=http://localhost:5173
+
+  # Database
+  DB_HOST=localhost
+  DB_PORT=5432
+  DB_NAME=scrg_db
+  DB_USER=scrg_user
+  DB_PASSWORD=your_secure_password
+
+  # JWT
+  ACCESS_TOKEN_SECRET=your_access_secret_key_here
+  REFRESH_TOKEN_SECRET=your_refresh_secret_key_here
+  ACCESS_TOKEN_EXPIRY=15m
+  REFRESH_TOKEN_EXPIRY=7d
+
+  # File Storage
+  UPLOAD_DIR=./storage/uploads
+  REPORT_DIR=./storage/reports
+  MAX_FILE_SIZE_MB=50
+
+  # Logging
+  LOG_LEVEL=info
+  LOG_DIR=./logs
+
+
+9. KEY DEPENDENCIES (package.json)
+--------------------------------------------------------------------------------
+  {
+    "dependencies": {
+      "express": "^4.18.0",
+      "cors": "^2.8.5",
+      "compression": "^1.7.4",
+      "express-rate-limit": "^7.1.0",
+      "multer": "^1.4.5",
+      "xlsx": "^0.20.0",
+      "exceljs": "^4.4.0",
+      "knex": "^3.1.0",
+      "pg": "^8.12.0",
+      "jsonwebtoken": "^9.0.0",
+      "bcrypt": "^5.1.0",
+      "joi": "^17.11.0",
+      "dayjs": "^1.11.0",
+      "winston": "^3.11.0",
+      "archiver": "^6.0.0",
+      "dotenv": "^16.3.0",
+      "uuid": "^9.0.0"
+    },
+    "devDependencies": {
+      "typescript": "^5.3.0",
+      "ts-node": "^10.9.0",
+      "nodemon": "^3.0.0",
+      "@types/express": "^4.17.0",
+      "@types/multer": "^1.4.0",
+      "@types/bcrypt": "^5.0.0",
+      "@types/jsonwebtoken": "^9.0.0",
+      "jest": "^29.7.0",
+      "supertest": "^6.3.0"
+    },
+    "scripts": {
+      "dev": "nodemon --exec ts-node src/server.ts",
+      "build": "tsc",
+      "start": "node dist/server.js",
+      "migrate": "knex migrate:latest",
+      "seed": "knex seed:run",
+      "test": "jest"
+    }
+  }
+
+
+10. KNEX MIGRATION EXAMPLE
+--------------------------------------------------------------------------------
+  // migrations/004_create_cases.ts
+  export async function up(knex) {
+    return knex.schema.createTable('cases', (table) => {
+      table.increments('id').primary();
+      table.integer('upload_id').notNullable()
+        .references('id').inTable('uploads').onDelete('CASCADE');
+      table.integer('client_id')
+        .references('id').inTable('clients').onDelete('SET NULL');
+      table.string('case_number', 50).notNullable();
+      table.string('customer_name', 255).notNullable();
+      table.string('contact', 255);
+      table.timestamp('created_on');
+      table.text('case_title');
+      table.string('support_agent', 255);
+      table.string('status_reason', 100);
+      table.string('priority', 50);
+      table.string('country', 100);
+      table.decimal('billable_duration', 10, 2).defaultTo(0);
+      table.timestamp('updated_on');
+      table.integer('total_days').defaultTo(0);
+      table.text('comments');
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+
+      table.index(['upload_id']);
+      table.index(['client_id']);
+      table.index(['case_number']);
+      table.index(['customer_name']);
+      table.index(['status_reason']);
+      table.index(['created_on']);
+      table.index(['client_id', 'status_reason', 'created_on']);
+    });
+  }
+
+  export async function down(knex) {
+    return knex.schema.dropTable('cases');
+  }
+
+================================================================================
+                    END OF BACKEND DESIGN
+================================================================================

@@ -1,0 +1,371 @@
+================================================================================
+                       API DESIGN DOCUMENT
+              Support Case Report Generator — v1.0
+              Base URL: /api/v1
+================================================================================
+
+1. AUTHENTICATION APIs
+--------------------------------------------------------------------------------
+
+POST /api/v1/auth/login
+  Description : Authenticate user and receive JWT tokens
+  Auth        : None (public)
+  Request Body:
+    {
+      "email": "admin@mpg.com",
+      "password": "yourpassword"
+    }
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "accessToken": "eyJhbGciOi...",
+        "refreshToken": "eyJhbGciOi...",
+        "user": {
+          "id": 1,
+          "email": "admin@mpg.com",
+          "fullName": "Admin User",
+          "role": "admin"
+        }
+      }
+    }
+  Errors:
+    401 — Invalid credentials
+    422 — Validation error (missing email/password)
+
+POST /api/v1/auth/refresh
+  Description : Refresh access token using refresh token
+  Auth        : None (public)
+  Request Body:
+    {
+      "refreshToken": "eyJhbGciOi..."
+    }
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "accessToken": "eyJhbGciOi... (new)"
+      }
+    }
+  Errors:
+    401 — Invalid or expired refresh token
+
+POST /api/v1/auth/logout
+  Description : Invalidate refresh token
+  Auth        : Bearer Token
+  Success (200):
+    { "success": true, "message": "Logged out successfully" }
+
+
+2. UPLOAD APIs
+--------------------------------------------------------------------------------
+
+POST /api/v1/uploads
+  Description : Upload a raw data Excel/CSV file for a specific month
+  Auth        : Bearer Token (admin, operator)
+  Content-Type: multipart/form-data
+  Form Fields :
+    file   — The Excel/CSV file (max 50MB)
+    month  — Target month (1-12)
+    year   — Target year (e.g. 2026)
+  Success (201):
+    {
+      "success": true,
+      "data": {
+        "uploadId": 15,
+        "originalName": "January_2026_Cases.xlsx",
+        "rowCount": 342,
+        "clientsDetected": ["Client A", "Client B", "Client C"],
+        "status": "completed",
+        "warnings": [
+          "Row 45: Empty case_title, skipped",
+          "Row 102: Invalid date format for Created On"
+        ]
+      }
+    }
+  Errors:
+    400 — Invalid file type / missing month/year
+    400 — Column schema mismatch (lists missing columns)
+    413 — File too large (>50MB)
+    500 — Processing error
+
+GET /api/v1/uploads
+  Description : List all uploads with pagination
+  Auth        : Bearer Token
+  Query Params:
+    page      — Page number (default: 1)
+    limit     — Items per page (default: 20)
+    month     — Filter by month
+    year      — Filter by year
+    status    — Filter by status (processing/completed/failed)
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "uploads": [ ... ],
+        "pagination": {
+          "page": 1,
+          "limit": 20,
+          "total": 45,
+          "totalPages": 3
+        }
+      }
+    }
+
+GET /api/v1/uploads/:id
+  Description : Get details of a specific upload
+  Auth        : Bearer Token
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "id": 15,
+        "originalName": "January_2026_Cases.xlsx",
+        "rowCount": 342,
+        "month": 1,
+        "year": 2026,
+        "status": "completed",
+        "clientsDetected": ["Client A", "Client B"],
+        "createdAt": "2026-01-31T14:30:00Z"
+      }
+    }
+  Errors:
+    404 — Upload not found
+
+
+3. REPORT GENERATION APIs
+--------------------------------------------------------------------------------
+
+POST /api/v1/reports/generate
+  Description : Generate reports for all clients from an upload
+  Auth        : Bearer Token (admin, operator)
+  Request Body:
+    {
+      "uploadId": 15,
+      "month": 1,
+      "year": 2026
+    }
+  Success (202):
+    {
+      "success": true,
+      "message": "Report generation started",
+      "data": {
+        "totalClients": 12,
+        "reports": [
+          {
+            "reportId": 101,
+            "clientName": "Client A",
+            "fileName": "ClientA_Support_Report_Jan2026.xlsx",
+            "status": "generated"
+          },
+          {
+            "reportId": 102,
+            "clientName": "Client B",
+            "fileName": "ClientB_Support_Report_Jan2026.xlsx",
+            "status": "generated"
+          }
+        ],
+        "errors": []
+      }
+    }
+  Errors:
+    400 — Invalid uploadId / month / year
+    404 — Upload not found
+    409 — Reports already generated for this month (use overwrite flag)
+
+GET /api/v1/reports
+  Description : List all generated reports with filters
+  Auth        : Bearer Token
+  Query Params:
+    month      — Filter by month (1-12)
+    year       — Filter by year
+    clientId   — Filter by specific client
+    clientName — Search by client name (partial match)
+    page       — Page number (default: 1)
+    limit      — Items per page (default: 20)
+    sortBy     — Sort field (default: generated_at)
+    sortOrder  — asc / desc (default: desc)
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "reports": [
+          {
+            "id": 101,
+            "clientName": "Client A",
+            "month": 1,
+            "year": 2026,
+            "fileName": "ClientA_Support_Report_Jan2026.xlsx",
+            "ticketsOpened": 8,
+            "ticketsClosed": 5,
+            "ticketsPending": 3,
+            "hoursConsumed": 12.5,
+            "generatedAt": "2026-01-31T15:00:00Z"
+          }
+        ],
+        "pagination": { ... }
+      }
+    }
+
+GET /api/v1/reports/:id/download
+  Description : Download a single report Excel file
+  Auth        : Bearer Token
+  Response    : Binary file stream (.xlsx)
+  Headers     :
+    Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    Content-Disposition: attachment; filename="ClientA_Support_Report_Jan2026.xlsx"
+  Errors:
+    404 — Report not found
+
+GET /api/v1/reports/download-all
+  Description : Download all reports for a month as ZIP
+  Auth        : Bearer Token
+  Query Params:
+    month — Month (1-12)
+    year  — Year
+  Response    : Binary file stream (.zip)
+  Headers     :
+    Content-Type: application/zip
+    Content-Disposition: attachment; filename="Reports_Jan2026.zip"
+  Errors:
+    404 — No reports found for this month
+
+
+4. CLIENT MASTER APIs
+--------------------------------------------------------------------------------
+
+GET /api/v1/clients
+  Description : List all client master records
+  Auth        : Bearer Token
+  Query Params:
+    search    — Search by client name (partial)
+    isActive  — Filter active/inactive (default: true)
+    page      — Page number
+    limit     — Items per page
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "clients": [
+          {
+            "id": 1,
+            "clientName": "Client A",
+            "accountManager": "John Doe",
+            "customerSuccessMgr": "Jane Smith",
+            "toolVersion": "BC 24",
+            "contractStartDate": "2025-01-01",
+            "contractEndDate": "2026-12-31",
+            "totalContractedHours": 40,
+            "previousBalanceHours": 15.5,
+            "isActive": true
+          }
+        ],
+        "pagination": { ... }
+      }
+    }
+
+POST /api/v1/clients
+  Description : Create a new client master record
+  Auth        : Bearer Token (admin only)
+  Request Body:
+    {
+      "clientName": "New Client Corp",
+      "accountManager": "John Doe",
+      "customerSuccessMgr": "Jane Smith",
+      "toolVersion": "NAV 2018",
+      "contractStartDate": "2025-06-01",
+      "contractEndDate": "2027-05-31",
+      "totalContractedHours": 30,
+      "previousBalanceHours": 30,
+      "feedbackLink": "https://forms.google.com/..."
+    }
+  Success (201):
+    { "success": true, "data": { "id": 5, ... } }
+  Errors:
+    409 — Client name already exists
+    422 — Validation error
+
+PUT /api/v1/clients/:id
+  Description : Update a client master record
+  Auth        : Bearer Token (admin only)
+  Request Body: (any subset of fields to update)
+    {
+      "totalContractedHours": 50,
+      "previousBalanceHours": 20
+    }
+  Success (200):
+    { "success": true, "data": { ...updated client... } }
+  Errors:
+    404 — Client not found
+    422 — Validation error
+
+GET /api/v1/clients/:id
+  Description : Get single client details
+  Auth        : Bearer Token
+  Success (200):
+    { "success": true, "data": { ...client object... } }
+
+DELETE /api/v1/clients/:id
+  Description : Soft-delete (deactivate) a client
+  Auth        : Bearer Token (admin only)
+  Success (200):
+    { "success": true, "message": "Client deactivated" }
+
+
+5. DASHBOARD / STATS API (optional)
+--------------------------------------------------------------------------------
+
+GET /api/v1/dashboard/stats
+  Description : Get summary stats for the dashboard
+  Auth        : Bearer Token
+  Query Params:
+    month — Month
+    year  — Year
+  Success (200):
+    {
+      "success": true,
+      "data": {
+        "totalClients": 15,
+        "totalUploads": 12,
+        "totalReportsGenerated": 45,
+        "totalCasesThisMonth": 342,
+        "totalOpenCases": 87,
+        "totalResolvedCases": 255
+      }
+    }
+
+
+6. ERROR RESPONSE FORMAT (Standard)
+--------------------------------------------------------------------------------
+
+All error responses follow this format:
+
+  {
+    "success": false,
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Missing required field: month",
+      "details": [ ... ]      ← optional, for field-level errors
+    }
+  }
+
+Error Codes:
+  VALIDATION_ERROR       — 400/422
+  UNAUTHORIZED           — 401
+  FORBIDDEN              — 403
+  NOT_FOUND              — 404
+  CONFLICT               — 409
+  FILE_TOO_LARGE         — 413
+  INTERNAL_ERROR         — 500
+
+
+7. RATE LIMITING
+--------------------------------------------------------------------------------
+  - Login:    5 requests / minute / IP
+  - Upload:   10 requests / hour / user
+  - Generate: 5 requests / hour / user
+  - Other:    100 requests / minute / user
+
+================================================================================
+                      END OF API DESIGN
+================================================================================

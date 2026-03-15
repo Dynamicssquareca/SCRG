@@ -1,0 +1,351 @@
+================================================================================
+                  DATA PROCESSING LOGIC DOCUMENT
+              Support Case Report Generator — v1.0
+================================================================================
+
+1. OVERVIEW
+--------------------------------------------------------------------------------
+The Data Processing Service is responsible for:
+  1. Parsing uploaded Excel/CSV files
+  2. Validating column schema and data integrity
+  3. Normalizing and transforming raw data
+  4. Matching data to client master records
+  5. Inserting processed records into the database
+  6. Grouping data by client and month for report generation
+
+
+2. PROCESSING PIPELINE (Step-by-Step)
+--------------------------------------------------------------------------------
+
+Step 1: FILE RECEPTION
+  ┌─────────────────────────────────────────────────────────┐
+  │ Input  : Uploaded file (Excel .xlsx/.xls or .csv)       │
+  │ Tool   : Multer middleware stores file to /uploads/     │
+  │ Output : File path + upload metadata                    │
+  └─────────────────────────────────────────────────────────┘
+  - Multer config: max 50MB, allowed MIME types only
+  - File renamed to UUID to prevent conflicts
+  - Upload record created in `uploads` table (status = 'processing')
+
+
+Step 2: FILE PARSING
+  ┌─────────────────────────────────────────────────────────┐
+  │ Input  : File path on disk                              │
+  │ Tool   : xlsx (SheetJS) library                         │
+  │ Output : Array of row objects (key-value pairs)         │
+  └─────────────────────────────────────────────────────────┘
+
+  Pseudocode:
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];     // use first sheet
+    const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+      raw: false,       // all values as strings for uniform handling
+      defval: ''        // default empty string for missing cells
+    });
+
+  Expected output per row:
+    {
+      "Case Number": "DS-68923-M4M3",
+      "Customer Name (Customer) (Account)": "Client Corp",
+      "Contact": "Brian Yates",
+      "Created On": "02-01-2026 19:21",
+      "Case Title": "Bom Effectivity Dates",
+      "Support Agent": "John Doe",
+      "Status Reason": "Resolved",
+      "Priority": "High",
+      "Country (Customer) (Account)": "United States",
+      "Billable Duration": "1.00",
+      "Updated On": "13-01-2026 03:19",
+      "Total Days": "11",
+      "Comments": "Fixed the issue"
+    }
+
+
+Step 3: COLUMN SCHEMA VALIDATION
+  ┌─────────────────────────────────────────────────────────┐
+  │ Input  : First row headers from parsed data             │
+  │ Rule   : All 13 required columns must be present        │
+  │ Output : Pass / Fail with list of missing columns       │
+  └─────────────────────────────────────────────────────────┘
+
+  Required columns (exact names, case-insensitive match):
+    1.  Case Number
+    2.  Customer Name (Customer) (Account)
+    3.  Contact
+    4.  Created On
+    5.  Case Title
+    6.  Support Agent
+    7.  Status Reason
+    8.  Priority
+    9.  Country (Customer) (Account)
+    10. Billable Duration
+    11. Updated On
+    12. Total Days
+    13. Comments
+
+  Validation logic:
+    const requiredColumns = [ ... ];
+    const uploadedColumns = Object.keys(rawData[0]);
+    const normalizedUploaded = uploadedColumns.map(c => c.trim().toLowerCase());
+    const missing = requiredColumns.filter(
+      rc => !normalizedUploaded.includes(rc.toLowerCase())
+    );
+    if (missing.length > 0) {
+      throw new ValidationError(`Missing columns: ${missing.join(', ')}`);
+    }
+
+  On failure:
+    - Upload status → 'failed'
+    - error_message → "Missing columns: Case Number, Priority"
+    - Return 400 with descriptive error
+
+
+Step 4: ROW-LEVEL DATA VALIDATION & NORMALIZATION
+  ┌─────────────────────────────────────────────────────────┐
+  │ Input  : Array of raw row objects                       │
+  │ Output : Array of validated, normalized row objects     │
+  │          + Array of warnings for problematic rows       │
+  └─────────────────────────────────────────────────────────┘
+
+  For EACH row, apply:
+
+  4a. Skip Empty Rows
+      - If Case Number is empty/null → skip row, add warning
+
+  4b. Trim Whitespace
+      - Trim all string fields
+
+  4c. Normalize Case Number
+      - Trim, uppercase: "ds-68923-m4m3" → "DS-68923-M4M3"
+
+  4d. Parse Dates (Created On, Updated On)
+      - Supported formats (auto-detect):
+        "DD-MM-YYYY HH:mm"     → "02-01-2026 19:21"
+        "DD/MM/YYYY HH:mm"     → "02/01/2026 19:21"
+        "YYYY-MM-DD HH:mm:ss"  → "2026-01-02 19:21:00"
+        "MM-DD-YYYY HH:mm"     → "01-02-2026 19:21"
+        Excel serial number    → 46023.8063 (converted via xlsx utility)
+      - Parse into JavaScript Date object
+      - If unparseable → log warning, set to NULL
+
+      Pseudocode:
+        function parseDate(value) {
+          if (!value) return null;
+          // Try dayjs with multiple formats
+          const formats = [
+            'DD-MM-YYYY HH:mm',
+            'DD/MM/YYYY HH:mm',
+            'YYYY-MM-DD HH:mm:ss',
+            'MM-DD-YYYY HH:mm',
+            'DD-MM-YYYY HH:mm:ss'
+          ];
+          for (const fmt of formats) {
+            const d = dayjs(value, fmt, true);
+            if (d.isValid()) return d.toDate();
+          }
+          // Try Excel serial number
+          if (!isNaN(value)) {
+            return XLSX.SSF.parse_date_code(Number(value));
+          }
+          return null; // unparseable
+        }
+
+  4e. Parse Billable Duration
+      - Convert to decimal: "1.00" → 1.00, "5" → 5.00, "" → 0.00
+      - If non-numeric → default 0.00, log warning
+
+  4f. Parse Total Days
+      - Convert to integer: "11" → 11, "" → 0
+      - If non-numeric → default 0, log warning
+
+  4g. Normalize Status Reason
+      - Trim, title-case: "resolved" → "Resolved"
+      - Standard values: "Open", "Resolved", "Pending", "Reopened",
+        "In Progress", "Waiting on Customer"
+      - Non-standard values → keep as-is, log info
+
+  4h. Normalize Priority
+      - Trim, title-case: "high" → "High"
+      - Standard values: "High", "Medium", "Low"
+
+  4i. Normalize Customer Name
+      - Trim whitespace
+      - This is the KEY field for grouping by client
+
+
+Step 5: CLIENT MATCHING
+  ┌─────────────────────────────────────────────────────────┐
+  │ Input  : Unique customer names from parsed data         │
+  │ Action : Match each to a record in the `clients` table  │
+  │ Output : Mapping of customer_name → client_id           │
+  └─────────────────────────────────────────────────────────┘
+
+  Logic:
+    const uniqueClients = [...new Set(rows.map(r => r.customerName))];
+
+    for (const name of uniqueClients) {
+      let client = await db('clients')
+        .where('client_name', 'ILIKE', name.trim())
+        .first();
+
+      if (!client) {
+        // AUTO-CREATE a minimal client record
+        client = await db('clients').insert({
+          client_name: name.trim(),
+          account_manager: null,
+          customer_success_mgr: null,
+          total_contracted_hours: 0,
+          previous_balance_hours: 0
+        }).returning('*');
+
+        warnings.push(`New client auto-created: "${name}". 
+                        Please update client master details.`);
+      }
+
+      clientMap[name] = client.id;
+    }
+
+
+Step 6: DATABASE INSERTION
+  ┌─────────────────────────────────────────────────────────┐
+  │ Input  : Validated rows + client mapping                │
+  │ Action : Batch insert into `cases` table                │
+  │ Output : Insert count + any duplicate warnings          │
+  └─────────────────────────────────────────────────────────┘
+
+  Logic:
+    - Use Knex batch insert (chunks of 500 rows for performance)
+    - For each row:
+      {
+        upload_id:          uploadId,
+        client_id:          clientMap[row.customerName],
+        case_number:        row.caseNumber,
+        customer_name:      row.customerName,
+        contact:            row.contact,
+        created_on:         row.createdOn,        // parsed Date
+        case_title:         row.caseTitle,
+        support_agent:      row.supportAgent,
+        status_reason:      row.statusReason,
+        priority:           row.priority,
+        country:            row.country,
+        billable_duration:  row.billableDuration,  // decimal
+        updated_on:         row.updatedOn,          // parsed Date
+        total_days:         row.totalDays,           // integer
+        comments:           row.comments
+      }
+
+  Duplicate Handling:
+    - Check if case_number already exists for the same month/year
+    - If duplicate: UPDATE the existing record (upsert strategy)
+    - Log warning: "Case DS-68923-M4M3 already existed, updated"
+
+  Performance:
+    - Wrap in a database transaction for atomicity
+    - Use Knex batchInsert with chunkSize = 500
+
+
+Step 7: POST-PROCESSING & STATUS UPDATE
+  ┌─────────────────────────────────────────────────────────┐
+  │ Action : Update upload record with results              │
+  │ Output : Final upload status + summary                  │
+  └─────────────────────────────────────────────────────────┘
+
+  await db('uploads').where('id', uploadId).update({
+    row_count: totalRowsInserted,
+    status: 'completed',
+    updated_at: new Date()
+  });
+
+  Return to controller:
+    {
+      uploadId,
+      rowCount: totalRowsInserted,
+      clientsDetected: Object.keys(clientMap),
+      warnings: warningsList
+    }
+
+
+3. DATA GROUPING FOR REPORT GENERATION
+--------------------------------------------------------------------------------
+
+When generating reports, data is queried per client:
+
+  function getClientReportData(clientId, month, year) {
+    // Open Cases: status_reason != 'Resolved'
+    const openCases = await db('cases')
+      .where('client_id', clientId)
+      .where('status_reason', '!=', 'Resolved')
+      .where(function() {
+        this.where(db.raw('EXTRACT(MONTH FROM created_on) = ?', [month]))
+            .andWhere(db.raw('EXTRACT(YEAR FROM created_on) = ?', [year]))
+          .orWhere(function() {
+            this.where(db.raw('EXTRACT(MONTH FROM updated_on) = ?', [month]))
+                .andWhere(db.raw('EXTRACT(YEAR FROM updated_on) = ?', [year]));
+          });
+      })
+      .orderBy('created_on', 'asc');
+
+    // Resolved Cases: resolved in the selected month
+    const resolvedCases = await db('cases')
+      .where('client_id', clientId)
+      .where('status_reason', 'Resolved')
+      .where(db.raw('EXTRACT(MONTH FROM updated_on) = ?', [month]))
+      .where(db.raw('EXTRACT(YEAR FROM updated_on) = ?', [year]))
+      .orderBy('updated_on', 'asc');
+
+    // Ticket Summary
+    const summary = computeTicketSummary(openCases, resolvedCases);
+
+    // Client Master Info
+    const clientInfo = await db('clients')
+      .where('id', clientId)
+      .first();
+
+    // Hours Calculation
+    const hoursConsumed = resolvedCases.reduce(
+      (sum, c) => sum + (c.billable_duration || 0), 0
+    );
+    const hoursOnOpen = openCases.reduce(
+      (sum, c) => sum + (c.billable_duration || 0), 0
+    );
+    const previousBalance = clientInfo.previous_balance_hours || 0;
+    const currentBalance = previousBalance - hoursConsumed - hoursOnOpen;
+
+    return {
+      clientInfo,
+      openCases,
+      resolvedCases,
+      summary,
+      hoursDetails: {
+        totalContracted: clientInfo.total_contracted_hours,
+        previousBalance,
+        hoursConsumed,
+        hoursOnOpen,
+        currentBalance
+      }
+    };
+  }
+
+
+4. ERROR HANDLING STRATEGY
+--------------------------------------------------------------------------------
+
+Error Type                  Handling                          User Feedback
+--------------------------  --------------------------------  ----------------------
+Wrong file type             Reject immediately                "Only .xlsx/.xls/.csv
+                                                               files are accepted"
+Missing columns             Reject, list missing columns      "Missing: Case Number,
+                                                               Priority"
+Empty file (0 data rows)    Reject                            "File has no data rows"
+Invalid date in a row       Skip field for that row,          Warning in response:
+                            set to NULL                       "Row 45: invalid date"
+Invalid number (duration)   Default to 0.00                   Warning in response
+Duplicate case number       Upsert (update existing)          Warning in response
+Unknown client              Auto-create with empty fields     Warning: "New client
+                                                               created, update master"
+Database error              Rollback transaction,             "Processing failed,
+                            mark upload as 'failed'            please try again"
+
+================================================================================
+                  END OF DATA PROCESSING LOGIC
+================================================================================

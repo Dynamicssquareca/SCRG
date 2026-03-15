@@ -1,0 +1,182 @@
+================================================================================
+           PRODUCT REQUIREMENT DOCUMENT (PRD)
+           Support Case Report Generator — v1.0
+================================================================================
+
+1. PRODUCT OVERVIEW
+--------------------------------------------------------------------------------
+Product Name   : Support Case Report Generator (SCRG)
+Version        : 1.0
+Author         : MPG Business Information Systems Pvt. Ltd.
+Date           : 2026-03-09
+
+The Support Case Report Generator is a web application that automates the
+generation of monthly client support reports. Users upload a raw data sheet
+(Excel/CSV) containing all support cases, and the system processes the data,
+splits it by client (Customer Account), and produces downloadable Excel reports
+per client in a fixed branded template — each containing three sheets:
+Overview, Open Case Report, and Resolved Case Report.
+
+2. PROBLEM STATEMENT
+--------------------------------------------------------------------------------
+Currently, support reports are manually compiled every month per client from
+raw CRM/ticketing data. This is time-consuming, error-prone, and doesn't
+scale as the number of clients grows. The SCRG automates this entire workflow.
+
+3. USERS & ROLES
+--------------------------------------------------------------------------------
+Role                  Description
+-----------           ----------------------------------------------------------
+Admin                 Manages client master data (contracted hours, account
+                      managers, CSMs, tool versions, billing info). Full access.
+Report Operator       Uploads data sheets, generates reports, downloads reports.
+Viewer (optional)     Read-only: can browse and download past reports.
+
+4. INPUT DATA FIELDS (raw upload sheet)
+--------------------------------------------------------------------------------
+The uploaded Excel/CSV must contain the following columns:
+
+  #   Column Name                          Type            Notes
+  --  -------------------------------------  -----------    ----------------------
+  1   Case Number                           String          Unique ticket ID
+  2   Customer Name (Customer) (Account)    String          Client/account name
+  3   Contact                               String          Contact person name
+  4   Created On                            DateTime        Ticket creation date
+  5   Case Title                            String          Subject/description
+  6   Support Agent                         String          Consultant assigned
+  7   Status Reason                         String          Open / Resolved / etc.
+  8   Priority                              String          High / Medium / Low
+  9   Country (Customer) (Account)          String          Customer country
+  10  Billable Duration                     Decimal (hrs)   Hours spent on case
+  11  Updated On                            DateTime        Last updated date
+  12  Total Days                            Integer         Age of ticket in days
+  13  Comments                              String          Additional notes
+
+5. OUTPUT TEMPLATE (per-client Excel report)
+--------------------------------------------------------------------------------
+
+The generated Excel file for each client has 3 sheets:
+
+SHEET 1 — "Overview"
+  Section A: Account Details (Column A-B)
+    Row 1 : Header "Account Details"
+    Row 2 : Client Name                      → Populated from uploaded data
+    Row 3 : Account Manager                  → Populated from Client Master DB
+    Row 4 : Customer Success Manager         → Populated from Client Master DB
+    Row 5 : Tool Version (NAV / BC version)  → Populated from Client Master DB
+    Row 6 : Start Date                       → Populated from Client Master DB
+    Row 7 : End Date                         → Populated from Client Master DB
+
+  Section B: Hours Details (Column D-E)
+    Row 1 : Header "Hours Details"
+    Row 2 : Total Contracted Hours           → From Client Master DB
+    Row 3 : Previous Balance Hours           → From Client Master DB or prior report
+    Row 4 : Hours Consumed This Month        → SUM(Billable Duration) for resolved
+                                                cases in the selected month
+    Row 5 : Hours alloted to open tickets    → SUM(Billable Duration) for open cases
+    Row 6 : Current Balance Hours            → Previous Balance − Consumed − Open
+
+  Section C: Ticket Summary (Monthly) (Column A-B, Rows 9-14)
+    Row 9  : Header "Ticket Summary (Monthly)"
+    Row 10 : Total Tickets Opened            → COUNT of cases created this month
+    Row 11 : Total Tickets Closed            → COUNT of resolved cases this month
+    Row 12 : Tickets Pending                 → COUNT of still-open cases
+    Row 13 : Reopened Tickets                → COUNT of reopened cases
+    Row 14 : High Priority Tickets           → COUNT where Priority = "High"
+
+  Feedback link placeholder at bottom right area.
+
+SHEET 2 — "OPEN CASE REPORT"
+  Columns: S.No | Case Number | Contact | Subject | Created On | Hours |
+           Consultant Ass. | Status
+  Data   : All cases for this client where Status Reason ≠ "Resolved" in the
+           selected month's data.
+
+SHEET 3 — "RESOLVED CASE REPORT"
+  Columns: S.No | Case Number | Contact | Subject | Created On | Resolved On |
+           Consultant Ass. | Hours
+  Data   : All cases for this client where Status Reason = "Resolved"
+           (resolved within the selected month).
+
+6. FUNCTIONAL REQUIREMENTS
+--------------------------------------------------------------------------------
+
+FR-01  Upload Data Sheet
+       User uploads an Excel (.xlsx/.xls) or CSV file containing the raw data.
+       System validates columns against the expected schema (Section 4).
+       Invalid files are rejected with a descriptive error message.
+
+FR-02  Automatic Client Detection
+       System reads the "Customer Name (Customer) (Account)" column and
+       identifies all unique clients in the uploaded data.
+
+FR-03  Month Selection
+       User selects a month+year. The system filters uploaded data to only
+       include cases where "Created On" OR "Updated On" falls in that month.
+
+FR-04  Report Generation (Batch)
+       On clicking "Generate Reports", the system produces one Excel report
+       per detected client, using the template defined in Section 5.
+
+FR-05  Report Listing Page
+       A dedicated page lists all generated reports, filterable by:
+       — Month/Year
+       — Client Name
+       Each row shows: Client Name | Month | Generated On | Download button
+
+FR-06  Individual Download
+       Each report can be downloaded separately as an .xlsx file named:
+       {ClientName}_Support_Report_{MonthYear}.xlsx
+
+FR-07  Bulk Download (optional)
+       Download all reports for a selected month as a single ZIP archive.
+
+FR-08  Client Master Management
+       Admin can add/edit client master records with:
+       — Client Name (must match the "Customer Name" in uploaded data)
+       — Account Manager
+       — Customer Success Manager
+       — Tool Version (NAV / BC version)
+       — Contract Start Date & End Date
+       — Total Contracted Hours
+       — Previous Balance Hours (or auto-calculated from prior month)
+
+FR-09  Report History
+       All generated reports are stored persistently and can be re-downloaded
+       at any time from the Reports listing page.
+
+FR-10  Data Validation & Error Handling
+       — Missing columns → clear error with column names
+       — Empty rows → skipped with warning
+       — Invalid date formats → flagged per row
+       — Duplicate case numbers → flagged with warning
+
+7. NON-FUNCTIONAL REQUIREMENTS
+--------------------------------------------------------------------------------
+NFR-01  Performance: Generate 50 client reports (each with 100 cases) < 30 sec
+NFR-02  File Size: Support uploads up to 50 MB / 100,000 rows
+NFR-03  Browser: Chrome, Edge, Firefox (latest 2 versions)
+NFR-04  Security: Password-protected login; role-based access
+NFR-05  Data Privacy: Uploaded data stored securely; option to purge after N days
+NFR-06  Availability: 99.5% uptime (standard web hosting)
+NFR-07  Responsive: Works on desktop (1024px+); mobile is secondary
+
+8. ASSUMPTIONS & CONSTRAINTS
+--------------------------------------------------------------------------------
+- The uploaded sheet follows the column order/naming defined in Section 4.
+- One upload = one month's data (or data spanning multiple months; system
+  filters by selected month).
+- Client names in the upload must match Client Master records for the
+  Overview sheet to be fully populated.
+- Template styling (colors, fonts, column widths) will match the provided
+  screenshots exactly.
+
+9. SUCCESS METRICS
+--------------------------------------------------------------------------------
+- 90% reduction in time spent generating monthly reports
+- Zero manual data-entry errors in generated reports
+- All reports match the provided template pixel-perfectly
+
+================================================================================
+                          END OF PRD
+================================================================================

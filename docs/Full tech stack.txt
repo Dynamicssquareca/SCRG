@@ -1,0 +1,157 @@
+================================================================================
+                    FULL TECHNOLOGY STACK
+              Support Case Report Generator — v1.0
+================================================================================
+
+1. FRONTEND (Presentation Tier)
+--------------------------------------------------------------------------------
+
+Category            Technology          Version   Purpose
+------------------  ------------------  --------  ----------------------------------
+Framework           React.js            18.x      Single Page Application (SPA)
+Build Tool          Vite                5.x       Fast dev server & production build
+Language            TypeScript          5.x       Type safety & developer experience
+Routing             React Router        6.x       Client-side page navigation
+State Management    React Context +     —         Lightweight state (no Redux needed)
+                    useState/useReducer
+HTTP Client         Axios               1.x       API calls to backend
+UI Component Lib    Ant Design (antd)   5.x       Professional tables, forms, modals,
+                                                   date pickers, upload components
+Icons               Ant Design Icons    5.x       Consistent icon set
+Notifications       Ant Design Message  —         Toast notifications for success/err
+Date Handling       Day.js              1.x       Lightweight date parsing & format
+File Download       file-saver          2.x       Trigger browser file downloads
+Styling             CSS Modules or      —         Scoped component styles
+                    Styled Components
+
+
+2. BACKEND (Application Tier)
+--------------------------------------------------------------------------------
+
+Category            Technology          Version   Purpose
+------------------  ------------------  --------  ----------------------------------
+Runtime             Node.js             20.x LTS  Server-side JavaScript runtime
+Framework           Express.js          4.x       REST API framework
+Language            TypeScript          5.x       Type safety on backend
+File Upload         Multer              1.x       Multipart form-data file handling
+Excel Parsing       xlsx (SheetJS)      0.20.x    Read uploaded Excel/CSV files
+Excel Generation    ExcelJS             4.x       Create styled Excel reports with
+                                                   multiple sheets, formatting, colors
+Validation          Joi                 17.x      Request body & schema validation
+Authentication      jsonwebtoken (JWT)  9.x       Token-based auth
+Password Hashing    bcrypt              5.x       Secure password storage
+ORM / Query Builder Knex.js             3.x       SQL query builder for PostgreSQL
+                                                   (migrations, seeds, queries)
+Environment Config  dotenv              16.x      Manage environment variables
+Logging             Winston             3.x       Structured application logging
+Process Manager     PM2                 5.x       Production process management,
+                                                   clustering, auto-restart
+CORS                cors                2.x       Cross-Origin Resource Sharing
+Rate Limiting       express-rate-limit  7.x       API rate limiting for security
+Compression         compression         1.x       Gzip response compression
+File Archiving      archiver            6.x       ZIP multiple reports for bulk DL
+
+
+3. DATABASE (Data Tier)
+--------------------------------------------------------------------------------
+
+Category            Technology          Version   Purpose
+------------------  ------------------  --------  ----------------------------------
+RDBMS               PostgreSQL          16.x      Primary relational database
+Migration Tool      Knex.js migrations  —         Schema versioning & migrations
+Seeding             Knex.js seeds       —         Initial data (admin user, etc.)
+Connection Pool     pg + pg-pool        8.x       Efficient DB connection pooling
+
+Why PostgreSQL?
+- Robust JSONB support for storing flexible metadata
+- Excellent date/time handling for month-based filtering
+- Strong indexing for fast queries on large case datasets
+- Battle-tested, open-source, free
+
+
+4. DEVOPS & INFRASTRUCTURE
+--------------------------------------------------------------------------------
+
+Category            Technology          Version   Purpose
+------------------  ------------------  --------  ----------------------------------
+Version Control     Git                 2.x       Source code management
+Repository          GitHub / GitLab     —         Remote repo hosting
+Reverse Proxy       Nginx               1.24+     SSL termination, static serving
+SSL Certificate     Let's Encrypt       —         Free HTTPS certificates
+CI/CD (optional)    GitHub Actions      —         Automated build, test, deploy
+Containerization    Docker (optional)   24.x      Reproducible deployments
+Hosting             VPS (DigitalOcean,  —         Single-server deployment for v1
+                    AWS EC2, or Azure)
+
+
+5. TESTING
+--------------------------------------------------------------------------------
+
+Category            Technology          Version   Purpose
+------------------  ------------------  --------  ----------------------------------
+Unit Testing        Jest                29.x      Backend service unit tests
+API Testing         Supertest           6.x       HTTP endpoint integration tests
+Frontend Testing    React Testing Lib   14.x      Component unit tests
+E2E Testing         Playwright          1.x       End-to-end browser tests (optional)
+API Manual Testing  Postman             —         Manual API exploration & testing
+
+
+6. PROJECT STRUCTURE (Monorepo)
+--------------------------------------------------------------------------------
+
+  support-case-report-generator/
+  ├── client/                        ← React Frontend
+  │   ├── public/
+  │   ├── src/
+  │   │   ├── components/            ← Reusable UI components
+  │   │   ├── pages/                 ← Page-level components
+  │   │   │   ├── LoginPage.tsx
+  │   │   │   ├── UploadPage.tsx
+  │   │   │   ├── ReportsPage.tsx
+  │   │   │   └── ClientMasterPage.tsx
+  │   │   ├── services/              ← API call functions
+  │   │   ├── hooks/                 ← Custom React hooks
+  │   │   ├── context/               ← Auth & App context
+  │   │   ├── types/                 ← TypeScript interfaces
+  │   │   ├── utils/                 ← Helper functions
+  │   │   ├── App.tsx
+  │   │   └── main.tsx
+  │   ├── index.html
+  │   ├── vite.config.ts
+  │   ├── tsconfig.json
+  │   └── package.json
+  │
+  ├── server/                        ← Node.js Backend
+  │   ├── src/
+  │   │   ├── config/                ← DB config, env config
+  │   │   ├── middleware/            ← Auth, error handler, upload
+  │   │   ├── routes/                ← Express route definitions
+  │   │   ├── controllers/          ← Request handlers
+  │   │   ├── services/             ← Business logic
+  │   │   │   ├── uploadService.ts
+  │   │   │   ├── dataProcessingService.ts
+  │   │   │   ├── reportGenerationService.ts
+  │   │   │   └── clientMasterService.ts
+  │   │   ├── models/               ← Database model definitions
+  │   │   ├── migrations/           ← Knex migration files
+  │   │   ├── seeds/                ← Knex seed files
+  │   │   ├── templates/            ← Excel template config
+  │   │   ├── utils/                ← Helper utilities
+  │   │   ├── types/                ← TypeScript interfaces
+  │   │   └── app.ts                ← Express app setup
+  │   ├── tsconfig.json
+  │   └── package.json
+  │
+  ├── storage/                       ← File storage
+  │   ├── uploads/                   ← Uploaded raw files
+  │   └── reports/                   ← Generated report files
+  │
+  ├── .env.example
+  ├── .gitignore
+  ├── docker-compose.yml (optional)
+  ├── README.md
+  └── package.json                   ← Root scripts (dev, build, etc.)
+
+================================================================================
+                      END OF TECH STACK
+================================================================================

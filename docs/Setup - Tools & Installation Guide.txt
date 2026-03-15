@@ -1,0 +1,166 @@
+================================================================================
+     TOOLS & FRAMEWORKS — INSTALLATION GUIDE
+     Support Case Report Generator Project
+================================================================================
+
+Below is everything you need to install on your PC before we can start
+building the project. Follow the steps in order.
+
+================================================================================
+1. NODE.JS (Required — JavaScript Runtime)
+================================================================================
+   What   : Server-side JavaScript runtime. Powers both frontend & backend.
+   Version: LTS (v20.x or v22.x recommended)
+   Download: https://nodejs.org/en/download
+   
+   Install Steps:
+     1. Go to the link above
+     2. Download the "Windows Installer (.msi)" — LTS version
+     3. Run the installer
+     4. IMPORTANT: Check the box "Automatically install the necessary tools"
+     5. IMPORTANT: Make sure "Add to PATH" is checked
+     6. Complete the installation
+   
+   Verify (open a NEW terminal/PowerShell after install):
+     node --version      → should show v20.x.x or v22.x.x
+     npm --version       → should show 10.x.x (comes bundled with Node.js)
+
+   NOTE: npm (Node Package Manager) comes automatically with Node.js.
+         No separate install needed.
+
+
+================================================================================
+2. GIT (Required — Version Control)
+================================================================================
+   What   : Version control system to track code changes.
+   Version: Latest (2.x)
+   Download: https://git-scm.com/download/win
+
+   Install Steps:
+     1. Download from the link above
+     2. Run the installer
+     3. Use default settings (click Next through the wizard)
+     4. Make sure "Git from the command line" option is selected
+
+   Verify:
+     git --version       → should show git version 2.x.x
+
+
+================================================================================
+3. VISUAL STUDIO CODE (Recommended — Code Editor)
+================================================================================
+   What   : Code editor (you likely already have this)
+   Download: https://code.visualstudio.com/
+
+   Recommended VS Code Extensions (install from Extensions tab):
+     - ESLint                    → JavaScript/TypeScript linting
+     - Prettier                  → Code formatting
+     - TypeScript Hero           → TypeScript imports & navigation
+     - Thunder Client            → API testing (like Postman, inside VS Code)
+     - PostgreSQL (if using PG)  → DB management inside VS Code
+
+
+================================================================================
+4. DATABASE — Choose ONE of the following:
+================================================================================
+
+--- OPTION A: SQLite (EASIEST — Recommended for getting started) ---
+
+   What   : Lightweight file-based database. No installation needed!
+   Install: Nothing to install. The npm package handles everything.
+   
+   This is the easiest option. The database is just a file on your disk.
+   No server to run, no configuration, no passwords.
+   
+
+--- OPTION B: PostgreSQL (Production-grade — More setup required) ---
+
+   What   : Powerful relational database server.
+   Version: 16.x
+   Download: https://www.postgresql.org/download/windows/
+
+   Install Steps:
+     1. Download the Windows installer from the link above
+     2. Run the installer
+     3. Set a password for the "postgres" superuser (REMEMBER THIS!)
+     4. Keep default port: 5432
+     5. Complete installation
+     6. The installer includes pgAdmin 4 (graphical DB management tool)
+
+   After Install:
+     Open pgAdmin 4 and create a new database:
+       Database name: scrg_db
+       Owner: postgres
+
+   Verify:
+     psql --version      → should show psql 16.x
+
+
+================================================================================
+5. POSTMAN (Optional — API Testing Tool)
+================================================================================
+   What   : Tool to test API endpoints manually.
+   Download: https://www.postman.com/downloads/
+   
+   Alternative: Use "Thunder Client" extension in VS Code (lighter weight).
+
+
+================================================================================
+SUMMARY — MINIMUM REQUIRED INSTALLATIONS
+================================================================================
+
+   #   Tool          Required?   Download Link
+   --  -----------   ---------   ------------------------------------------
+   1   Node.js       YES         https://nodejs.org
+   2   Git           YES         https://git-scm.com/download/win
+   3   VS Code       YES*        https://code.visualstudio.com
+   4   SQLite        NO INSTALL  (handled by npm automatically)
+       — OR —
+   4   PostgreSQL    YES (if     https://www.postgresql.org/download/windows
+                     chosen)
+   5   Postman       OPTIONAL    https://www.postman.com/downloads
+
+   * You likely already have VS Code since you're reading this in it!
+
+
+================================================================================
+WHAT YOU DON'T NEED TO INSTALL MANUALLY
+================================================================================
+
+The following tools are installed AUTOMATICALLY by npm when we set up the
+project. You do NOT need to download or install these yourself:
+
+   - React.js          (frontend framework)
+   - Vite              (frontend build tool)
+   - TypeScript        (type-safe JavaScript)
+   - Express.js        (backend API framework)
+   - Ant Design        (UI component library)
+   - ExcelJS           (Excel report generation)
+   - SheetJS / xlsx    (Excel file parsing)
+   - Knex.js           (database query builder)
+   - JWT / bcrypt      (authentication)
+   - Multer            (file upload handling)
+   - Day.js            (date formatting)
+   - Winston           (logging)
+   - Jest              (testing)
+   - All other npm packages listed in the tech stack
+
+   These are all handled by running "npm install" during project setup.
+
+
+================================================================================
+AFTER INSTALLING — NEXT STEPS
+================================================================================
+
+Once you have installed the required tools (at minimum: Node.js + Git):
+
+   1. Open a NEW PowerShell or VS Code terminal
+   2. Run these commands to verify:
+        node --version
+        npm --version
+        git --version
+   3. Let me know the output, and I will start building the project!
+
+================================================================================
+                     END OF INSTALLATION GUIDE
+================================================================================

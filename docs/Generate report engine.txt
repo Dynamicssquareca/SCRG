@@ -1,0 +1,484 @@
+================================================================================
+               REPORT GENERATION ENGINE DOCUMENT
+              Support Case Report Generator — v1.0
+================================================================================
+
+1. OVERVIEW
+--------------------------------------------------------------------------------
+The Report Generation Engine creates per-client Excel (.xlsx) reports using
+the ExcelJS library. Each report follows the exact template structure shown
+in the provided screenshots, with 3 sheets: Overview, Open Case Report, and
+Resolved Case Report. The engine applies branded styling (colors, fonts,
+column widths, borders) to match the provided template pixel-perfectly.
+
+
+2. GENERATION FLOW
+--------------------------------------------------------------------------------
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                    REPORT GENERATION PIPELINE                   │
+  │                                                                  │
+  │  1. Receive request (uploadId, month, year)                     │
+  │         │                                                        │
+  │         ▼                                                        │
+  │  2. Query all unique client_ids from `cases` for this upload    │
+  │         │                                                        │
+  │         ▼                                                        │
+  │  3. FOR EACH client:                                             │
+  │     ├─ 3a. Query client master data (clients table)             │
+  │     ├─ 3b. Query open cases for client in selected month        │
+  │     ├─ 3c. Query resolved cases for client in selected month    │
+  │     ├─ 3d. Compute ticket summary & hours calculations          │
+  │     ├─ 3e. Create ExcelJS workbook                              │
+  │     ├─ 3f. Build Sheet 1: Overview                              │
+  │     ├─ 3g. Build Sheet 2: Open Case Report                     │
+  │     ├─ 3h. Build Sheet 3: Resolved Case Report                 │
+  │     ├─ 3i. Apply styling (fonts, colors, borders, widths)      │
+  │     ├─ 3j. Save .xlsx file to storage                          │
+  │     └─ 3k. Insert record in `reports` table                    │
+  │         │                                                        │
+  │         ▼                                                        │
+  │  4. Return list of generated reports with download paths        │
+  └──────────────────────────────────────────────────────────────────┘
+
+
+3. TEMPLATE SPECIFICATIONS
+--------------------------------------------------------------------------------
+
+3.1 COLOR PALETTE (from provided screenshots)
+  ──────────────────────────────────────────
+  Element                    Color (Hex)    RGB
+  ─────────────────────────  ────────────   ──────────────
+  Overview headers bg        #1B3A5C        (27, 58, 92)  — Dark navy blue
+  Overview headers text       #FFFFFF        (255,255,255) — White
+  Open Case Report header bg  #006B7B        (0, 107, 123) — Teal
+  Open Case Report header txt #FFFFFF        (255,255,255) — White
+  Resolved header bg          #006B7B        (0, 107, 123) — Teal
+  Resolved header txt         #FFFFFF        (255,255,255) — White
+  Data rows bg (alternating)  #FFFFFF / none — White / no fill
+  Data rows text              #000000        (0, 0, 0)    — Black
+  Feedback link text          #CC0000        (204, 0, 0)  — Red
+  Cell borders                #808080        (128,128,128) — Gray
+
+3.2 FONT SPECIFICATIONS
+  ──────────────────────────────────────────
+  Element                    Font         Size    Bold    Color
+  ─────────────────────────  ───────────  ──────  ──────  ──────
+  Section headers            Calibri      11      Yes     White
+  Labels (Row A)             Calibri      10      No      Black
+  Values (Row B)             Calibri      10      No      Black
+  Table column headers       Calibri      10      Yes     White
+  Table data cells           Calibri      10      No      Black
+  Feedback text              Calibri      10      No      Red
+
+
+4. SHEET 1: OVERVIEW — Detailed Build Logic
+--------------------------------------------------------------------------------
+
+  function buildOverviewSheet(workbook, clientData) {
+    const ws = workbook.addWorksheet('Overview');
+
+    // Set column widths
+    ws.columns = [
+      { width: 30 },  // A — labels
+      { width: 25 },  // B — values
+      { width: 5 },   // C — spacer
+      { width: 30 },  // D — hours labels
+      { width: 25 },  // E — hours values
+      { width: 5 },   // F — spacer
+      { width: 40 },  // G — feedback area
+    ];
+
+    // --- ACCOUNT DETAILS SECTION (A1:B7) ---
+    // Row 1: Header "Account Details"
+    ws.mergeCells('A1:B1');
+    ws.getCell('A1').value = 'Account Details';
+    applyHeaderStyle(ws.getCell('A1'));  // navy bg, white text, bold
+
+    // Row 2: Client Name
+    ws.getCell('A2').value = 'Client Name';
+    ws.getCell('B2').value = clientData.clientInfo.client_name;
+
+    // Row 3: Account Manager
+    ws.getCell('A3').value = 'Account Manager';
+    ws.getCell('B3').value = clientData.clientInfo.account_manager || '';
+
+    // Row 4: Customer Success Manager
+    ws.getCell('A4').value = 'Customer Success Manager';
+    ws.getCell('B4').value = clientData.clientInfo.customer_success_mgr || '';
+
+    // Row 5: Tool Version
+    ws.getCell('A5').value = 'Tool Version (NAV / BC version)';
+    ws.getCell('B5').value = clientData.clientInfo.tool_version || '';
+
+    // Row 6: Start Date
+    ws.getCell('A6').value = 'Start Date';
+    ws.getCell('B6').value = formatDate(clientData.clientInfo.contract_start_date);
+
+    // Row 7: End Date
+    ws.getCell('A7').value = 'End Date';
+    ws.getCell('B7').value = formatDate(clientData.clientInfo.contract_end_date);
+
+    // Apply label/value styles to A2:B7
+    applyLabelValueStyles(ws, 2, 7);
+
+    // --- HOURS DETAILS SECTION (D1:E6) ---
+    // Row 1: Header "Hours Details"
+    ws.mergeCells('D1:E1');
+    ws.getCell('D1').value = 'Hours Details';
+    applyHeaderStyle(ws.getCell('D1'));
+
+    // Row 2: Total Contracted Hours
+    ws.getCell('D2').value = 'Total Contracted Hours';
+    ws.getCell('E2').value = clientData.hoursDetails.totalContracted;
+
+    // Row 3: Previous Balance Hours
+    ws.getCell('D3').value = 'Previous Balance Hours';
+    ws.getCell('E3').value = clientData.hoursDetails.previousBalance;
+
+    // Row 4: Hours Consumed This Month
+    ws.getCell('D4').value = 'Hours Consumed This Month';
+    ws.getCell('E4').value = clientData.hoursDetails.hoursConsumed;
+
+    // Row 5: Hours alloted to open tickets
+    ws.getCell('D5').value = 'Hours alloted to open tickets';
+    ws.getCell('E5').value = clientData.hoursDetails.hoursOnOpen;
+
+    // Row 6: Current Balance Hours
+    ws.getCell('D6').value = 'Current Balance Hours';
+    ws.getCell('E6').value = clientData.hoursDetails.currentBalance;
+
+    // --- TICKET SUMMARY SECTION (A9:B14) ---
+    // Row 9: Header "Ticket Summary (Monthly)"
+    ws.mergeCells('A9:B9');
+    ws.getCell('A9').value = 'Ticket Summary (Monthly)';
+    applyHeaderStyle(ws.getCell('A9'));
+
+    ws.getCell('A10').value = 'Total Tickets Opened';
+    ws.getCell('B10').value = clientData.summary.totalOpened;
+
+    ws.getCell('A11').value = 'Total Tickets Closed';
+    ws.getCell('B11').value = clientData.summary.totalClosed;
+
+    ws.getCell('A12').value = 'Tickets Pending';
+    ws.getCell('B12').value = clientData.summary.pending;
+
+    ws.getCell('A13').value = 'Reopened Tickets';
+    ws.getCell('B13').value = clientData.summary.reopened;
+
+    ws.getCell('A14').value = 'High Priority Tickets';
+    ws.getCell('B14').value = clientData.summary.highPriority;
+
+    // --- FEEDBACK SECTION ---
+    // Somewhere around E11-F12 area
+    ws.getCell('E11').value = 'If you have any feedback please click on this link';
+    ws.getCell('E11').font = { color: { argb: 'FFCC0000' }, size: 10 };
+
+    if (clientData.clientInfo.feedback_link) {
+      ws.getCell('E13').value = {
+        text: 'Feedback Link',
+        hyperlink: clientData.clientInfo.feedback_link
+      };
+    }
+
+    // Apply borders to all sections
+    applyBordersToRange(ws, 'A1', 'B7');
+    applyBordersToRange(ws, 'D1', 'E6');
+    applyBordersToRange(ws, 'A9', 'B14');
+  }
+
+
+5. SHEET 2: OPEN CASE REPORT — Detailed Build Logic
+--------------------------------------------------------------------------------
+
+  function buildOpenCaseSheet(workbook, openCases) {
+    const ws = workbook.addWorksheet('OPEN CASE REPORT');
+
+    // Set column widths
+    ws.columns = [
+      { width: 8 },   // A — S.No
+      { width: 20 },  // B — Case Number
+      { width: 20 },  // C — Contact
+      { width: 50 },  // D — Subject
+      { width: 22 },  // E — Created On
+      { width: 10 },  // F — Hours
+      { width: 22 },  // G — Consultant Ass.
+      { width: 15 },  // H — Status
+      { width: 5 },   // I — spacer
+    ];
+
+    // Row 1: Title "OPEN CASE REPORT" (merged across columns)
+    ws.mergeCells('A1:H1');
+    ws.getCell('A1').value = 'OPEN CASE REPORT';
+    ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+    applyTealHeaderStyle(ws.getCell('A1'));
+
+    // Row 2: Column Headers
+    const headers = ['S.No.', 'CASE NUMBER', 'CONTACT', 'SUBJECT',
+                     'CREATED ON', 'HOURS', 'CONSULTANT ASS.', 'STATUS'];
+    headers.forEach((h, i) => {
+      const cell = ws.getCell(2, i + 1);
+      cell.value = h;
+      applyTealHeaderStyle(cell);
+    });
+
+    // Row 3+: Data Rows
+    openCases.forEach((caseItem, index) => {
+      const row = index + 3;
+      ws.getCell(row, 1).value = index + 1;                    // S.No
+      ws.getCell(row, 2).value = caseItem.case_number;         // Case Number
+      ws.getCell(row, 3).value = caseItem.contact;             // Contact
+      ws.getCell(row, 4).value = caseItem.case_title;          // Subject
+      ws.getCell(row, 5).value = formatDateTime(caseItem.created_on); // Created On
+      ws.getCell(row, 6).value = caseItem.billable_duration;   // Hours
+      ws.getCell(row, 7).value = caseItem.support_agent;       // Consultant
+      ws.getCell(row, 8).value = caseItem.status_reason;       // Status
+
+      // Apply data cell styles
+      for (let col = 1; col <= 8; col++) {
+        applyDataCellStyle(ws.getCell(row, col));
+      }
+    });
+
+    // Apply thin borders to entire data range
+    applyBordersToRange(ws, 'A1', `H${openCases.length + 2}`);
+  }
+
+
+6. SHEET 3: RESOLVED CASE REPORT — Detailed Build Logic
+--------------------------------------------------------------------------------
+
+  function buildResolvedCaseSheet(workbook, resolvedCases) {
+    const ws = workbook.addWorksheet('RESOLVED CASE REPORT');
+
+    // Set column widths
+    ws.columns = [
+      { width: 8 },   // A — S.No
+      { width: 20 },  // B — Case Number
+      { width: 20 },  // C — Contact
+      { width: 50 },  // D — Subject
+      { width: 22 },  // E — Created On
+      { width: 22 },  // F — Resolved On
+      { width: 22 },  // G — Consultant Ass.
+      { width: 10 },  // H — Hours
+      { width: 5 },   // I — spacer
+    ];
+
+    // Row 1: Title "RESOLVED CASE REPORT" (merged)
+    ws.mergeCells('A1:H1');
+    ws.getCell('A1').value = 'RESOLVED CASE REPORT';
+    ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+    applyTealHeaderStyle(ws.getCell('A1'));
+
+    // Row 2: Column Headers
+    const headers = ['S.No.', 'CASE NUMBER', 'CONTACT', 'SUBJECT',
+                     'CREATED ON', 'RESOLVED ON', 'CONSULTANT ASS.', 'HOURS'];
+    headers.forEach((h, i) => {
+      const cell = ws.getCell(2, i + 1);
+      cell.value = h;
+      applyTealHeaderStyle(cell);
+    });
+
+    // Row 3+: Data Rows
+    resolvedCases.forEach((caseItem, index) => {
+      const row = index + 3;
+      ws.getCell(row, 1).value = index + 1;
+      ws.getCell(row, 2).value = caseItem.case_number;
+      ws.getCell(row, 3).value = caseItem.contact;
+      ws.getCell(row, 4).value = caseItem.case_title;
+      ws.getCell(row, 5).value = formatDateTime(caseItem.created_on);
+      ws.getCell(row, 6).value = formatDateTime(caseItem.updated_on); // Resolved On
+      ws.getCell(row, 7).value = caseItem.support_agent;
+      ws.getCell(row, 8).value = caseItem.billable_duration;
+
+      // Apply data cell styles with number format for Hours
+      for (let col = 1; col <= 8; col++) {
+        applyDataCellStyle(ws.getCell(row, col));
+      }
+      ws.getCell(row, 8).numFmt = '0.00';  // Hours with 2 decimal places
+    });
+
+    applyBordersToRange(ws, 'A1', `H${resolvedCases.length + 2}`);
+  }
+
+
+7. STYLING HELPER FUNCTIONS
+--------------------------------------------------------------------------------
+
+  // Navy blue header (for Overview sections)
+  function applyHeaderStyle(cell) {
+    cell.fill = {
+      type: 'pattern', pattern: 'solid',
+      fgColor: { argb: 'FF1B3A5C' }
+    };
+    cell.font = {
+      name: 'Calibri', size: 11, bold: true,
+      color: { argb: 'FFFFFFFF' }
+    };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = thinBorders();
+  }
+
+  // Teal header (for Open/Resolved Case Reports)
+  function applyTealHeaderStyle(cell) {
+    cell.fill = {
+      type: 'pattern', pattern: 'solid',
+      fgColor: { argb: 'FF006B7B' }
+    };
+    cell.font = {
+      name: 'Calibri', size: 10, bold: true,
+      color: { argb: 'FFFFFFFF' }
+    };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = thinBorders();
+  }
+
+  // Data cell base style
+  function applyDataCellStyle(cell) {
+    cell.font = { name: 'Calibri', size: 10, color: { argb: 'FF000000' } };
+    cell.alignment = { vertical: 'middle', wrapText: true };
+    cell.border = thinBorders();
+  }
+
+  // Standard thin borders
+  function thinBorders() {
+    return {
+      top:    { style: 'thin', color: { argb: 'FF808080' } },
+      bottom: { style: 'thin', color: { argb: 'FF808080' } },
+      left:   { style: 'thin', color: { argb: 'FF808080' } },
+      right:  { style: 'thin', color: { argb: 'FF808080' } }
+    };
+  }
+
+  // Date formatting
+  function formatDateTime(date) {
+    if (!date) return '';
+    return dayjs(date).format('DD-MM-YYYY HH:mm');
+  }
+
+  function formatDate(date) {
+    if (!date) return '';
+    return dayjs(date).format('DD-MM-YYYY');
+  }
+
+
+8. FILE SAVING & NAMING
+--------------------------------------------------------------------------------
+
+  File naming convention:
+    {ClientName}_Support_Report_{MonthName}{Year}.xlsx
+
+  Examples:
+    ClientA_Support_Report_Jan2026.xlsx
+    BrianYates_Corp_Support_Report_Feb2026.xlsx
+
+  Sanitization:
+    - Remove special characters from client name: / \ : * ? " < > |
+    - Replace spaces with underscores
+    - Truncate to 100 characters max
+
+  Storage path:
+    /storage/reports/{year}/{month}/{sanitized_filename}.xlsx
+
+  Pseudocode:
+    const sanitizedName = clientName
+      .replace(/[\/\\:*?"<>|]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 100);
+    const monthName = dayjs().month(month - 1).format('MMM');
+    const fileName = `${sanitizedName}_Support_Report_${monthName}${year}.xlsx`;
+    const dirPath = path.join(STORAGE_DIR, 'reports', String(year), String(month));
+    await fs.mkdir(dirPath, { recursive: true });
+    const filePath = path.join(dirPath, fileName);
+
+    await workbook.xlsx.writeFile(filePath);
+
+
+9. COMPLETE GENERATION FUNCTION (Orchestrator)
+--------------------------------------------------------------------------------
+
+  async function generateAllReports(uploadId, month, year, userId) {
+    // 1. Get all unique clients from this upload
+    const clients = await db('cases')
+      .where('upload_id', uploadId)
+      .distinct('client_id')
+      .select('client_id');
+
+    const results = [];
+    const errors = [];
+
+    // 2. Process each client
+    for (const { client_id } of clients) {
+      try {
+        // 3. Get report data
+        const reportData = await getClientReportData(client_id, month, year);
+
+        // 4. Create workbook
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'MPG Support Report Generator';
+        workbook.created = new Date();
+
+        // 5. Build all 3 sheets
+        buildOverviewSheet(workbook, reportData);
+        buildOpenCaseSheet(workbook, reportData.openCases);
+        buildResolvedCaseSheet(workbook, reportData.resolvedCases);
+
+        // 6. Save file
+        const { fileName, filePath } = generateFilePath(
+          reportData.clientInfo.client_name, month, year
+        );
+        await workbook.xlsx.writeFile(filePath);
+
+        // 7. Get file size
+        const stats = await fs.stat(filePath);
+
+        // 8. Save to database
+        const [report] = await db('reports').insert({
+          client_id: client_id,
+          upload_id: uploadId,
+          month,
+          year,
+          file_name: fileName,
+          file_path: filePath,
+          file_size_bytes: stats.size,
+          tickets_opened: reportData.summary.totalOpened,
+          tickets_closed: reportData.summary.totalClosed,
+          tickets_pending: reportData.summary.pending,
+          hours_consumed: reportData.hoursDetails.hoursConsumed,
+          generated_by: userId
+        }).returning('*');
+
+        results.push({
+          reportId: report.id,
+          clientName: reportData.clientInfo.client_name,
+          fileName,
+          status: 'generated'
+        });
+
+        // 9. Update client's previous balance for next month
+        await db('clients').where('id', client_id).update({
+          previous_balance_hours: reportData.hoursDetails.currentBalance
+        });
+
+      } catch (err) {
+        errors.push({
+          clientId: client_id,
+          error: err.message
+        });
+      }
+    }
+
+    return { totalClients: clients.length, reports: results, errors };
+  }
+
+
+10. PERFORMANCE OPTIMIZATION
+--------------------------------------------------------------------------------
+  - For > 20 clients: process in parallel batches of 5 (Promise.allSettled)
+  - ExcelJS streaming API for very large datasets (> 10,000 rows per client)
+  - Cache client master data during batch generation
+  - Use database connection pooling (max 10 concurrent queries)
+
+================================================================================
+                END OF REPORT GENERATION ENGINE
+================================================================================

@@ -1,0 +1,283 @@
+================================================================================
+                    DATABASE DESIGN DOCUMENT
+              Support Case Report Generator — v1.0
+              RDBMS: PostgreSQL 16.x
+================================================================================
+
+1. ENTITY-RELATIONSHIP DIAGRAM (Conceptual)
+--------------------------------------------------------------------------------
+
+  ┌──────────┐       ┌───────────┐       ┌──────────┐
+  │  users   │       │  clients  │       │  uploads  │
+  │──────────│       │───────────│       │──────────│
+  │ id (PK)  │       │ id (PK)   │       │ id (PK)  │
+  │ email    │       │ name      │       │ user_id  │──► users.id
+  │ password │       │ acct_mgr  │       │ filename │
+  │ role     │       │ csm       │       │ month    │
+  └──────────┘       │ tool_ver  │       │ year     │
+                     │ start_dt  │       │ status   │
+                     │ end_dt    │       └──────────┘
+                     │ total_hrs │            │
+                     │ prev_bal  │            │ 1
+                     └───────────┘            │
+                          │ 1                 │
+                          │                   │
+                          │ N                 │ N
+                     ┌────▼──────────────────▼────┐
+                     │          cases              │
+                     │────────────────────────────│
+                     │ id (PK)                     │
+                     │ upload_id (FK) ──► uploads  │
+                     │ client_id (FK) ──► clients  │
+                     │ case_number                 │
+                     │ contact                     │
+                     │ created_on                  │
+                     │ case_title                  │
+                     │ support_agent               │
+                     │ status_reason               │
+                     │ priority                    │
+                     │ country                     │
+                     │ billable_duration           │
+                     │ updated_on                  │
+                     │ total_days                  │
+                     │ comments                    │
+                     └────────────┬───────────────┘
+                                  │ N
+                                  │
+                          ┌───────▼───────┐
+                          │    reports    │
+                          │──────────────│
+                          │ id (PK)      │
+                          │ client_id FK │
+                          │ upload_id FK │
+                          │ month        │
+                          │ year         │
+                          │ file_path    │
+                          │ file_name    │
+                          │ generated_at │
+                          └──────────────┘
+
+
+2. TABLE DEFINITIONS
+--------------------------------------------------------------------------------
+
+TABLE: users
+--------------------------------------------------------------------------------
+Column          Type                 Constraints            Description
+--------------  -------------------  ---------------------  ----------------------
+id              SERIAL               PRIMARY KEY            Auto-increment ID
+email           VARCHAR(255)         NOT NULL, UNIQUE       Login email
+password_hash   VARCHAR(255)         NOT NULL               bcrypt hashed password
+full_name       VARCHAR(255)         NOT NULL               Display name
+role            VARCHAR(20)          NOT NULL               'admin','operator',
+                                     DEFAULT 'operator'     'viewer'
+is_active       BOOLEAN              DEFAULT TRUE           Soft disable account
+created_at      TIMESTAMP            DEFAULT NOW()          Record creation time
+updated_at      TIMESTAMP            DEFAULT NOW()          Last modified time
+
+Indexes:
+  - UNIQUE INDEX on (email)
+
+
+TABLE: clients
+--------------------------------------------------------------------------------
+Column                  Type              Constraints         Description
+----------------------  ----------------  ------------------  ----------------------
+id                      SERIAL            PRIMARY KEY         Auto-increment ID
+client_name             VARCHAR(255)      NOT NULL, UNIQUE    Must match upload data
+account_manager         VARCHAR(255)      NULL                Account manager name
+customer_success_mgr    VARCHAR(255)      NULL                CSM name
+tool_version            VARCHAR(100)      NULL                NAV/BC version
+contract_start_date     DATE              NULL                Contract start
+contract_end_date       DATE              NULL                Contract end
+total_contracted_hours  DECIMAL(10,2)     DEFAULT 0           Monthly contracted hrs
+previous_balance_hours  DECIMAL(10,2)     DEFAULT 0           Carried-over balance
+feedback_link           VARCHAR(500)      NULL                Feedback form URL
+is_active               BOOLEAN           DEFAULT TRUE        Active flag
+created_at              TIMESTAMP         DEFAULT NOW()
+updated_at              TIMESTAMP         DEFAULT NOW()
+
+Indexes:
+  - UNIQUE INDEX on (client_name)
+  - INDEX on (is_active)
+
+
+TABLE: uploads
+--------------------------------------------------------------------------------
+Column          Type              Constraints             Description
+--------------  ----------------  ----------------------  -------------------------
+id              SERIAL            PRIMARY KEY             Auto-increment ID
+user_id         INTEGER           NOT NULL                FK → users.id
+                                  REFERENCES users(id)
+original_name   VARCHAR(500)      NOT NULL                Original file name
+stored_name     VARCHAR(500)      NOT NULL                UUID-renamed stored file
+file_path       VARCHAR(1000)     NOT NULL                Full path on server
+file_size_bytes BIGINT            NOT NULL                File size
+row_count       INTEGER           NULL                    Number of data rows
+month           INTEGER           NOT NULL                Upload target month (1-12)
+year            INTEGER           NOT NULL                Upload target year
+status          VARCHAR(20)       NOT NULL                'processing','completed',
+                                  DEFAULT 'processing'    'failed'
+error_message   TEXT              NULL                    Error details if failed
+created_at      TIMESTAMP         DEFAULT NOW()
+updated_at      TIMESTAMP         DEFAULT NOW()
+
+Indexes:
+  - INDEX on (user_id)
+  - INDEX on (month, year)
+  - INDEX on (status)
+
+
+TABLE: cases
+--------------------------------------------------------------------------------
+Column              Type              Constraints          Description
+------------------  ----------------  -------------------  -------------------------
+id                  SERIAL            PRIMARY KEY          Auto-increment ID
+upload_id           INTEGER           NOT NULL             FK → uploads.id
+                                      REFERENCES uploads(id)
+                                      ON DELETE CASCADE
+client_id           INTEGER           NULL                 FK → clients.id
+                                      REFERENCES clients(id)
+                                      ON DELETE SET NULL
+case_number         VARCHAR(50)       NOT NULL             Unique case ID from CRM
+customer_name       VARCHAR(255)      NOT NULL             Raw client name from data
+contact             VARCHAR(255)      NULL                 Contact person name
+created_on          TIMESTAMP         NULL                 Case creation datetime
+case_title          TEXT              NULL                 Case subject/description
+support_agent       VARCHAR(255)      NULL                 Assigned consultant
+status_reason       VARCHAR(100)      NULL                 Open/Resolved/Pending/etc
+priority            VARCHAR(50)       NULL                 High/Medium/Low
+country             VARCHAR(100)      NULL                 Customer country
+billable_duration   DECIMAL(10,2)     DEFAULT 0            Hours (decimal)
+updated_on          TIMESTAMP         NULL                 Last update datetime
+total_days          INTEGER           DEFAULT 0            Age in days
+comments            TEXT              NULL                 Additional notes
+created_at          TIMESTAMP         DEFAULT NOW()        DB record creation
+
+Indexes:
+  - INDEX on (upload_id)
+  - INDEX on (client_id)
+  - INDEX on (case_number)
+  - INDEX on (customer_name)
+  - INDEX on (status_reason)
+  - INDEX on (created_on)
+  - COMPOSITE INDEX on (client_id, status_reason, created_on)
+
+
+TABLE: reports
+--------------------------------------------------------------------------------
+Column          Type              Constraints             Description
+--------------  ----------------  ----------------------  -------------------------
+id              SERIAL            PRIMARY KEY             Auto-increment ID
+client_id       INTEGER           NOT NULL                FK → clients.id
+                                  REFERENCES clients(id)
+upload_id       INTEGER           NOT NULL                FK → uploads.id
+                                  REFERENCES uploads(id)
+month           INTEGER           NOT NULL                Report month (1-12)
+year            INTEGER           NOT NULL                Report year
+file_name       VARCHAR(500)      NOT NULL                e.g. ClientA_Report_Jan2026
+file_path       VARCHAR(1000)     NOT NULL                Full storage path
+file_size_bytes BIGINT            NULL                    Generated file size
+tickets_opened  INTEGER           DEFAULT 0               Summary: opened count
+tickets_closed  INTEGER           DEFAULT 0               Summary: closed count
+tickets_pending INTEGER           DEFAULT 0               Summary: pending count
+hours_consumed  DECIMAL(10,2)     DEFAULT 0               Summary: total hours
+generated_at    TIMESTAMP         DEFAULT NOW()           Generation timestamp
+generated_by    INTEGER           NULL                    FK → users.id
+                                  REFERENCES users(id)
+
+Indexes:
+  - INDEX on (client_id)
+  - INDEX on (month, year)
+  - COMPOSITE INDEX on (client_id, month, year) UNIQUE
+  - INDEX on (upload_id)
+
+
+3. KEY SQL QUERIES
+--------------------------------------------------------------------------------
+
+-- Get all open cases for a client in a given month
+SELECT case_number, contact, case_title, created_on,
+       billable_duration, support_agent, status_reason
+FROM cases
+WHERE client_id = $1
+  AND status_reason != 'Resolved'
+  AND (
+    (EXTRACT(MONTH FROM created_on) = $2 AND EXTRACT(YEAR FROM created_on) = $3)
+    OR
+    (EXTRACT(MONTH FROM updated_on) = $2 AND EXTRACT(YEAR FROM updated_on) = $3)
+  )
+ORDER BY created_on ASC;
+
+
+-- Get all resolved cases for a client in a given month
+SELECT case_number, contact, case_title, created_on,
+       updated_on AS resolved_on, support_agent, billable_duration
+FROM cases
+WHERE client_id = $1
+  AND status_reason = 'Resolved'
+  AND EXTRACT(MONTH FROM updated_on) = $2
+  AND EXTRACT(YEAR FROM updated_on) = $3
+ORDER BY updated_on ASC;
+
+
+-- Compute Ticket Summary for Overview sheet
+SELECT
+  COUNT(*) FILTER (WHERE EXTRACT(MONTH FROM created_on) = $2
+                     AND EXTRACT(YEAR FROM created_on) = $3)
+    AS total_tickets_opened,
+  COUNT(*) FILTER (WHERE status_reason = 'Resolved'
+                     AND EXTRACT(MONTH FROM updated_on) = $2
+                     AND EXTRACT(YEAR FROM updated_on) = $3)
+    AS total_tickets_closed,
+  COUNT(*) FILTER (WHERE status_reason != 'Resolved')
+    AS tickets_pending,
+  COUNT(*) FILTER (WHERE status_reason = 'Reopened')
+    AS reopened_tickets,
+  COUNT(*) FILTER (WHERE priority = 'High')
+    AS high_priority_tickets,
+  COALESCE(SUM(billable_duration) FILTER (WHERE status_reason = 'Resolved'
+                     AND EXTRACT(MONTH FROM updated_on) = $2
+                     AND EXTRACT(YEAR FROM updated_on) = $3), 0)
+    AS hours_consumed_this_month,
+  COALESCE(SUM(billable_duration) FILTER (WHERE status_reason != 'Resolved'), 0)
+    AS hours_alloted_to_open
+FROM cases
+WHERE client_id = $1;
+
+
+-- List all reports for a month
+SELECT r.id, c.client_name, r.month, r.year, r.file_name,
+       r.generated_at, r.tickets_opened, r.tickets_closed,
+       r.hours_consumed
+FROM reports r
+JOIN clients c ON c.id = r.client_id
+WHERE r.month = $1 AND r.year = $2
+ORDER BY c.client_name;
+
+
+4. MIGRATION STRATEGY
+--------------------------------------------------------------------------------
+
+Migration order (Knex.js):
+  001_create_users_table.ts
+  002_create_clients_table.ts
+  003_create_uploads_table.ts
+  004_create_cases_table.ts
+  005_create_reports_table.ts
+
+Seed files:
+  001_seed_admin_user.ts          ← Default admin: admin@mpg.com / changeme
+  002_seed_sample_client.ts       ← Optional sample client for testing
+
+
+5. BACKUP & MAINTENANCE
+--------------------------------------------------------------------------------
+- Daily automated backups via pg_dump (cron job)
+- 30-day backup retention
+- VACUUM ANALYZE weekly on cases table (largest table)
+- Archive uploads older than 12 months to cold storage
+
+================================================================================
+                    END OF DATABASE DESIGN
+================================================================================

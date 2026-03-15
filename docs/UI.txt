@@ -1,0 +1,128 @@
+================================================================================
+                       UI DESIGN DOCUMENT
+              Support Case Report Generator — v1.0
+================================================================================
+
+1. SITEMAP & NAVIGATION
+--------------------------------------------------------------------------------
+  Pages:
+    /login           — Login Page
+    /dashboard       — Dashboard (stats summary)
+    /upload          — Upload Data Sheet Page
+    /reports         — Reports Listing Page (main page)
+    /clients         — Client Master Management Page
+
+  Navigation Bar (top):
+    [Logo] Support Report Generator
+    Dashboard | Upload Data | Reports | Client Master | Logout
+
+
+2. PAGE: LOGIN (/login)
+--------------------------------------------------------------------------------
+  - Centered card on dark background
+  - Company logo at top
+  - Email + Password input fields
+  - "Login" primary button
+  - Error message area below button
+
+
+3. PAGE: DASHBOARD (/dashboard)
+--------------------------------------------------------------------------------
+  - Month/Year picker at top right
+  - 4 stat cards: Total Clients | Reports Generated | Open Cases | Resolved
+  - Recent Uploads table below
+  - Quick action buttons to Upload or View Reports
+
+
+4. PAGE: UPLOAD DATA (/upload) — PRIMARY PAGE
+--------------------------------------------------------------------------------
+  Layout (top to bottom):
+
+  Section 1: Month Selection
+    Month dropdown [January ▼]  Year dropdown [2026 ▼]
+
+  Section 2: File Upload Area
+    Drag & Drop zone with "Browse Files" fallback
+    Accepted: .xlsx, .xls, .csv (max 50MB)
+
+  Section 3: Upload Result (appears after upload)
+    ✅ File uploaded successfully! 342 rows | 12 clients detected
+    List of detected clients
+    ⚠ Warnings list (skipped rows, new clients, etc.)
+    [Generate All Reports] [View Reports] buttons
+
+  Section 4: Generation Progress (appears during generation)
+    Progress bar [████████░░░░] 67%
+    Per-client status: ✅ Generated / ⏳ Processing / ⬜ Pending
+
+
+5. PAGE: REPORTS (/reports) — PRIMARY PAGE
+--------------------------------------------------------------------------------
+  Filters Row:
+    Month [January ▼]  Year [2026 ▼]  Client [All ▼]
+    [Search client name... 🔍]
+
+  Reports Table:
+    # | Client Name | Month | Tickets Opened | Tickets Closed |
+      | Hours       | Generated Date        | [⬇ Download]   |
+
+  Bottom:
+    Pagination [< 1 2 3 >]
+    [⬇ Download All (ZIP)] button
+
+  Key Features:
+    - Filter by month/year loads all client reports for that period
+    - Each row has individual download button (.xlsx)
+    - Bulk download as ZIP for all reports in selected month
+    - Sortable columns, searchable by client name
+
+
+6. PAGE: CLIENT MASTER (/clients)
+--------------------------------------------------------------------------------
+  Top: [+ Add Client] button, search bar, active/inactive filter
+
+  Table: Client Name | Account Manager | CSM | Contracted Hours | [Edit]
+
+  Add/Edit Modal:
+    Client Name, Account Manager, CSM, Tool Version,
+    Contract Start/End Dates, Contracted Hours, Balance Hours,
+    Feedback Link → [Save] [Cancel]
+
+
+7. COMPONENT LIBRARY: Ant Design (antd) 5.x
+--------------------------------------------------------------------------------
+  Upload Page:  Upload.Dragger, Select, Button, Progress, Alert
+  Reports Page: Table, Select, DatePicker, Input.Search, Pagination, Tag
+  Client Page:  Table, Modal/Drawer, Form, Input, DatePicker, InputNumber
+  All Pages:    Layout, Menu, message, notification, Spin
+
+
+8. COLOR SCHEME
+--------------------------------------------------------------------------------
+  Primary:    #1B3A5C  (dark navy) — nav, headers, primary buttons
+  Secondary:  #006B7B  (teal)      — accents, secondary actions
+  Success:    #52C41A               — completed states
+  Warning:    #FAAD14               — warnings
+  Error:      #FF4D4F               — errors
+  Background: #F5F5F5               — page bg
+  Cards:      #FFFFFF               — white cards
+  Text:       #1F1F1F / #8C8C8C     — primary / secondary text
+
+
+9. RESPONSIVE BREAKPOINTS
+--------------------------------------------------------------------------------
+  ≥ 1200px  — Full layout, wide tables
+  992-1199  — Tables scroll horizontally, cards stack 2×2
+  768-991   — Single column, hamburger menu
+  < 768     — Mobile: stacked, compact (secondary priority)
+
+
+10. USER FLOWS
+--------------------------------------------------------------------------------
+  Flow 1: Upload → Select Month → Upload File → Summary → Generate → Download
+  Flow 2: Reports → Select Month → See All Clients → Download Individual/All
+  Flow 3: Client Master → Add/Edit Client → Save
+
+================================================================================
+                       END OF UI DESIGN
+================================================================================
