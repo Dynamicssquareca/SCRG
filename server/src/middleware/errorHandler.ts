@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/apiResponse';
 import logger from '../utils/logger';
+import { env } from '../config/env';
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
   logger.error(err.message, { stack: err.stack });
@@ -27,8 +28,21 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
     });
   }
 
+  // Handle specific technical errors gracefully for diagnostics
+  if (err.message && err.message.includes('secret or public key must be provided')) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'CONFIG_ERROR', message: 'Server configuration error: JWT secrets missing' },
+    });
+  }
+
   res.status(500).json({
     success: false,
-    error: { code: 'INTERNAL_ERROR', message: 'Something went wrong' },
+    error: { 
+      code: 'INTERNAL_ERROR', 
+      message: env.NODE_ENV === 'production' 
+        ? 'Something went wrong. Please check server logs.' 
+        : err.message 
+    },
   });
 }
