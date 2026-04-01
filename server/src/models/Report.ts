@@ -17,6 +17,7 @@ export interface IReport extends Document {
   tickets_pending: number;
   hours_consumed: number;
   remaining_balance: number;
+  is_sync_report: boolean;
   status: 'draft' | 'published';
   generated_at: Date;
   generated_by: mongoose.Types.ObjectId | IUser | null;
@@ -37,6 +38,7 @@ const ReportSchema: Schema = new Schema(
     tickets_pending: { type: Number, default: 0 },
     hours_consumed: { type: Number, default: 0 },
     remaining_balance: { type: Number, default: 0 },
+    is_sync_report: { type: Boolean, default: false },
     status: { type: String, enum: ['draft', 'published'], default: 'draft' },
     generated_at: { type: Date, default: Date.now },
     generated_by: { type: Schema.Types.ObjectId, ref: 'User', default: null },

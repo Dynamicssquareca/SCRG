@@ -24,6 +24,7 @@ export async function create(req: Request, res: Response, next: NextFunction) {
       file_size_bytes: req.file.size,
       month: monthNum,
       year: yearNum,
+      sync_client_master: shouldSync,
       status: 'processing',
     });
     const uploadId: string = (upload._id as mongoose.Types.ObjectId).toString();

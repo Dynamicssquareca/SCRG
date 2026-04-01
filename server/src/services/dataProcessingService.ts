@@ -134,7 +134,7 @@ function getMonthNumber(name: string): number | null {
     'january', 'february', 'march', 'april', 'may', 'june',
     'july', 'august', 'september', 'october', 'november', 'december'
   ];
-  
+
   // Try exact match or starting with
   const directIdx = months.findIndex(m => n.startsWith(m) || m.startsWith(n.substring(0, 3)));
   if (directIdx !== -1) return directIdx + 1;
@@ -142,7 +142,7 @@ function getMonthNumber(name: string): number | null {
   // Handle common typos like "Febuary"
   if (n.includes('feb')) return 2;
   if (n.includes('sept')) return 9;
-  
+
   return null;
 }
 
@@ -165,75 +165,93 @@ export async function processFile(
 
     if (balanceSheetName) {
       const balanceSheet = workbook.Sheets[balanceSheetName];
-    const balanceData = XLSX.utils.sheet_to_json(balanceSheet) as any[];
-    const headers = balanceData.length > 0 ? Object.keys(balanceData[0]) : [];
+      const balanceData = XLSX.utils.sheet_to_json(balanceSheet) as any[];
+      const headers = balanceData.length > 0 ? Object.keys(balanceData[0]) : [];
 
-    // Map headers to months
-    headers.forEach(h => {
-      const m = getMonthNumber(h);
-      if (m) balanceMonths[h] = m;
-    });
+      // Map headers to months
+      headers.forEach(h => {
+        const m = getMonthNumber(h);
+        if (m) balanceMonths[h] = m;
+      });
 
-    for (const row of balanceData) {
-      const name = String(row['Account Name'] || row['Client Name'] || '').trim();
-      if (!name) continue;
+      for (const row of balanceData) {
+        const name = String(row['Account Name'] || row['Client Name'] || '').trim();
+        if (!name) continue;
 
-      let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
-      const firstMonthHeader = Object.keys(balanceMonths)[0];
-      const startBal = firstMonthHeader ? parseDuration(row[firstMonthHeader]) : 0;
+        let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
+        const firstMonthHeader = Object.keys(balanceMonths)[0];
+        const startBal = firstMonthHeader ? parseDuration(row[firstMonthHeader]) : 0;
 
-      if (!client) {
-        client = await Client.create({
-          client_name: name,
-          total_contracted_hours: startBal > 0 ? startBal : 0,
-          previous_balance_hours: 0,
-          is_active: true
-        });
+        if (!client) {
+          client = await Client.create({
+            client_name: name,
+            total_contracted_hours: startBal > 0 ? startBal : 0,
+            previous_balance_hours: 0,
+            is_active: true
+          });
+        }
+        clientMap[name] = client._id.toString();
+
+        // Seed historical Report balances from this sheet
+        for (const [header, monthNum] of Object.entries(balanceMonths)) {
+          // Skip future months (e.g., April when uploading March)
+          if (monthNum > month && (monthNum - month) <= 6) continue;
+
+          const bal = parseDuration(row[header]);
+          // Far-past months (e.g., Dec when uploading Mar) → previous year
+          const targetYear = (monthNum - month > 6) ? year - 1 : year;
+          const filter = { client_id: client._id, month: monthNum, year: targetYear };
+          await Report.findOneAndUpdate(filter, { 
+            remaining_balance: bal, 
+            status: 'draft',
+            is_sync_report: true // Mark as sync report
+          }, { upsert: true });
+        }
       }
-      clientMap[name] = client._id.toString();
-
-      // Seed historical Report balances from this sheet
-      for (const [header, monthNum] of Object.entries(balanceMonths)) {
-        const bal = parseDuration(row[header]);
-        const targetYear = (monthNum === 12 && month <= 3) ? year - 1 : year;
-        const filter = { client_id: client._id, month: monthNum, year: targetYear };
-        await Report.findOneAndUpdate(filter, { remaining_balance: bal, status: 'draft' }, { upsert: true });
-      }
+      logger.info(`Synced ${Object.keys(clientMap).length} clients and balances from Balance Hours sheet`);
     }
-    logger.info(`Synced ${Object.keys(clientMap).length} clients and balances from Balance Hours sheet`);
-  }
 
-  // Step 2: Sync Historical Usage from "Hours Used Monthly" sheet if it exists
-  const usageSheetName = workbook.SheetNames.find(n => n.toLowerCase().trim().includes('hours used monthly'));
-  if (usageSheetName) {
-    const usageData = XLSX.utils.sheet_to_json(workbook.Sheets[usageSheetName]) as any[];
-    const headers = usageData.length > 0 ? Object.keys(usageData[0]) : [];
-    
-    for (const row of usageData) {
-      const name = String(row['Account Name'] || row['Client Name'] || '').trim();
-      if (!name) continue;
+    // Step 2: Sync Historical Usage from "Hours Used Monthly" sheet if it exists
+    const usageSheetName = workbook.SheetNames.find(n => n.toLowerCase().trim().includes('hours used monthly'));
+    if (usageSheetName) {
+      const usageData = XLSX.utils.sheet_to_json(workbook.Sheets[usageSheetName]) as any[];
+      const headers = usageData.length > 0 ? Object.keys(usageData[0]) : [];
 
-      // Fuzzy lookup for clientId in clientMap or DB
-      let clientId = clientMap[name];
-      if (!clientId) {
-        const found = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
-        if (found) clientId = found._id.toString();
+      for (const row of usageData) {
+        const name = String(row['Account Name'] || row['Client Name'] || '').trim();
+        if (!name) continue;
+
+        // Fuzzy lookup for clientId in clientMap or DB
+        let clientId = clientMap[name];
+        if (!clientId) {
+          const found = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
+          if (found) clientId = found._id.toString();
+        }
+        if (!clientId) continue;
+
+        for (const header of headers) {
+          const monthNum = getMonthNumber(header);
+          if (!monthNum) continue;
+
+          // Skip future months
+          if (monthNum > month && (monthNum - month) <= 6) continue;
+
+          const hours = parseDuration(row[header]);
+          const targetYear = (monthNum - month > 6) ? year - 1 : year;
+          const filter = { client_id: new mongoose.Types.ObjectId(clientId), month: monthNum, year: targetYear };
+          await Report.findOneAndUpdate(filter, { 
+            hours_consumed: hours,
+            is_sync_report: true // Mark as sync report
+          }, { upsert: true });
+        }
       }
-      if (!clientId) continue;
-
-      for (const header of headers) {
-        const monthNum = getMonthNumber(header);
-        if (!monthNum) continue;
-        
-        const hours = parseDuration(row[header]);
-        const targetYear = (monthNum === 12 && month <= 3) ? year - 1 : year;
-        const filter = { client_id: new mongoose.Types.ObjectId(clientId), month: monthNum, year: targetYear };
-        await Report.findOneAndUpdate(filter, { hours_consumed: hours }, { upsert: true });
-      }
+      logger.info(`Synced historical usage from ${usageSheetName}`);
     }
-    logger.info(`Synced historical usage from ${usageSheetName}`);
-  }
-} // end of syncClientMaster block
+    // Clean up any stale draft reports for future months in the upload year
+    // (e.g., April 2026 drafts created by previous uploads when uploading for March 2026)
+    await Report.deleteMany({ month: { $gt: month }, year: year, status: 'draft' });
+    logger.info(`Cleaned up draft reports for months after ${month}/${year}`);
+  } // end of syncClientMaster block
 
   // Step 3: Determine which sheet to use for tickets
   let ticketSheetName = workbook.SheetNames.find(n => n.toLowerCase().trim().includes('all_tickets'));
@@ -329,7 +347,11 @@ export async function processFile(
       await Case.insertMany(batch, { session });
     }
 
-    await Upload.findByIdAndUpdate(uploadId, { row_count: processedRows.length, status: 'completed' }, { session });
+    await Upload.findByIdAndUpdate(uploadId, { 
+      row_count: processedRows.length, 
+      status: 'completed',
+      sync_client_master: syncClientMaster 
+    }, { session });
     await session.commitTransaction();
   } catch (err) {
     await session.abortTransaction();

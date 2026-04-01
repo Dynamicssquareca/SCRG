@@ -47,7 +47,7 @@ export async function getMonthlyUsageFromCases() {
 
 export async function getMonthlyUsage() {
   // Aggregate reports by month and year
-  const reports = await Report.find()
+  const reports = await Report.find({ is_sync_report: true })
     .populate('client_id', 'client_name')
     .sort({ year: -1, month: -1 });
 
@@ -62,7 +62,7 @@ export async function getMonthlyUsage() {
 
 export async function getBalanceGrid() {
   const clients = await Client.find({ is_active: true }).sort({ client_name: 1 });
-  const reports = await Report.find().sort({ year: 1, month: 1 });
+  const reports = await Report.find({ is_sync_report: true }).sort({ year: 1, month: 1 });
 
   // Get unique months list
   const monthsSet = new Set<string>();
@@ -91,7 +91,7 @@ export async function getBalanceGrid() {
 
 export async function getUsageGrid() {
   const clients = await Client.find({ is_active: true }).sort({ client_name: 1 });
-  const reports = await Report.find().sort({ year: 1, month: 1 });
+  const reports = await Report.find({ is_sync_report: true }).sort({ year: 1, month: 1 });
 
   // Get unique months list
   const monthsSet = new Set<string>();

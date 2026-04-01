@@ -25,7 +25,7 @@ export async function getAllClients(query: any) {
   // Fetch the two most recent reports per client to get current + last month balance
   const clientIds = clients.map(c => c._id);
   const recentReports = await Report.aggregate([
-    { $match: { client_id: { $in: clientIds } } },
+    { $match: { client_id: { $in: clientIds }, is_sync_report: true } },
     { $sort: { year: -1, month: -1 } },
     {
       $group: {

@@ -10,6 +10,7 @@ export interface IUpload extends Document {
   row_count: number | null;
   month: number;
   year: number;
+  sync_client_master: boolean;
   status: string;
   error_message: string | null;
   createdAt: Date;
@@ -26,6 +27,7 @@ const UploadSchema: Schema = new Schema(
     row_count: { type: Number, default: null },
     month: { type: Number, required: true },
     year: { type: Number, required: true },
+    sync_client_master: { type: Boolean, default: false },
     status: { type: String, required: true, default: 'processing' },
     error_message: { type: String, default: null },
   },

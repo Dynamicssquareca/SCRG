@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import { Client } from '../models/Client';
 import { Case } from '../models/Case';
 import { Report } from '../models/Report';
+import { Upload } from '../models/Upload';
 import { env } from '../config/env';
 import logger from '../utils/logger';
 
@@ -306,7 +307,7 @@ function buildOpenCaseSheet(workbook: ExcelJS.Workbook, openCases: any[]) {
     ws.getCell(row, 2).value = caseItem.case_number;
     ws.getCell(row, 3).value = caseItem.contact;
     ws.getCell(row, 4).value = caseItem.case_title; // This is the SUBJECT column
-    ws.getCell(row, 5).value = formatDateTime(caseItem.created_on);
+    ws.getCell(row, 5).value = formatDate(caseItem.created_on);
     ws.getCell(row, 6).value = Number(caseItem.billable_duration) || 0;
     ws.getCell(row, 7).value = caseItem.support_agent;
     ws.getCell(row, 8).value = caseItem.status_reason;
@@ -352,8 +353,8 @@ function buildResolvedCaseSheet(workbook: ExcelJS.Workbook, resolvedCases: any[]
     ws.getCell(row, 2).value = caseItem.case_number;
     ws.getCell(row, 3).value = caseItem.contact;
     ws.getCell(row, 4).value = caseItem.case_title;
-    ws.getCell(row, 5).value = formatDateTime(caseItem.created_on);
-    ws.getCell(row, 6).value = formatDateTime(caseItem.updated_on);
+    ws.getCell(row, 5).value = formatDate(caseItem.created_on);
+    ws.getCell(row, 6).value = formatDate(caseItem.updated_on);
     ws.getCell(row, 7).value = caseItem.support_agent;
     ws.getCell(row, 8).value = Number(caseItem.billable_duration) || 0;
 
@@ -370,6 +371,10 @@ export async function generateAllReports(uploadId: string, month: number, year: 
 
   const results: any[] = [];
   const errors: any[] = [];
+
+  // Get sync status from upload record
+  const upload = await Upload.findById(uploadId);
+  const isSyncReport = upload?.sync_client_master === true;
 
   for (const client_id of clientIds) {
     try {
@@ -427,6 +432,7 @@ export async function generateAllReports(uploadId: string, month: number, year: 
         tickets_pending: reportData.summary.pending,
         hours_consumed: reportData.hoursDetails.hoursConsumed,
         remaining_balance: reportData.hoursDetails.currentBalance,
+        is_sync_report: isSyncReport, // Use the sync status from the upload
         generated_by: userId ? new mongoose.Types.ObjectId(userId) : null,
       });
 
@@ -437,10 +443,12 @@ export async function generateAllReports(uploadId: string, month: number, year: 
         status: 'generated',
       });
 
-      // Update client's previous balance
-      await Client.findByIdAndUpdate(client_id, {
-        previous_balance_hours: reportData.hoursDetails.currentBalance,
-      });
+      // Update client's previous balance ONLY IF this is a sync upload
+      if (isSyncReport) {
+        await Client.findByIdAndUpdate(client_id, {
+          previous_balance_hours: reportData.hoursDetails.currentBalance,
+        });
+      }
 
       logger.info(`Generated report for ${reportData.clientInfo.client_name}`);
     } catch (err) {
