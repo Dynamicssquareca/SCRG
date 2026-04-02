@@ -21,4 +21,4 @@ REFRESH_TOKEN_EXPIRY = 7d
 # File Storage(Defaults for Vercel Ephemeral Storage)
     UPLOAD_DIR = /tmp/uploads
 REPORT_DIR = /tmp/reports
-MAX_FILE_SIZE_MB = 50
+MAX_FILE_SIZE_MB = 50 
