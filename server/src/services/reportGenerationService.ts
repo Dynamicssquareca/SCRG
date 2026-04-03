@@ -113,7 +113,7 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
     // 1. It was created in the requested month.
     // 2. OR it is still open in the requested month (created BEFORE or IN the month, and not resolved BEFORE the month).
     // 3. OR it was resolved/updated IN the requested month.
-    
+
     // Check if created before or during the target month
     let createdBeforeOrDuring = false;
     if (createdD) {
@@ -125,9 +125,9 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
     // Check if resolved before the target month
     let resolvedBefore = false;
     if (isResolved(c.status_reason) && updatedD) {
-       if (updatedD.year() < year || (updatedD.year() === year && updatedD.month() + 1 < month)) {
-         resolvedBefore = true;
-       }
+      if (updatedD.year() < year || (updatedD.year() === year && updatedD.month() + 1 < month)) {
+        resolvedBefore = true;
+      }
     }
 
     const isOpenDuringMonth = createdBeforeOrDuring && !resolvedBefore;
@@ -159,14 +159,14 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
 
   const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
   const hoursOnOpen = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  
+
   const totalContracted = Number(clientInfo?.total_contracted_hours) || 0;
-  
+
   // Get previous month's report to get the starting balance
   const prevMonthIdx = month - 2;
   const prevMonthNum = prevMonthIdx < 0 ? 12 : prevMonthIdx + 1;
   const prevYearNum = prevMonthIdx < 0 ? year - 1 : year;
-  
+
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo?.previous_balance_hours) || 0);
 
@@ -213,9 +213,20 @@ function buildOverviewSheet(workbook: ExcelJS.Workbook, data: ClientReportData) 
   accountLabels.forEach(([label, value], i) => {
     const row = i + 2;
     ws.getCell(`A${row}`).value = label;
-    applyLabelStyle(ws.getCell(`A${row}`));
     ws.getCell(`B${row}`).value = value;
-    applyValueStyle(ws.getCell(`B${row}`));
+
+    if (label === 'Client Name') {
+      // Bold red styling for Client Name row
+      ws.getCell(`A${row}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFCC0000' } };
+      ws.getCell(`A${row}`).alignment = { vertical: 'middle' };
+      ws.getCell(`A${row}`).border = thinBorders();
+      ws.getCell(`B${row}`).font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFCC0000' } };
+      ws.getCell(`B${row}`).alignment = { vertical: 'middle' };
+      ws.getCell(`B${row}`).border = thinBorders();
+    } else {
+      applyLabelStyle(ws.getCell(`A${row}`));
+      applyValueStyle(ws.getCell(`B${row}`));
+    }
   });
 
   // Hours Details Header
@@ -237,7 +248,10 @@ function buildOverviewSheet(workbook: ExcelJS.Workbook, data: ClientReportData) 
     ws.getCell(`D${row}`).value = label as string;
     applyLabelStyle(ws.getCell(`D${row}`));
     ws.getCell(`E${row}`).value = value as number;
-    applyValueStyle(ws.getCell(`E${row}`));
+    // Center-align numeric values in Hours Details
+    ws.getCell(`E${row}`).font = { name: 'Calibri', size: 10, color: { argb: 'FF000000' } };
+    ws.getCell(`E${row}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell(`E${row}`).border = thinBorders();
   });
 
   // Ticket Summary Header
@@ -259,12 +273,15 @@ function buildOverviewSheet(workbook: ExcelJS.Workbook, data: ClientReportData) 
     ws.getCell(`A${row}`).value = label as string;
     applyLabelStyle(ws.getCell(`A${row}`));
     ws.getCell(`B${row}`).value = value as number;
-    applyValueStyle(ws.getCell(`B${row}`));
+    // Center-align numeric values in Ticket Summary
+    ws.getCell(`B${row}`).font = { name: 'Calibri', size: 10, color: { argb: 'FF000000' } };
+    ws.getCell(`B${row}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell(`B${row}`).border = thinBorders();
   });
 
   // Feedback link
-  ws.getCell('D11').value = 'If you have any feedback please click on this link';
-  ws.getCell('D11').font = { name: 'Calibri', size: 10, color: { argb: 'FFCC0000' } };
+  //ws.getCell('D11').value = 'If you have any feedback please click on this link';
+  //ws.getCell('D11').font = { name: 'Calibri', size: 10, color: { argb: 'FFCC0000' } };
 
   if (data.clientInfo?.feedback_link) {
     ws.getCell('D13').value = { text: 'Feedback Link', hyperlink: data.clientInfo.feedback_link };
@@ -315,6 +332,10 @@ function buildOpenCaseSheet(workbook: ExcelJS.Workbook, openCases: any[]) {
     for (let col = 1; col <= 8; col++) {
       applyDataCellStyle(ws.getCell(row, col));
     }
+    // Center-align S.No. and HOURS columns
+    ws.getCell(row, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell(row, 6).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    ws.getCell(row, 6).numFmt = '0.00';
   });
 }
 
@@ -361,6 +382,9 @@ function buildResolvedCaseSheet(workbook: ExcelJS.Workbook, resolvedCases: any[]
     for (let col = 1; col <= 8; col++) {
       applyDataCellStyle(ws.getCell(row, col));
     }
+    // Center-align S.No. and HOURS columns
+    ws.getCell(row, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell(row, 8).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     ws.getCell(row, 8).numFmt = '0.00';
   });
 }

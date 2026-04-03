@@ -27,6 +27,7 @@
     "joi": "^17.13.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.3.0",
+    "motion": "^12.38.0",
     "multer": "^1.4.5-lts.1",
     "uuid": "^10.0.0",
     "winston": "^3.14.0",

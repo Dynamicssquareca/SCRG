@@ -327,24 +327,31 @@ export async function processFile(
   try {
     const batchSize = 500;
     for (let i = 0; i < processedRows.length; i += batchSize) {
-      const batch = processedRows.slice(i, i + batchSize).map((row) => ({
-        upload_id: uploadId,
-        client_id: clientMap[row.customerName] || null,
-        case_number: row.caseNumber,
-        customer_name: row.customerName,
-        contact: row.contact,
-        created_on: row.createdOn,
-        case_title: row.caseTitle,
-        support_agent: row.supportAgent,
-        status_reason: row.statusReason,
-        priority: row.priority,
-        country: row.country,
-        billable_duration: row.billableDuration,
-        updated_on: row.updatedOn,
-        total_days: row.totalDays,
-        comments: row.comments,
+      const bulkOps = processedRows.slice(i, i + batchSize).map((row) => ({
+        updateOne: {
+          filter: { case_number: row.caseNumber },
+          update: {
+            $set: {
+              upload_id: new mongoose.Types.ObjectId(uploadId),
+              client_id: clientMap[row.customerName] ? new mongoose.Types.ObjectId(clientMap[row.customerName]) : null,
+              customer_name: row.customerName,
+              contact: row.contact,
+              created_on: row.createdOn,
+              case_title: row.caseTitle,
+              support_agent: row.supportAgent,
+              status_reason: row.statusReason,
+              priority: row.priority,
+              country: row.country,
+              billable_duration: row.billableDuration,
+              updated_on: row.updatedOn,
+              total_days: row.totalDays,
+              comments: row.comments,
+            }
+          },
+          upsert: true
+        }
       }));
-      await Case.insertMany(batch, { session });
+      await Case.bulkWrite(bulkOps as any, { session });
     }
 
     await Upload.findByIdAndUpdate(uploadId, { 

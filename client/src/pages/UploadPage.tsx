@@ -151,7 +151,7 @@ const UploadPage: React.FC = () => {
             </Form.Item>
           </Form>
 
-          <Dragger {...uploadProps} style={{ padding: '32px 0' }}>
+          <Dragger {...uploadProps} disabled={uploading || generating} style={{ padding: '32px 0' }}>
             <p className="ant-upload-drag-icon">
               <InboxOutlined style={{ color: '#1B3A5C' }} />
             </p>
@@ -164,7 +164,7 @@ const UploadPage: React.FC = () => {
             icon={<UploadOutlined />} 
             onClick={handleUpload} 
             loading={uploading}
-            disabled={!file}
+            disabled={!file || uploading || generating}
             style={{ marginTop: 24, background: '#1B3A5C' }}
           >
             Upload and Process Data

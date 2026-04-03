@@ -7,15 +7,14 @@ import { successResponse } from '../utils/apiResponse';
 
 export async function clearAllData(req: Request, res: Response, next: NextFunction) {
   try {
-    // We keep users to maintain login access
+    // We keep users and clients (Client Master) - only clear transactional data
     await Promise.all([
-      Client.deleteMany({}),
       Upload.deleteMany({}),
       Case.deleteMany({}),
       Report.deleteMany({})
     ]);
 
-    successResponse(res, { message: 'All application data has been cleared successfully' });
+    successResponse(res, { message: 'All uploads, cases, and reports have been cleared. Client Master is preserved.' });
   } catch (err) {
     next(err);
   }

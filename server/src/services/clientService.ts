@@ -23,9 +23,10 @@ export async function getAllClients(query: any) {
     .skip((Number(page) - 1) * Number(limit));
 
   // Fetch the two most recent reports per client to get current + last month balance
+  // Look at ALL reports (sync and non-sync) to ensure we always show the latest balance
   const clientIds = clients.map(c => c._id);
   const recentReports = await Report.aggregate([
-    { $match: { client_id: { $in: clientIds }, is_sync_report: true } },
+    { $match: { client_id: { $in: clientIds } } },
     { $sort: { year: -1, month: -1 } },
     {
       $group: {
@@ -50,7 +51,7 @@ export async function getAllClients(query: any) {
       obj.current_balance = reportMap[id].current_balance;
       obj.last_month_balance = reportMap[id].last_month_balance;
     } else {
-      // Fallback: use static previous_balance_hours from Client when no reports exist
+      // Fallback: use static previous_balance_hours from Client when no reports exist at all
       obj.current_balance = obj.previous_balance_hours;
       obj.last_month_balance = null;
     }
@@ -104,14 +105,26 @@ export async function updateClient(id: string, data: any) {
   if (data.accountManager !== undefined) updateData.account_manager = data.accountManager;
   if (data.customerSuccessMgr !== undefined) updateData.customer_success_mgr = data.customerSuccessMgr;
   if (data.toolVersion !== undefined) updateData.tool_version = data.toolVersion;
-  if (data.contractStartDate !== undefined) updateData.contract_start_date = data.contractStartDate;
-  if (data.contractEndDate !== undefined) updateData.contract_end_date = data.contractEndDate;
+  if (data.contractStartDate !== undefined) updateData.contract_start_date = data.contractStartDate || null;
+  if (data.contractEndDate !== undefined) updateData.contract_end_date = data.contractEndDate || null;
   if (data.totalContractedHours !== undefined) updateData.total_contracted_hours = data.totalContractedHours;
   if (data.previousBalanceHours !== undefined) updateData.previous_balance_hours = data.previousBalanceHours;
-  if (data.feedbackLink !== undefined) updateData.feedback_link = data.feedbackLink;
+  if (data.feedbackLink !== undefined) updateData.feedback_link = data.feedbackLink || null;
   if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
   const updatedClient = await Client.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
+
+  // If the balance is manually edited, forcefully update the most recent report
+  // (any report, not just sync ones) so the Client Master frontend reflects it immediately.
+  if (data.previousBalanceHours !== undefined) {
+    const mostRecentReport = await Report.findOne({ client_id: id }).sort({ year: -1, month: -1 });
+    if (mostRecentReport) {
+      mostRecentReport.remaining_balance = data.previousBalanceHours;
+      await mostRecentReport.save();
+    }
+    // If no report exists at all, the client.previous_balance_hours fallback handles display
+  }
+
   return updatedClient;
 }
 

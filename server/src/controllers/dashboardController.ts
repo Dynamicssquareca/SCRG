@@ -16,20 +16,29 @@ export async function getStats(req: Request, res: Response, next: NextFunction) 
 
     if (month && year) {
       reportFilter = { month: Number(month), year: Number(year) };
-      // Cases might not have month/year directly stored if we just look at created_on, 
-      // but assuming the prompt meant overall cases vs monthly
-      // For now we'll match report logic where possible or just overall cases.
-      // If no monthly logic exists on cases table, we'll just count overall.
+      
+      // Filter cases by the selected month using created_on
+      const startDate = new Date(Number(year), Number(month) - 1, 1);
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
+      caseFilter.created_on = { $gte: startDate, $lte: endDate };
     }
 
     const totalReportsGenerated = await Report.countDocuments(reportFilter);
     const totalCases = await Case.countDocuments(caseFilter);
+    
+    // Categorize closed cases (case insensitive)
+    const closedStatusRegex = /resolved|closed|problem solved/i;
+    const closedFilter = { ...caseFilter, status_reason: { $regex: closedStatusRegex } };
+    const totalClosedCases = await Case.countDocuments(closedFilter);
+    const totalOpenCases = totalCases - totalClosedCases;
 
     successResponse(res, {
       totalClients,
       totalUploads,
       totalReportsGenerated,
       totalCases,
+      totalOpenCases,
+      totalClosedCases
     });
   } catch (err) { next(err); }
 }

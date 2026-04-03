@@ -25,7 +25,7 @@ const CaseSchema: Schema = new Schema(
   {
     upload_id: { type: Schema.Types.ObjectId, ref: 'Upload', required: true },
     client_id: { type: Schema.Types.ObjectId, ref: 'Client', default: null },
-    case_number: { type: String, required: true },
+    case_number: { type: String, required: true, unique: true },
     customer_name: { type: String, required: true },
     contact: { type: String, default: null },
     created_on: { type: Date, default: null },

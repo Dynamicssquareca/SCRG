@@ -115,8 +115,8 @@ const ClientMasterPage: React.FC = () => {
       
       const payload = {
         ...values,
-        contractStartDate: values.contractStartDate?.format('YYYY-MM-DD'),
-        contractEndDate: values.contractEndDate?.format('YYYY-MM-DD'),
+        contractStartDate: values.contractStartDate ? values.contractStartDate.format('YYYY-MM-DD') : null,
+        contractEndDate: values.contractEndDate ? values.contractEndDate.format('YYYY-MM-DD') : null,
       };
 
       if (editingClient) {
@@ -130,6 +130,7 @@ const ClientMasterPage: React.FC = () => {
       }
       
       setIsModalVisible(false);
+      setClients([]); // Clear stale data to force a fresh render
       fetchClients(editingClient ? pagination.current : 1);
     } catch (err: any) {
       console.error('Form Submit Error:', err);
