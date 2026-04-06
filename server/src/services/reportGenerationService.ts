@@ -290,7 +290,7 @@ function buildOverviewSheet(workbook: ExcelJS.Workbook, data: ClientReportData) 
 }
 
 function buildOpenCaseSheet(workbook: ExcelJS.Workbook, openCases: any[]) {
-  const ws = workbook.addWorksheet('OPEN CASE REPORT');
+  const ws = workbook.addWorksheet('OPEN TICKETS REPORT');
 
   ws.columns = [
     { width: 8 },  // A S.No
@@ -305,7 +305,7 @@ function buildOpenCaseSheet(workbook: ExcelJS.Workbook, openCases: any[]) {
 
   // Title
   ws.mergeCells('A1:H1');
-  ws.getCell('A1').value = 'OPEN CASE REPORT';
+  ws.getCell('A1').value = 'OPEN TICKETS REPORT';
   ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
   applyTealHeaderStyle(ws.getCell('A1'));
 
@@ -340,7 +340,7 @@ function buildOpenCaseSheet(workbook: ExcelJS.Workbook, openCases: any[]) {
 }
 
 function buildResolvedCaseSheet(workbook: ExcelJS.Workbook, resolvedCases: any[]) {
-  const ws = workbook.addWorksheet('RESOLVED CASE REPORT');
+  const ws = workbook.addWorksheet('RESOLVED TICKETS REPORT');
 
   ws.columns = [
     { width: 8 },  // A S.No
@@ -355,7 +355,7 @@ function buildResolvedCaseSheet(workbook: ExcelJS.Workbook, resolvedCases: any[]
 
   // Title
   ws.mergeCells('A1:H1');
-  ws.getCell('A1').value = 'RESOLVED CASE REPORT';
+  ws.getCell('A1').value = 'RESOLVED TICKETS REPORT';
   ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
   applyTealHeaderStyle(ws.getCell('A1'));
 
