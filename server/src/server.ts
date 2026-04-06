@@ -5,6 +5,7 @@ import logger from './utils/logger';
 import fs from 'fs';
 import path from 'path';
 import { User } from './models/User';
+import { initScheduler } from './scheduler';
 
 // Ensure storage directories exist
 const dirs = [env.UPLOAD_DIR, env.REPORT_DIR, path.dirname(path.join(__dirname, '../data/scrg.db'))];
@@ -28,6 +29,9 @@ async function start() {
       });
       logger.info('Database seeded with admin user');
     }
+
+    // Start background jobs
+    await initScheduler();
 
     app.listen(env.PORT, () => {
       logger.info(`Server running on port ${env.PORT} in ${env.NODE_ENV} mode`);

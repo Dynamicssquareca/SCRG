@@ -9,6 +9,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BarChartOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +48,7 @@ const PAGE_LABELS: Record<string, string> = {
   '/reports': 'Reports',
   '/usage':   'Usage Report',
   '/clients': 'Client Master',
+  '/reminders': 'Automated Reminders',
 };
 
 const AppLayout: React.FC = () => {
@@ -61,7 +63,10 @@ const AppLayout: React.FC = () => {
     { key: '/reports', icon: <FileExcelOutlined />, label: 'Reports'       },
     { key: '/usage',   icon: <BarChartOutlined />,  label: 'Usage Report'  },
     ...(user?.role === 'admin'
-      ? [{ key: '/clients', icon: <TeamOutlined />, label: 'Client Master' }]
+      ? [
+          { key: '/clients', icon: <TeamOutlined />, label: 'Client Master' },
+          { key: '/reminders', icon: <BellOutlined />, label: 'Reminders' }
+        ]
       : []),
   ];
 

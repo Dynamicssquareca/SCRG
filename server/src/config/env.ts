@@ -1,9 +1,14 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Only load .env file if we are NOT on Vercel/Production
-if (process.env.NODE_ENV !== 'production') {
-  dotenv.config({ path: path.join(__dirname, '../../../.env') });
+// Always force-load .env during development to ensure settings like SMTP aren't missed
+const envPath = path.resolve(__dirname, '../../../.env');
+const result = dotenv.config({ path: envPath });
+
+if (result.error) {
+  console.warn(`[WARNING] Failed to load .env from ${envPath}`);
+} else {
+  console.log(`[INFO] Loaded .env configuration`);
 }
 
 export const env = {
@@ -19,6 +24,10 @@ export const env = {
   REPORT_DIR: path.resolve(process.env.REPORT_DIR || './storage/reports'),
   MAX_FILE_SIZE_MB: parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10),
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+  SMTP_HOST: process.env.SMTP_HOST || 'smtp.office365.com',
+  SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
+  SMTP_USER: process.env.SMTP_USER || '',
+  SMTP_PASS: process.env.SMTP_PASS || '',
 };
 
 // Critical validation for production

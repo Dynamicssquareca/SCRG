@@ -8,6 +8,7 @@ import UploadPage from './pages/UploadPage';
 import ReportsPage from './pages/ReportsPage';
 import ClientMasterPage from './pages/ClientMasterPage';
 import UsageReportPage from './pages/UsageReportPage';
+import RemindersPage from './pages/RemindersPage';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const ProtectedRoute = ({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -29,6 +30,7 @@ const AppRoutes = () => {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="usage" element={<UsageReportPage />} />
         <Route path="clients" element={<ProtectedRoute requireAdmin><ClientMasterPage /></ProtectedRoute>} />
+        <Route path="reminders" element={<ProtectedRoute requireAdmin><RemindersPage /></ProtectedRoute>} />
       </Route>
     </Routes>
   );

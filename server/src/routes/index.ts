@@ -7,6 +7,7 @@ import dashboardRoutes from './dashboardRoutes';
 import usageRoutes from './usageRoutes';
 import adminRoutes from './adminRoutes';
 import notificationRoutes from './notificationRoutes';
+import reminderRoutes from './reminderRoutes';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/reports', reportRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/reminders', reminderRoutes);
 
 export default router;
