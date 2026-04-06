@@ -63,7 +63,7 @@ SHEET 1 — "Overview"
     Row 2 : Client Name                      → Populated from uploaded data
     Row 3 : Account Manager                  → Populated from Client Master DB
     Row 4 : Customer Success Manager         → Populated from Client Master DB
-    Row 5 : Tool Version (NAV / BC version)  → Populated from Client Master DB
+    Row 5 : Tool Version (ERP / CRM)  → Populated from Client Master DB
     Row 6 : Start Date                       → Populated from Client Master DB
     Row 7 : End Date                         → Populated from Client Master DB
 
@@ -136,7 +136,7 @@ FR-08  Client Master Management
        — Client Name (must match the "Customer Name" in uploaded data)
        — Account Manager
        — Customer Success Manager
-       — Tool Version (NAV / BC version)
+       — Tool Version (ERP / CRM)
        — Contract Start Date & End Date
        — Total Contracted Hours
        — Previous Balance Hours (or auto-calculated from prior month)

@@ -31,8 +31,8 @@ column widths, borders) to match the provided template pixel-perfectly.
   │     ├─ 3d. Compute ticket summary & hours calculations          │
   │     ├─ 3e. Create ExcelJS workbook                              │
   │     ├─ 3f. Build Sheet 1: Overview                              │
-  │     ├─ 3g. Build Sheet 2: Open Case Report                     │
-  │     ├─ 3h. Build Sheet 3: Resolved Case Report                 │
+  │     ├─ 3g. Build Sheet 2: OPEN TICKETS REPORT                   │
+  │     ├─ 3h. Build Sheet 3: RESOLVED TICKETS REPORT               │
   │     ├─ 3i. Apply styling (fonts, colors, borders, widths)      │
   │     ├─ 3j. Save .xlsx file to storage                          │
   │     └─ 3k. Insert record in `reports` table                    │
@@ -51,8 +51,8 @@ column widths, borders) to match the provided template pixel-perfectly.
   ─────────────────────────  ────────────   ──────────────
   Overview headers bg        #1B3A5C        (27, 58, 92)  — Dark navy blue
   Overview headers text       #FFFFFF        (255,255,255) — White
-  Open Case Report header bg  #006B7B        (0, 107, 123) — Teal
-  Open Case Report header txt #FFFFFF        (255,255,255) — White
+  OPEN TICKETS REPORT header bg  #006B7B        (0, 107, 123) — Teal
+  OPEN TICKETS REPORT header txt #FFFFFF        (255,255,255) — White
   Resolved header bg          #006B7B        (0, 107, 123) — Teal
   Resolved header txt         #FFFFFF        (255,255,255) — White
   Data rows bg (alternating)  #FFFFFF / none — White / no fill
@@ -108,7 +108,7 @@ column widths, borders) to match the provided template pixel-perfectly.
     ws.getCell('B4').value = clientData.clientInfo.customer_success_mgr || '';
 
     // Row 5: Tool Version
-    ws.getCell('A5').value = 'Tool Version (NAV / BC version)';
+    ws.getCell('A5').value = 'Tool Version (ERP / CRM)';
     ws.getCell('B5').value = clientData.clientInfo.tool_version || '';
 
     // Row 6: Start Date
@@ -188,7 +188,7 @@ column widths, borders) to match the provided template pixel-perfectly.
   }
 
 
-5. SHEET 2: OPEN CASE REPORT — Detailed Build Logic
+5. SHEET 2: OPEN TICKETS REPORT— Detailed Build Logic
 --------------------------------------------------------------------------------
 
   function buildOpenCaseSheet(workbook, openCases) {
@@ -245,7 +245,7 @@ column widths, borders) to match the provided template pixel-perfectly.
   }
 
 
-6. SHEET 3: RESOLVED CASE REPORT — Detailed Build Logic
+6. SHEET 3: RESOLVED TICKETS REPORT— Detailed Build Logic
 --------------------------------------------------------------------------------
 
   function buildResolvedCaseSheet(workbook, resolvedCases) {
