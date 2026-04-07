@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Typography, message, Divider } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 

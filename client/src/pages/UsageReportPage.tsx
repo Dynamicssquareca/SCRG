@@ -6,7 +6,7 @@ import {
   CalendarOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import dayjs from 'dayjs';
 

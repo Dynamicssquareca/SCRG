@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Table, Typography, Switch, Button, Tag, Space, message, Modal, Form, Select, Tabs, List, TimePicker, Popconfirm } from 'antd';
 import { BellOutlined, SettingOutlined, UserOutlined, ClockCircleOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import api from '../services/api';
 import dayjs from 'dayjs';
 
