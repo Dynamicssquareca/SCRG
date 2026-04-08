@@ -147,11 +147,14 @@ export async function processReminders() {
         );
 
         try {
+          const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${dayjs(client.contract_end_date).format('MMMM DD, YYYY')}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
+
           await sendEmail({
             to: uniqueTo.length > 0 ? uniqueTo : uniqueCc, // fallback to CC if no TO
             cc: uniqueTo.length > 0 ? uniqueCc : [],
             subject,
-            html
+            html,
+            text
           });
 
           // Log success
@@ -202,10 +205,13 @@ export async function sendTestReminder(clientId: string, to: string[], cc: strin
     client.account_manager || 'Not Assigned'
   );
 
+  const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${client.contract_end_date ? dayjs(client.contract_end_date).format('MMMM DD, YYYY') : 'Not Set'}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
+
   await sendEmail({
     to,
     cc,
     subject,
-    html
+    html,
+    text
   });
 }

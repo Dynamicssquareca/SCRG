@@ -18,9 +18,10 @@ export interface SendEmailOptions {
   cc?: string | string[];
   subject: string;
   html: string;
+  text?: string;
 }
 
-export async function sendEmail({ to, cc, subject, html }: SendEmailOptions) {
+export async function sendEmail({ to, cc, subject, html, text }: SendEmailOptions) {
   if (!env.SMTP_USER || !env.SMTP_PASS || env.SMTP_USER.includes('put_your_email_here') || env.SMTP_PASS.includes('put_your_password_here')) {
     logger.warn('SMTP credentials are not configured. Email will not be sent.');
     logger.debug(`[MOCK EMAIL] TO: ${to} | SUBJECT: ${subject}`);
@@ -34,6 +35,7 @@ export async function sendEmail({ to, cc, subject, html }: SendEmailOptions) {
       cc: Array.isArray(cc) ? cc.join(', ') : cc,
       subject,
       html,
+      text,
     });
     
     logger.info(`Email sent: ${info.messageId}`);
