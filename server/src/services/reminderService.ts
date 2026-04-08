@@ -186,7 +186,7 @@ export async function processReminders() {
   }
 }
 
-export async function sendTestReminder(clientId: string, to: string[]) {
+export async function sendTestReminder(clientId: string, to: string[], cc: string[] = []) {
   const client = await Client.findById(clientId);
   if (!client) throw new Error('Client not found');
 
@@ -204,6 +204,7 @@ export async function sendTestReminder(clientId: string, to: string[]) {
 
   await sendEmail({
     to,
+    cc,
     subject,
     html
   });

@@ -54,9 +54,9 @@ export async function saveReminderSetting(req: Request, res: Response, next: Nex
 export async function sendTest(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const { to } = req.body;
+    const { to, cc } = req.body;
     
-    await sendTestReminder(id, to);
+    await sendTestReminder(id, to, cc);
     
     successResponse(res, { message: 'Test email sent successfully' });
   } catch (err) {

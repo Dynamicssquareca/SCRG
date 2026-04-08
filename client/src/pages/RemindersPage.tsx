@@ -93,12 +93,15 @@ const RemindersPage: React.FC = () => {
     }
   };
 
-  const handleTestEmail = async (clientId: string, recipients: string[]) => {
+  const handleTestEmail = async (clientId: string, recipients: string[], ccRecipients: string[] = []) => {
     if (recipients.length === 0) {
       return message.warning('Please add at least one recipient email first.');
     }
     try {
-      await api.post(`/reminders/${clientId}/test`, { to: recipients });
+      await api.post(`/reminders/${clientId}/test`, { 
+        to: recipients,
+        cc: ccRecipients
+      });
       message.success('Test email has been fired!');
     } catch {
       message.error('Failed to send test email');
@@ -165,7 +168,7 @@ const RemindersPage: React.FC = () => {
             size="small" 
             type="dashed" 
             icon={<SendOutlined />}
-            onClick={() => handleTestEmail(record.client._id, record.setting.recipient_emails)}
+            onClick={() => handleTestEmail(record.client._id, record.setting.recipient_emails || [], record.setting.cc_emails || [])}
             disabled={!record.client.contract_end_date}
           >
             Test
