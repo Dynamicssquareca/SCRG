@@ -98,7 +98,7 @@ export async function processReminders() {
       }
 
       // Calculate days remaining
-      const endDateStr = dayjs(client.contract_end_date).format('YYYY-MM-DD');
+      const endDateStr = client.contract_end_date.toISOString().substring(0, 10);
       const endDate = dayjs(endDateStr).startOf('day');
       // Number of days until expiration (if negative, it already expired)
       const daysRemaining = endDate.diff(todayDate, 'days');
@@ -139,15 +139,16 @@ export async function processReminders() {
         logger.info(`Triggering ${daysRemaining}-day reminder for ${client.client_name}...`);
         
         const subject = `Notice: Contract Expiring in ${daysRemaining} Days - ${client.client_name}`;
+        const endDateDisplay = dayjs(client.contract_end_date.toISOString().substring(0, 10)).format('MMMM DD, YYYY');
         const html = getExpirationTemplate(
           client.client_name,
           daysRemaining,
-          dayjs(client.contract_end_date).format('MMMM DD, YYYY'),
+          endDateDisplay,
           client.account_manager || 'Not Assigned'
         );
 
         try {
-          const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${dayjs(client.contract_end_date).format('MMMM DD, YYYY')}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
+          const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${endDateDisplay}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
 
           await sendEmail({
             to: uniqueTo.length > 0 ? uniqueTo : uniqueCc, // fallback to CC if no TO
@@ -198,14 +199,18 @@ export async function sendTestReminder(clientId: string, to: string[], cc: strin
     : 30;
 
   const subject = `[TEST] Notice: Contract Expiring in ${daysRemaining} Days - ${client.client_name}`;
+  const endDateDisplay = client.contract_end_date 
+    ? dayjs(client.contract_end_date.toISOString().substring(0, 10)).format('MMMM DD, YYYY') 
+    : 'Not Set';
+
   const html = getExpirationTemplate(
     client.client_name,
     daysRemaining,
-    client.contract_end_date ? dayjs(client.contract_end_date).format('MMMM DD, YYYY') : 'Not Set',
+    endDateDisplay,
     client.account_manager || 'Not Assigned'
   );
 
-  const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${client.contract_end_date ? dayjs(client.contract_end_date).format('MMMM DD, YYYY') : 'Not Set'}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
+  const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${endDateDisplay}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
 
   await sendEmail({
     to,

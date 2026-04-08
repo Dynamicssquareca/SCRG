@@ -287,7 +287,7 @@ const DashboardPage: React.FC = () => {
                 >
                   <CheckCircleOutlined style={{ fontSize: 36, color: '#16A34A', marginBottom: 10, display: 'block' }} />
                   <Text type="secondary" style={{ fontSize: 13 }}>
-                    No contracts expiring in the next 30 days.
+                    No contracts expiring soon or overdue.
                   </Text>
                 </motion.div>
               ) : (
@@ -312,14 +312,16 @@ const DashboardPage: React.FC = () => {
                           description={
                             <div>
                               <Text type="secondary" style={{ fontSize: 12 }}>
-                                Renews: {dayjs(item.contractEndDate).format('MMM DD, YYYY')}
+                                {item.daysRemaining < 0 ? 'Expired: ' : 'Renews: '} {dayjs(String(item.contractEndDate).substring(0, 10)).format('MMM DD, YYYY')}
                               </Text>
                               <br />
                               <Tag
                                 color={item.level === 'critical' ? 'error' : item.level === 'warning' ? 'warning' : 'default'}
                                 style={{ marginTop: 5 }}
                               >
-                                {item.daysRemaining} days remaining
+                                {item.daysRemaining < 0 
+                                  ? `${Math.abs(item.daysRemaining)} days overdue` 
+                                  : `${item.daysRemaining} days remaining`}
                               </Tag>
                             </div>
                           }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Typography, Space, Button, Input, Modal, Form, DatePicker, InputNumber, Switch, message, Row, Col } from 'antd';
+import { Card, Table, Typography, Space, Button, Input, Modal, Form, DatePicker, InputNumber, Switch, message, Row, Col, Select } from 'antd';
 import { SearchOutlined, EditOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import dayjs from 'dayjs';
@@ -11,6 +11,7 @@ const ClientMasterPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [searchText, setSearchText] = useState('');
+  const [displayTz, setDisplayTz] = useState<string>(dayjs.tz?.guess() || 'UTC');
   
   // Modal state
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -62,10 +63,10 @@ const ClientMasterPage: React.FC = () => {
       accountManager: record.account_manager,
       customerSuccessMgr: record.customer_success_mgr,
       toolVersion: record.tool_version,
-      contractStartDate: record.contract_start_date ? dayjs(record.contract_start_date) : null,
-      contractEndDate: record.contract_end_date ? dayjs(record.contract_end_date) : null,
+      contractStartDate: record.contract_start_date ? dayjs(String(record.contract_start_date).substring(0, 10)) : null,
+      contractEndDate: record.contract_end_date ? dayjs(String(record.contract_end_date).substring(0, 10)) : null,
       totalContractedHours: Number(record.total_contracted_hours),
-      previousBalanceHours: Number(record.previous_balance_hours),
+      previousBalanceHours: Number(record.current_balance ?? record.previous_balance_hours),
       feedbackLink: record.feedback_link,
       isActive: record.is_active === 1 || record.is_active === true,
     });
@@ -154,6 +155,18 @@ const ClientMasterPage: React.FC = () => {
       render: (text: string) => <Typography.Text strong>{text}</Typography.Text> 
     },
     { title: 'Account Manager', dataIndex: 'account_manager', key: 'account_manager' },
+    { 
+      title: 'Contract Start', 
+      dataIndex: 'contract_start_date', 
+      key: 'start_date',
+      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <span style={{ color: '#999' }}>—</span> 
+    },
+    { 
+      title: 'Contract Ends', 
+      dataIndex: 'contract_end_date', 
+      key: 'end_date',
+      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <span style={{ color: '#999' }}>—</span> 
+    },
     { title: 'Contracted Hours', dataIndex: 'total_contracted_hours', key: 'hours' },
     { 
       title: 'Last Month Balance', 
@@ -204,14 +217,30 @@ const ClientMasterPage: React.FC = () => {
           <Title level={4} style={{ margin: 0 }}>Client Master</Title>
         </Col>
         <Col>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={showAddModal}
-            style={{ background: '#1B3A5C' }}
-          >
-            Add New Client
-          </Button>
+          <Space>
+            <Select
+              value={displayTz}
+              onChange={setDisplayTz}
+              style={{ width: 220 }}
+              options={[
+                { value: dayjs.tz?.guess() || 'UTC', label: 'Local Time' },
+                { value: 'UTC', label: 'UTC' },
+                { value: 'America/New_York', label: 'EST / EDT (New York)' },
+                { value: 'America/Los_Angeles', label: 'PST / PDT (Los Angeles)' },
+                { value: 'Asia/Kolkata', label: 'IST (India)' },
+                { value: 'Europe/London', label: 'GMT / BST (London)' },
+                { value: 'Australia/Sydney', label: 'AEST / AEDT (Sydney)' }
+              ]}
+            />
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={showAddModal}
+              style={{ background: '#1B3A5C' }}
+            >
+              Add New Client
+            </Button>
+          </Space>
         </Col>
       </Row>
 

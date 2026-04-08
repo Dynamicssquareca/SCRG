@@ -15,12 +15,14 @@ export async function getNotifications(req: Request, res: Response, next: NextFu
     const today = dayjs().startOf('day');
 
     for (const client of clients) {
-      const endDate = dayjs(client.contract_end_date).startOf('day');
+      const endDateStr = client.contract_end_date!.toISOString().substring(0, 10);
+      const endDate = dayjs(endDateStr).startOf('day');
       const daysRemaining = endDate.diff(today, 'day');
 
-      if (daysRemaining >= 0 && daysRemaining <= 30) {
+      if (daysRemaining <= 30) {
         let level = 'info';
-        if (daysRemaining <= 7) level = 'critical';
+        if (daysRemaining < 0) level = 'critical';
+        else if (daysRemaining <= 7) level = 'critical';
         else if (daysRemaining <= 15) level = 'warning';
 
         notifications.push({
@@ -29,7 +31,9 @@ export async function getNotifications(req: Request, res: Response, next: NextFu
           contractEndDate: client.contract_end_date,
           daysRemaining,
           level,
-          message: `Contract for ${client.client_name} ends in ${daysRemaining} day(s)`
+          message: daysRemaining < 0 
+            ? `Contract for ${client.client_name} expired ${Math.abs(daysRemaining)} day(s) ago`
+            : `Contract for ${client.client_name} ends in ${daysRemaining} day(s)`
         });
       }
     }

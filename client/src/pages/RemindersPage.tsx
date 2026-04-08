@@ -11,6 +11,7 @@ const RemindersPage: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [displayTz, setDisplayTz] = useState<string>(dayjs.tz?.guess() || 'UTC');
   
   // Edit Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -117,7 +118,7 @@ const RemindersPage: React.FC = () => {
     {
       title: 'Contract Ends',
       dataIndex: ['client', 'contract_end_date'],
-      render: (date: string) => date ? dayjs(date).format('DD MMM YYYY') : <Text type="secondary">Not set</Text>,
+      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <Text type="secondary">Not set</Text>,
     },
     {
       title: 'Reminders Enabled',
@@ -180,14 +181,31 @@ const RemindersPage: React.FC = () => {
 
   return (
     <div>
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0F1117', letterSpacing: '-0.4px' }}>
-          Automated Reminders
-        </h1>
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          Manage contract expiration emails and alerts.
-        </Text>
-      </motion.div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0F1117', letterSpacing: '-0.4px' }}>
+            Automated Reminders
+          </h1>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Manage contract expiration emails and alerts.
+          </Text>
+        </motion.div>
+        
+        <Select
+          value={displayTz}
+          onChange={setDisplayTz}
+          style={{ width: 220 }}
+          options={[
+            { value: dayjs.tz?.guess() || 'UTC', label: 'Local Time' },
+            { value: 'UTC', label: 'UTC' },
+            { value: 'America/New_York', label: 'EST / EDT (New York)' },
+            { value: 'America/Los_Angeles', label: 'PST / PDT (Los Angeles)' },
+            { value: 'Asia/Kolkata', label: 'IST (India)' },
+            { value: 'Europe/London', label: 'GMT / BST (London)' },
+            { value: 'Australia/Sydney', label: 'AEST / AEDT (Sydney)' }
+          ]}
+        />
+      </div>
 
       <Tabs defaultActiveKey="clients" items={[
         {
@@ -236,7 +254,7 @@ const RemindersPage: React.FC = () => {
                         <div>
                           <Tag color={item.status === 'sent' ? 'green' : 'red'}>{item.status.toUpperCase()}</Tag>
                           <Text type="secondary" style={{ fontSize: 12, marginRight: 8 }}>
-                            {item.days_before}-day trigger at {dayjs(item.sent_at).format('DD MMM, HH:mm')}
+                            {item.days_before}-day trigger at {dayjs(item.sent_at).tz(displayTz).format('DD MMM YYYY, HH:mm')}
                           </Text>
                           <br />
                           <Text type="secondary" style={{ fontSize: 12 }}>To: {item.sent_to.join(', ')}</Text>
@@ -270,6 +288,10 @@ const RemindersPage: React.FC = () => {
               <Select.Option value={15}>15 Days</Select.Option>
               <Select.Option value={7}>7 Days</Select.Option>
               <Select.Option value={3}>3 Days</Select.Option>
+              <Select.Option value={0}>On Expiration (0 Days)</Select.Option>
+              <Select.Option value={-7}>7 Days Overdue</Select.Option>
+              <Select.Option value={-15}>15 Days Overdue</Select.Option>
+              <Select.Option value={-30}>30 Days Overdue</Select.Option>
             </Select>
           </Form.Item>
 
