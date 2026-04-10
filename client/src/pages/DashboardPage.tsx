@@ -90,7 +90,11 @@ const DashboardPage: React.FC = () => {
     setLoading(true);
     try {
       let statsUrl = '/dashboard/stats';
-      if (selectedMonth) statsUrl += `?month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}`;
+      if (selectedMonth) {
+        const start = selectedMonth.startOf('month').toISOString();
+        const end = selectedMonth.endOf('month').toISOString();
+        statsUrl += `?month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}&startDate=${start}&endDate=${end}`;
+      }
       const [statsRes, uploadsRes, notifRes] = await Promise.all([
         api.get(statsUrl),
         api.get('/uploads?limit=5'),
@@ -128,7 +132,9 @@ const DashboardPage: React.FC = () => {
     try {
       let url = `/dashboard/cases?status=${status}`;
       if (selectedMonth) {
-        url += `&month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}`;
+        const start = selectedMonth.startOf('month').toISOString();
+        const end = selectedMonth.endOf('month').toISOString();
+        url += `&month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}&startDate=${start}&endDate=${end}`;
       }
       const res = await api.get(url);
       setCasesData(res.data.data);

@@ -7,7 +7,7 @@ import { successResponse } from '../utils/apiResponse';
 
 export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
-    const { month, year } = req.query;
+    const { month, year, startDate, endDate } = req.query;
     const totalClients = await Client.countDocuments({ is_active: true });
     const totalUploads = await Upload.countDocuments();
 
@@ -19,16 +19,16 @@ export async function getStats(req: Request, res: Response, next: NextFunction) 
     if (month && year) {
       reportFilter = { month: Number(month), year: Number(year) };
       
-      const startDate = new Date(Number(year), Number(month) - 1, 1);
-      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
+      const start = startDate ? new Date(startDate as string) : new Date(Number(year), Number(month) - 1, 1);
+      const end = endDate ? new Date(endDate as string) : new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
       
       openCaseFilter = {
-        created_on: { $gte: startDate, $lte: endDate },
+        created_on: { $gte: start, $lte: end },
         status_reason: { $not: closedStatusRegex }
       };
 
       closedCaseFilter = {
-        updated_on: { $gte: startDate, $lte: endDate },
+        updated_on: { $gte: start, $lte: end },
         status_reason: { $regex: closedStatusRegex }
       };
     } else {
@@ -54,19 +54,19 @@ export async function getStats(req: Request, res: Response, next: NextFunction) 
 
 export async function getCases(req: Request, res: Response, next: NextFunction) {
   try {
-    const { month, year, status } = req.query;
+    const { month, year, status, startDate, endDate } = req.query;
     let caseFilter: any = {};
     const closedStatusRegex = /resolved|closed|problem solved/i;
 
     if (month && year) {
-      const startDate = new Date(Number(year), Number(month) - 1, 1);
-      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
+      const start = startDate ? new Date(startDate as string) : new Date(Number(year), Number(month) - 1, 1);
+      const end = endDate ? new Date(endDate as string) : new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
       
       if (status === 'closed') {
-        caseFilter.updated_on = { $gte: startDate, $lte: endDate };
+        caseFilter.updated_on = { $gte: start, $lte: end };
         caseFilter.status_reason = { $regex: closedStatusRegex };
       } else if (status === 'open') {
-        caseFilter.created_on = { $gte: startDate, $lte: endDate };
+        caseFilter.created_on = { $gte: start, $lte: end };
         caseFilter.status_reason = { $not: closedStatusRegex };
       }
     } else {
