@@ -13,11 +13,14 @@ const router = Router();
  */
 router.get('/reminders', async (req: Request, res: Response) => {
   // Verify the cron secret to prevent unauthorized access
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers['authorization'];
+  const cronSecret = (process.env.CRON_SECRET || '').trim();
+  const authHeader = (req.headers['authorization'] || '').trim();
+  const expected = `Bearer ${cronSecret}`;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    logger.warn('Unauthorized cron request attempt');
+  logger.info(`[Cron Auth] Header present: ${!!authHeader}, Secret configured: ${!!cronSecret}`);
+
+  if (cronSecret && authHeader !== expected) {
+    logger.warn(`[Cron Auth] Mismatch. Got: "${authHeader.substring(0, 20)}..." Expected: "${expected.substring(0, 20)}..."`);
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
