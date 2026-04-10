@@ -83,8 +83,8 @@ export async function processReminders(dailyMode: boolean = false) {
   try {
     // 1. Get all active configs
     const activeSettings = await ReminderSetting.find({ is_enabled: true }).populate('client_id');
-    const todayDate = dayjs().startOf('day');
-    const currentHourMinute = dayjs().format('HH:mm');
+    const todayDate = dayjs().utcOffset(330).startOf('day');
+    const currentHourMinute = dayjs().utcOffset(330).format('HH:mm');
     
     for (const setting of activeSettings) {
       // In dailyMode (Vercel free cron — runs once/day), skip the time-of-day check.
