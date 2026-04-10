@@ -6,5 +6,6 @@ const router = Router();
 
 router.use(authMiddleware);
 router.get('/stats', dashboardController.getStats);
+router.get('/cases', dashboardController.getCases);
 
 export default router;

@@ -1,0 +1,28 @@
+--- server/src/controllers/dashboardController.ts
++++ server/src/controllers/dashboardController.ts
+@@ -43,3 +43,26 @@
+   } catch (err) { next(err); }
+ }
++
++export async function getCases(req: Request, res: Response, next: NextFunction) {
++  try {
++    const { month, year, status } = req.query;
++    let caseFilter: any = {};
++
++    if (month && year) {
++      const startDate = new Date(Number(year), Number(month) - 1, 1);
++      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
++      caseFilter.created_on = { $gte: startDate, $lte: endDate };
++    }
++
++    const closedStatusRegex = /resolved|closed|problem solved/i;
++    if (status === 'closed') {
++      caseFilter.status_reason = { $regex: closedStatusRegex };
++    } else if (status === 'open') {
++      caseFilter.status_reason = { $not: closedStatusRegex };
++    }
++
++    const cases = await Case.find(caseFilter).sort({ created_on: -1 });
++    successResponse(res, cases);
++  } catch (err) { next(err); }
++}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List } from 'antd';
+import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal } from 'antd';
 import {
   UserOutlined, CloudUploadOutlined, WarningOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
@@ -22,20 +22,22 @@ interface MetricProps {
   accentColor: string;
   index: number;
   loading: boolean;
+  onClick?: () => void;
 }
 
-const MetricCard: React.FC<MetricProps> = ({ label, value, icon, iconBg, iconColor, accentColor, index, loading }) => (
+const MetricCard: React.FC<MetricProps> = ({ label, value, icon, iconBg, iconColor, accentColor, index, loading, onClick }) => (
   <motion.div
     initial={{ opacity: 0, y: 22 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: index * 0.07, duration: 0.42, ease: [0.4, 0, 0.2, 1] }}
     whileHover={{ y: -4 }}
     style={{ borderRadius: 16 }}
+    onClick={onClick}
   >
     <Card
       loading={loading}
-      className="metric-card"
-      style={{ borderRadius: 16 }}
+      className={`metric-card ${onClick ? 'clickable-card' : ''}`}
+      style={{ borderRadius: 16, cursor: onClick ? 'pointer' : 'default' }}
       styles={{ body: { padding: '22px 24px' } }}
     >
       {/* Accent bar on top */}
@@ -79,6 +81,11 @@ const DashboardPage: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(dayjs());
 
+  const [casesModalVisible, setCasesModalVisible] = useState(false);
+  const [casesData, setCasesData] = useState<any[]>([]);
+  const [casesLoading, setCasesLoading] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<'open' | 'closed'>('open');
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -114,6 +121,24 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const fetchCases = async (status: 'open' | 'closed') => {
+    setSelectedStatus(status);
+    setCasesModalVisible(true);
+    setCasesLoading(true);
+    try {
+      let url = `/dashboard/cases?status=${status}`;
+      if (selectedMonth) {
+        url += `&month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}`;
+      }
+      const res = await api.get(url);
+      setCasesData(res.data.data);
+    } catch (err) {
+      message.error('Failed to load tickets');
+    } finally {
+      setCasesLoading(false);
+    }
+  };
+
   const columns = [
     {
       title: 'File Name', dataIndex: 'original_name', key: 'original_name',
@@ -139,8 +164,24 @@ const DashboardPage: React.FC = () => {
   const metrics: MetricProps[] = [
     { label: 'Total Clients',           value: stats.totalClients,    icon: <UserOutlined />,          iconBg: 'rgba(232,54,61,0.08)',    iconColor: '#E8363D', accentColor: '#E8363D',          index: 0, loading },
     { label: 'Total Uploads',           value: stats.totalUploads,    icon: <CloudUploadOutlined />,   iconBg: 'rgba(37,99,235,0.08)',    iconColor: '#2563EB', accentColor: '#2563EB',          index: 1, loading },
-    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,       iconBg: 'rgba(234,179,8,0.10)',    iconColor: '#B45309', accentColor: '#F59E0B',          index: 2, loading },
-    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />,   iconBg: 'rgba(22,163,74,0.09)',    iconColor: '#16A34A', accentColor: '#16A34A',          index: 3, loading },
+    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,       iconBg: 'rgba(234,179,8,0.10)',    iconColor: '#B45309', accentColor: '#F59E0B',          index: 2, loading, onClick: () => fetchCases('open') },
+    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />,   iconBg: 'rgba(22,163,74,0.09)',    iconColor: '#16A34A', accentColor: '#16A34A',          index: 3, loading, onClick: () => fetchCases('closed') },
+  ];
+
+  const caseColumns = [
+    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', render: (v: string) => <Text strong style={{ whiteSpace: 'nowrap' }}>{v}</Text> },
+    { title: 'Customer Name (Customer)', dataIndex: 'customer_name', key: 'customer_name' },
+    { title: 'Contact', dataIndex: 'contact', key: 'contact' },
+    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', render: (v: string) => v ? dayjs(v).format('D/M/YY') : '-' },
+    { title: 'Case Title', dataIndex: 'case_title', key: 'case_title' },
+    { title: 'Support Agent', dataIndex: 'support_agent', key: 'support_agent' },
+    { title: 'Status Reason', dataIndex: 'status_reason', key: 'status_reason' },
+    { title: 'Priority', dataIndex: 'priority', key: 'priority' },
+    { title: 'Country', dataIndex: 'country', key: 'country' },
+    { title: 'Billable Duration', dataIndex: 'billable_duration', key: 'billable_duration' },
+    { title: 'Updated On', dataIndex: 'updated_on', key: 'updated_on', render: (v: string) => v ? dayjs(v).format('D/M/YY') : '-' },
+    { title: 'Total Days', dataIndex: 'total_days', key: 'total_days' },
+    { title: 'Comments', dataIndex: 'comments', key: 'comments' },
   ];
 
   return (
@@ -335,6 +376,24 @@ const DashboardPage: React.FC = () => {
           </motion.div>
         </Col>
       </Row>
+
+      {/* Cases Modal */}
+      <Modal
+        title={selectedStatus === 'open' ? `Open Tickets${mLabel}` : `Closed Tickets${mLabel}`}
+        open={casesModalVisible}
+        onCancel={() => setCasesModalVisible(false)}
+        footer={null}
+        width={1100}
+      >
+        <Table
+          dataSource={casesData}
+          columns={caseColumns}
+          rowKey="_id"
+          loading={casesLoading}
+          scroll={{ x: 'max-content' }}
+          pagination={{ pageSize: 10 }}
+        />
+      </Modal>
     </div>
   );
 };

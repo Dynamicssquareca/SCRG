@@ -12,25 +12,34 @@ export async function getStats(req: Request, res: Response, next: NextFunction) 
     const totalUploads = await Upload.countDocuments();
 
     let reportFilter: any = {};
-    let caseFilter: any = {};
+    let openCaseFilter: any = {};
+    let closedCaseFilter: any = {};
+    const closedStatusRegex = /resolved|closed|problem solved/i;
 
     if (month && year) {
       reportFilter = { month: Number(month), year: Number(year) };
       
-      // Filter cases by the selected month using created_on
       const startDate = new Date(Number(year), Number(month) - 1, 1);
       const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
-      caseFilter.created_on = { $gte: startDate, $lte: endDate };
+      
+      openCaseFilter = {
+        created_on: { $gte: startDate, $lte: endDate },
+        status_reason: { $not: closedStatusRegex }
+      };
+
+      closedCaseFilter = {
+        updated_on: { $gte: startDate, $lte: endDate },
+        status_reason: { $regex: closedStatusRegex }
+      };
+    } else {
+      openCaseFilter = { status_reason: { $not: closedStatusRegex } };
+      closedCaseFilter = { status_reason: { $regex: closedStatusRegex } };
     }
 
     const totalReportsGenerated = await Report.countDocuments(reportFilter);
-    const totalCases = await Case.countDocuments(caseFilter);
-    
-    // Categorize closed cases (case insensitive)
-    const closedStatusRegex = /resolved|closed|problem solved/i;
-    const closedFilter = { ...caseFilter, status_reason: { $regex: closedStatusRegex } };
-    const totalClosedCases = await Case.countDocuments(closedFilter);
-    const totalOpenCases = totalCases - totalClosedCases;
+    const totalOpenCases = await Case.countDocuments(openCaseFilter);
+    const totalClosedCases = await Case.countDocuments(closedCaseFilter);
+    const totalCases = totalOpenCases + totalClosedCases;
 
     successResponse(res, {
       totalClients,
@@ -40,5 +49,37 @@ export async function getStats(req: Request, res: Response, next: NextFunction) 
       totalOpenCases,
       totalClosedCases
     });
+  } catch (err) { next(err); }
+}
+
+export async function getCases(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { month, year, status } = req.query;
+    let caseFilter: any = {};
+    const closedStatusRegex = /resolved|closed|problem solved/i;
+
+    if (month && year) {
+      const startDate = new Date(Number(year), Number(month) - 1, 1);
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999);
+      
+      if (status === 'closed') {
+        caseFilter.updated_on = { $gte: startDate, $lte: endDate };
+        caseFilter.status_reason = { $regex: closedStatusRegex };
+      } else if (status === 'open') {
+        caseFilter.created_on = { $gte: startDate, $lte: endDate };
+        caseFilter.status_reason = { $not: closedStatusRegex };
+      }
+    } else {
+      if (status === 'closed') {
+        caseFilter.status_reason = { $regex: closedStatusRegex };
+      } else if (status === 'open') {
+        caseFilter.status_reason = { $not: closedStatusRegex };
+      }
+    }
+
+    const sortOption = status === 'closed' ? { updated_on: -1 } : { created_on: -1 };
+    // @ts-ignore
+    const cases = await Case.find(caseFilter).sort(sortOption);
+    successResponse(res, cases);
   } catch (err) { next(err); }
 }

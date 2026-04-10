@@ -1,0 +1,116 @@
+--- client/src/pages/DashboardPage.tsx
++++ client/src/pages/DashboardPage.tsx
+@@ -1,6 +1,6 @@
+ import React, { useEffect, useState } from 'react';
+-import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List } from 'antd';
++import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal } from 'antd';
+ import {
+   UserOutlined, CloudUploadOutlined, WarningOutlined,
+   CheckCircleOutlined, ExclamationCircleOutlined,
+@@ -21,11 +21,12 @@
+   iconBg: string;
+   iconColor: string;
+   accentColor: string;
+   index: number;
+   loading: boolean;
++  onClick?: () => void;
+ }
+ 
+-const MetricCard: React.FC<MetricProps> = ({ label, value, icon, iconBg, iconColor, accentColor, index, loading }) => (
++const MetricCard: React.FC<MetricProps> = ({ label, value, icon, iconBg, iconColor, accentColor, index, loading, onClick }) => (
+   <motion.div
+     initial={{ opacity: 0, y: 22 }}
+     animate={{ opacity: 1, y: 0 }}
+@@ -33,6 +34,7 @@
+     whileHover={{ y: -4 }}
+     style={{ borderRadius: 16 }}
++    onClick={onClick}
+   >
+     <Card
+       loading={loading}
+-      className="metric-card"
++      className={`metric-card ${onClick ? 'clickable-card' : ''}`}
+       style={{ borderRadius: 16, cursor: onClick ? 'pointer' : 'default' }}
+       styles={{ body: { padding: '22px 24px' } }}
+@@ -77,6 +79,11 @@
+   const [loading, setLoading]           = useState(true);
+   const [deleteLoading, setDeleteLoading] = useState(false);
+   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(dayjs());
++
++  const [casesModalVisible, setCasesModalVisible] = useState(false);
++  const [casesData, setCasesData] = useState<any[]>([]);
++  const [casesLoading, setCasesLoading] = useState(false);
++  const [selectedStatus, setSelectedStatus] = useState<'open' | 'closed'>('open');
+ 
+   const fetchData = async () => {
+@@ -113,6 +120,19 @@
+     } finally {
+       setDeleteLoading(false);
+     }
++  };
++
++  const fetchCases = async (status: 'open' | 'closed') => {
++    setSelectedStatus(status);
++    setCasesModalVisible(true);
++    setCasesLoading(true);
++    try {
++      let url = `/dashboard/cases?status=${status}`;
++      if (selectedMonth) url += `&month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}`;
++      const res = await api.get(url);
++      setCasesData(res.data.data);
++    } catch (err) {
++      message.error('Failed to load tickets');
++    } finally {
++      setCasesLoading(false);
++    }
+   };
+ 
+@@ -136,10 +156,23 @@
+   const mLabel = selectedMonth ? ` (${selectedMonth.format('MMM YYYY')})` : '';
+ 
+   const metrics: MetricProps[] = [
+     { label: 'Total Clients',           value: stats.totalClients,    icon: <UserOutlined />,          iconBg: 'rgba(232,54,61,0.08)',    iconColor: '#E8363D', accentColor: '#E8363D',          index: 0, loading },
+     { label: 'Total Uploads',           value: stats.totalUploads,    icon: <CloudUploadOutlined />,   iconBg: 'rgba(37,99,235,0.08)',    iconColor: '#2563EB', accentColor: '#2563EB',          index: 1, loading },
+-    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,       iconBg: 'rgba(234,179,8,0.10)',    iconColor: '#B45309', accentColor: '#F59E0B',          index: 2, loading },
+-    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />,   iconBg: 'rgba(22,163,74,0.09)',    iconColor: '#16A34A', accentColor: '#16A34A',          index: 3, loading },
++    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,       iconBg: 'rgba(234,179,8,0.10)',    iconColor: '#B45309', accentColor: '#F59E0B',          index: 2, loading, onClick: () => fetchCases('open') },
++    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />,   iconBg: 'rgba(22,163,74,0.09)',    iconColor: '#16A34A', accentColor: '#16A34A',          index: 3, loading, onClick: () => fetchCases('closed') },
+   ];
++
++  const caseColumns = [
++    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', render: (v: string) => <Text strong>{v}</Text> },
++    { title: 'Customer Name', dataIndex: 'customer_name', key: 'customer_name' },
++    { title: 'Case Title', dataIndex: 'case_title', key: 'case_title', ellipsis: true },
++    { title: 'Support Agent', dataIndex: 'support_agent', key: 'support_agent' },
++    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', render: (v: string) => v ? dayjs(v).format('DD MMM YYYY') : '-' },
++    { title: 'Status Reason', dataIndex: 'status_reason', key: 'status_reason' },
++    { title: 'Priority', dataIndex: 'priority', key: 'priority' },
++    { title: 'Billable Duration', dataIndex: 'billable_duration', key: 'billable_duration' },
++    { title: 'Total Days', dataIndex: 'total_days', key: 'total_days' },
++  ];
+ 
+   return (
+@@ -334,6 +367,23 @@
+           </motion.div>
+         </Col>
+       </Row>
++
++      {/* Cases Modal */}
++      <Modal
++        title={selectedStatus === 'open' ? `Open Tickets${mLabel}` : `Closed Tickets${mLabel}`}
++        open={casesModalVisible}
++        onCancel={() => setCasesModalVisible(false)}
++        footer={null}
++        width={1000}
++      >
++        <Table
++          dataSource={casesData}
++          columns={caseColumns}
++          rowKey="_id"
++          loading={casesLoading}
++          scroll={{ x: 1000 }}
++        />
++      </Modal>
+     </div>
+   );
+ };
