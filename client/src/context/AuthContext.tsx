@@ -7,6 +7,7 @@ interface User {
   email: string;
   fullName: string;
   role: string;
+  clientId: string | null;
 }
 
 interface AuthContextType {
@@ -33,7 +34,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('user', JSON.stringify(data.user));
     localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    navigate('/');
+    // Route client-role users to their portal, others to admin dashboard
+    if (data.user.role === 'client') {
+      navigate('/portal');
+    } else {
+      navigate('/');
+    }
   };
 
   const logout = async () => {
@@ -64,3 +70,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

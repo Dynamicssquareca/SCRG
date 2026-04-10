@@ -8,6 +8,8 @@ import usageRoutes from './usageRoutes';
 import adminRoutes from './adminRoutes';
 import notificationRoutes from './notificationRoutes';
 import reminderRoutes from './reminderRoutes';
+import clientPortalRoutes from './clientPortalRoutes';
+import clientAccessRoutes from './clientAccessRoutes';
 
 const router = Router();
 
@@ -20,5 +22,8 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/reminders', reminderRoutes);
+router.use('/client-portal', clientPortalRoutes);
+router.use('/client-access', clientAccessRoutes);
 
 export default router;
+

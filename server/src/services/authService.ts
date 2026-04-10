@@ -11,14 +11,14 @@ export async function authenticate(email: string, password: string) {
   const isValid = await bcrypt.compare(password, user.password_hash);
   if (!isValid) throw new UnauthorizedError('Invalid credentials');
 
-  const tokenPayload = { id: user._id, email: user.email, role: user.role };
+  const tokenPayload = { id: user._id, email: user.email, role: user.role, client_id: user.client_id || null };
   const accessToken = jwt.sign(tokenPayload, env.ACCESS_TOKEN_SECRET, { expiresIn: env.ACCESS_TOKEN_EXPIRY as any });
   const refreshToken = jwt.sign(tokenPayload, env.REFRESH_TOKEN_SECRET, { expiresIn: env.REFRESH_TOKEN_EXPIRY as any });
 
   return {
     accessToken,
     refreshToken,
-    user: { id: user._id, email: user.email, fullName: user.full_name, role: user.role },
+    user: { id: user._id, email: user.email, fullName: user.full_name, role: user.role, clientId: user.client_id || null },
   };
 }
 

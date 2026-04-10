@@ -10,6 +10,7 @@ import {
   MenuUnfoldOutlined,
   BarChartOutlined,
   BellOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -43,12 +44,13 @@ const DSIcon = () => (
 );
 
 const PAGE_LABELS: Record<string, string> = {
-  '/':        'Dashboard',
-  '/upload':  'Upload & Generate',
-  '/reports': 'Reports',
-  '/usage':   'Usage Report',
-  '/clients': 'Client Master',
-  '/reminders': 'Automated Reminders',
+  '/':            'Dashboard',
+  '/upload':      'Upload & Generate',
+  '/reports':     'Reports',
+  '/usage':       'Usage Report',
+  '/clients':     'Client Master',
+  '/reminders':   'Automated Reminders',
+  '/credentials': 'Client Credentials',
 };
 
 const AppLayout: React.FC = () => {
@@ -65,7 +67,8 @@ const AppLayout: React.FC = () => {
     ...(user?.role === 'admin'
       ? [
           { key: '/clients', icon: <TeamOutlined />, label: 'Client Master' },
-          { key: '/reminders', icon: <BellOutlined />, label: 'Reminders' }
+          { key: '/reminders', icon: <BellOutlined />, label: 'Reminders' },
+          { key: '/credentials', icon: <SafetyCertificateOutlined />, label: 'Client Credentials' },
         ]
       : []),
   ];

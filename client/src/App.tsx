@@ -9,13 +9,27 @@ import ReportsPage from './pages/ReportsPage';
 import ClientMasterPage from './pages/ClientMasterPage';
 import UsageReportPage from './pages/UsageReportPage';
 import RemindersPage from './pages/RemindersPage';
+import ClientCredentialsPage from './pages/ClientCredentialsPage';
+import ClientPortalDashboard from './pages/ClientPortal/ClientPortalDashboard';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const ProtectedRoute = ({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { isAuthenticated, user } = useAuth();
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Redirect client-role users away from internal admin routes
+  if (user?.role === 'client') return <Navigate to="/portal" replace />;
   if (requireAdmin && user?.role !== 'admin') return <Navigate to="/" replace />;
+
+  return <>{children}</>;
+};
+
+const ClientRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Only allow client-role users to access the portal
+  if (user?.role !== 'client') return <Navigate to="/" replace />;
 
   return <>{children}</>;
 };
@@ -24,6 +38,9 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {/* Client Portal — standalone, no sidebar */}
+      <Route path="/portal" element={<ClientRoute><ClientPortalDashboard /></ClientRoute>} />
+      {/* Internal Admin/Operator routes */}
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="upload" element={<UploadPage />} />
@@ -31,6 +48,7 @@ const AppRoutes = () => {
         <Route path="usage" element={<UsageReportPage />} />
         <Route path="clients" element={<ProtectedRoute requireAdmin><ClientMasterPage /></ProtectedRoute>} />
         <Route path="reminders" element={<ProtectedRoute requireAdmin><RemindersPage /></ProtectedRoute>} />
+        <Route path="credentials" element={<ProtectedRoute requireAdmin><ClientCredentialsPage /></ProtectedRoute>} />
       </Route>
     </Routes>
   );

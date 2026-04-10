@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password_hash: string;
   full_name: string;
   role: string;
+  client_id: mongoose.Types.ObjectId | null;
   is_active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -17,6 +18,7 @@ const UserSchema: Schema = new Schema(
     password_hash: { type: String, required: true },
     full_name: { type: String, required: true },
     role: { type: String, required: true, default: 'operator' },
+    client_id: { type: Schema.Types.ObjectId, ref: 'Client', default: null },
     is_active: { type: Boolean, default: true },
   },
   { timestamps: true }
