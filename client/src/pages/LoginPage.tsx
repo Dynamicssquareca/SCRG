@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Typography, message, Divider } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
@@ -14,7 +14,17 @@ const item = (i: number) => ({
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
+
+  // If user navigates to /login while already logged in, clear session so they can switch accounts
+  useEffect(() => {
+    if (isAuthenticated) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      window.location.reload();
+    }
+  }, []);
 
   const onFinish = async (values: any) => {
     setLoading(true);

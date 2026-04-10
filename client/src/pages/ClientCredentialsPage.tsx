@@ -21,6 +21,8 @@ import {
   SafetyCertificateOutlined,
   UserSwitchOutlined,
   CopyOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
@@ -111,6 +113,26 @@ const ClientCredentialsPage: React.FC = () => {
     }
   };
 
+  const handleGrantAgain = async (userId: string) => {
+    try {
+      await api.put(`/client-access/${userId}/grant-again`);
+      message.success('Access restored!');
+      fetchData();
+    } catch {
+      message.error('Failed to restore access');
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    try {
+      await api.delete(`/client-access/${userId}/permanent`);
+      message.success('User permanently deleted');
+      fetchData();
+    } catch {
+      message.error('Failed to delete user');
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     message.success('Copied to clipboard!');
@@ -160,6 +182,7 @@ const ClientCredentialsPage: React.FC = () => {
       width: 200,
       render: (_: any, record: PortalUser) => (
         <Space size={4}>
+          {/* Reset Password */}
           <Tooltip title="Reset Password">
             <Button
               type="text"
@@ -171,14 +194,50 @@ const ClientCredentialsPage: React.FC = () => {
               style={{ color: '#6366F1' }}
             />
           </Tooltip>
+
+          {/* Revoke / Grant Again — contextual */}
+          {record.isActive ? (
+            <Popconfirm
+              title="Revoke this client's portal access?"
+              onConfirm={() => handleRevoke(record.userId)}
+              okText="Yes, Revoke"
+              cancelText="Cancel"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Revoke Access">
+                <Button
+                  type="text"
+                  icon={<StopOutlined />}
+                  style={{ color: '#EF4444' }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="Re-enable this client's portal access?"
+              onConfirm={() => handleGrantAgain(record.userId)}
+              okText="Yes, Grant Again"
+              cancelText="Cancel"
+            >
+              <Tooltip title="Grant Again">
+                <Button
+                  type="text"
+                  icon={<CheckCircleOutlined />}
+                  style={{ color: '#22C55E' }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          )}
+
+          {/* Permanent Delete */}
           <Popconfirm
-            title="Revoke this client's portal access?"
-            onConfirm={() => handleRevoke(record.userId)}
-            okText="Yes, Revoke"
+            title="Permanently delete this user? This cannot be undone."
+            onConfirm={() => handleDelete(record.userId)}
+            okText="Yes, Delete"
             cancelText="Cancel"
             okButtonProps={{ danger: true }}
           >
-            <Tooltip title="Revoke Access">
+            <Tooltip title="Delete Permanently">
               <Button
                 type="text"
                 icon={<DeleteOutlined />}

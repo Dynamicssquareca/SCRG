@@ -140,3 +140,40 @@ export async function revokeClientAccess(req: Request, res: Response, next: Next
     successResponse(res, { message: 'Client portal access revoked' });
   } catch (err) { next(err); }
 }
+
+/**
+ * PUT /client-access/:userId/grant-again
+ * Re-activates a revoked client portal user.
+ */
+export async function grantAgainClientAccess(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (req.user?.role !== 'admin') throw new ForbiddenError();
+
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'client') throw new NotFoundError('Client portal user not found');
+
+    user.is_active = true;
+    await user.save();
+
+    successResponse(res, { message: 'Client portal access restored' });
+  } catch (err) { next(err); }
+}
+
+/**
+ * DELETE /client-access/:userId/permanent
+ * Permanently deletes a client portal user.
+ */
+export async function deleteClientAccess(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (req.user?.role !== 'admin') throw new ForbiddenError();
+
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user || user.role !== 'client') throw new NotFoundError('Client portal user not found');
+
+    await User.findByIdAndDelete(userId);
+
+    successResponse(res, { message: 'Client portal user permanently deleted' });
+  } catch (err) { next(err); }
+}

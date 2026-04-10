@@ -4,6 +4,8 @@ import { ReminderLog } from '../models/ReminderLog';
 import { AppSetting } from '../models/AppSetting';
 import { sendEmail } from './emailService';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 import logger from '../utils/logger';
 
 // HTML Template for Contract Expiration
