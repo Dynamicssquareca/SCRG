@@ -111,6 +111,8 @@ export async function processReminders(dailyMode: boolean = false) {
         ? setting.reminder_days
         : [30]; // Absolute fallback
 
+      logger.info(`[Reminder] Client: ${client.client_name} | Days remaining: ${daysRemaining} | Triggers: [${activeTriggers}] | Match: ${activeTriggers.includes(daysRemaining)} | UTC time: ${currentHourMinute} | Send time: ${setting.send_time}`);
+
       if (activeTriggers.includes(daysRemaining)) {
         // Build recipient list
         const toList = setting.recipient_emails || [];
