@@ -86,15 +86,20 @@ export async function processReminders(dailyMode: boolean = false) {
     // 1. Get all active configs
     const activeSettings = await ReminderSetting.find({ is_enabled: true }).populate('client_id');
     const todayDate = dayjs().utcOffset(330).startOf('day');
-    const currentHourMinute = dayjs().utcOffset(330).format('HH:mm');
+    const now = dayjs().utcOffset(330);
+    const currentHourMinute = now.format('HH:mm');
+    const currentTotalMinutes = now.hour() * 60 + now.minute();
     
     for (const setting of activeSettings) {
       // In dailyMode (Vercel free cron — runs once/day), skip the time-of-day check.
-      // In normal mode (localhost node-cron — runs every minute), only fire at the exact configured time.
+      // In normal mode, check if we're within a 5-minute window of the configured send_time.
       if (!dailyMode) {
         const clientSendTime = setting.send_time || '09:00';
-        if (clientSendTime !== currentHourMinute) {
-          continue; // Skip this client for now, it's not their exact time yet
+        const [h, m] = clientSendTime.split(':').map(Number);
+        const sendTotalMinutes = h * 60 + m;
+        const diff = Math.abs(currentTotalMinutes - sendTotalMinutes);
+        if (diff > 9 && diff < 1431) { // 10-min window (handles midnight wrap)
+          continue;
         }
       }
       const client = setting.client_id as any;

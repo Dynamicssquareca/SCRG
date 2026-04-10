@@ -316,7 +316,7 @@ const RemindersPage: React.FC = () => {
             extra="The exact time of day you want this email to officially fire."
             rules={[{ required: true, message: 'Please select a trigger time' }]}
           >
-            <TimePicker format="HH:mm" style={{ width: 200 }} />
+            <TimePicker format="HH:mm" minuteStep={10} style={{ width: 200 }} />
           </Form.Item>
         </Form>
       </Modal>
