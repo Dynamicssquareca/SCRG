@@ -6,6 +6,13 @@ let currentTask: cron.ScheduledTask | null = null;
 const DEFAULT_CRON = '* * * * *'; // Run every single minute
 
 export async function initScheduler() {
+  // On Vercel (serverless), cron is handled via Vercel Cron Jobs → /api/v1/cron/reminders
+  // node-cron only works in long-running processes (localhost / traditional servers)
+  if (process.env.VERCEL) {
+    logger.info('Running on Vercel — skipping node-cron (using Vercel Cron Jobs instead)');
+    return;
+  }
+
   try {
     // Stop existing task if any
     if (currentTask) {
@@ -31,3 +38,4 @@ export async function restartScheduler() {
   logger.info('Restarting scheduler due to settings change...');
   await initScheduler();
 }
+

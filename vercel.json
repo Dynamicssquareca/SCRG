@@ -20,5 +20,11 @@
       "source": "/(.*)",
       "destination": "/client/$1"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/cron/reminders",
+      "schedule": "0 4 * * *"
+    }
   ]
 }

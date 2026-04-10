@@ -10,6 +10,7 @@ import notificationRoutes from './notificationRoutes';
 import reminderRoutes from './reminderRoutes';
 import clientPortalRoutes from './clientPortalRoutes';
 import clientAccessRoutes from './clientAccessRoutes';
+import cronRoutes from './cronRoutes';
 
 const router = Router();
 
@@ -24,6 +25,8 @@ router.use('/notifications', notificationRoutes);
 router.use('/reminders', reminderRoutes);
 router.use('/client-portal', clientPortalRoutes);
 router.use('/client-access', clientAccessRoutes);
+router.use('/cron', cronRoutes);
 
 export default router;
+
 

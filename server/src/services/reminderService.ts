@@ -77,7 +77,7 @@ const getExpirationTemplate = (clientName: string, daysRemaining: number, endDat
 </html>
 `;
 
-export async function processReminders() {
+export async function processReminders(dailyMode: boolean = false) {
   logger.info('Starting automated contract reminder scan...');
   
   try {
@@ -87,10 +87,13 @@ export async function processReminders() {
     const currentHourMinute = dayjs().format('HH:mm');
     
     for (const setting of activeSettings) {
-      // Only process this client if their configured time precisely matches the current minute of the system
-      const clientSendTime = setting.send_time || '09:00';
-      if (clientSendTime !== currentHourMinute) {
-        continue; // Skip this client for now, it's not their exact time yet
+      // In dailyMode (Vercel free cron — runs once/day), skip the time-of-day check.
+      // In normal mode (localhost node-cron — runs every minute), only fire at the exact configured time.
+      if (!dailyMode) {
+        const clientSendTime = setting.send_time || '09:00';
+        if (clientSendTime !== currentHourMinute) {
+          continue; // Skip this client for now, it's not their exact time yet
+        }
       }
       const client = setting.client_id as any;
       if (!client || !client.is_active || !client.contract_end_date) {
