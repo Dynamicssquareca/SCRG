@@ -79,7 +79,7 @@ const DashboardPage: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading]           = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(dayjs());
+  const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(null);
 
   const [casesModalVisible, setCasesModalVisible] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
