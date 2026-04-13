@@ -17,8 +17,16 @@
       "destination": "api/index.ts"
     },
     {
-      "source": "/(.*)",
+      "source": "/assets/(.*)",
+      "destination": "/client/assets/$1"
+    },
+    {
+      "source": "/(.*\\.[a-z0-9]+$)",
       "destination": "/client/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/client/index.html"
     }
   ],
   "crons": [
