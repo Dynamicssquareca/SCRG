@@ -215,6 +215,10 @@ const ClientMasterPage: React.FC = () => {
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
         <Col>
           <Title level={4} style={{ margin: 0 }}>Client Master</Title>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Showing balances for: <strong>{dayjs().format('MMMM YYYY')}</strong>
+            &nbsp;(Current) and <strong>{dayjs().subtract(1, 'month').format('MMMM YYYY')}</strong> (Last Month)
+          </Typography.Text>
         </Col>
         <Col>
           <Space>

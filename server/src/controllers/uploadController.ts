@@ -19,8 +19,6 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     const upload = await Upload.create({
       user_id: new mongoose.Types.ObjectId(String(req.user!.id)),
       original_name: req.file.originalname,
-      stored_name: req.file.originalname, // memory storage — no stored filename
-      file_path: '',                        // not applicable with memory storage
       file_size_bytes: req.file.size,
       month: monthNum,
       year: yearNum,

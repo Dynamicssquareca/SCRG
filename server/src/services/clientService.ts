@@ -4,7 +4,7 @@ import { NotFoundError, ConflictError } from '../utils/apiResponse';
 import mongoose from 'mongoose';
 
 export async function getAllClients(query: any) {
-  const { search, isActive, page = 1, limit = 50 } = query;
+  const { search, isActive, page = 1, limit = 50, month, year } = query;
   
   const filter: any = {};
 
@@ -22,43 +22,59 @@ export async function getAllClients(query: any) {
     .limit(Number(limit))
     .skip((Number(page) - 1) * Number(limit));
 
-  // Fetch the two most recent reports per client to get current + last month balance
-  // Look at ALL reports (sync and non-sync) to ensure we always show the latest balance
-  const clientIds = clients.map(c => c._id);
-  const recentReports = await Report.aggregate([
-    { $match: { client_id: { $in: clientIds } } },
-    { $sort: { year: -1, month: -1 } },
-    {
-      $group: {
-        _id: '$client_id',
-        reports: { $push: { remaining_balance: '$remaining_balance', month: '$month', year: '$year' } }
-      }
-    }
-  ]);
+  // Determine current and last month based on the query param (from Upload) or real calendar date
+  const now = new Date();
+  const currentMonth = month ? Number(month) : now.getMonth() + 1;
+  const currentYear  = year  ? Number(year)  : now.getFullYear();
 
-  const reportMap: Record<string, { current_balance: number; last_month_balance: number | null }> = {};
-  for (const r of recentReports) {
-    reportMap[r._id.toString()] = {
-      current_balance: r.reports[0]?.remaining_balance ?? 0,
-      last_month_balance: r.reports.length > 1 ? r.reports[1].remaining_balance : null,
-    };
+  // Calculate previous month and year
+  const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+  const prevYear  = currentMonth === 1 ? currentYear - 1 : currentYear;
+
+  const clientIds = clients.map(c => c._id);
+
+  // Fetch current month's reports
+  const currentReports = await Report.find({
+    client_id: { $in: clientIds },
+    month: currentMonth,
+    year: currentYear,
+  }).select('client_id remaining_balance');
+
+  // Fetch previous month's reports
+  const prevReports = await Report.find({
+    client_id: { $in: clientIds },
+    month: prevMonth,
+    year: prevYear,
+  }).select('client_id remaining_balance');
+
+  // Build lookup maps
+  const currentMap: Record<string, number> = {};
+  for (const r of currentReports) {
+    currentMap[r.client_id.toString()] = r.remaining_balance ?? 0;
+  }
+
+  const prevMap: Record<string, number> = {};
+  for (const r of prevReports) {
+    prevMap[r.client_id.toString()] = r.remaining_balance ?? 0;
   }
 
   const enrichedClients = clients.map(c => {
     const obj = c.toObject() as any;
     const id = c._id.toString();
-    if (reportMap[id]) {
-      obj.current_balance = reportMap[id].current_balance;
-      obj.last_month_balance = reportMap[id].last_month_balance;
+
+    const hasCurrent = id in currentMap;
+    const hasPrev    = id in prevMap;
+
+    if (hasCurrent || hasPrev) {
+      obj.current_balance    = hasCurrent ? currentMap[id] : 0;
+      obj.last_month_balance = hasPrev    ? prevMap[id]    : null;
     } else {
-      // Fallback: use static previous_balance_hours from Client when no reports exist at all
-      obj.current_balance = obj.previous_balance_hours;
+      // Fallback: use static previous_balance_hours from Client when no reports exist
+      obj.current_balance    = obj.previous_balance_hours ?? 0;
       obj.last_month_balance = null;
     }
     return obj;
   });
-
-
 
   return {
     clients: enrichedClients,
