@@ -19,8 +19,8 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     const upload = await Upload.create({
       user_id: new mongoose.Types.ObjectId(String(req.user!.id)),
       original_name: req.file.originalname,
-      stored_name: req.file.filename,
-      file_path: req.file.path,
+      stored_name: req.file.originalname, // memory storage — no stored filename
+      file_path: '',                        // not applicable with memory storage
       file_size_bytes: req.file.size,
       month: monthNum,
       year: yearNum,
@@ -29,8 +29,8 @@ export async function create(req: Request, res: Response, next: NextFunction) {
     });
     const uploadId: string = (upload._id as mongoose.Types.ObjectId).toString();
 
-    // Process file
-    const result = await (processFile as any)(req.file.path, uploadId, monthNum, yearNum, shouldSync);
+    // Process file from in-memory buffer (works on Vercel + locally)
+    const result = await (processFile as any)(req.file.buffer, uploadId, monthNum, yearNum, shouldSync);
     successResponse(res, {
       uploadId,
       originalName: req.file.originalname,

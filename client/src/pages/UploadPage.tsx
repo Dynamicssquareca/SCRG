@@ -44,7 +44,7 @@ const UploadPage: React.FC = () => {
       formData.append('file', file);
       formData.append('month', values.month);
       formData.append('year', values.year);
-      formData.append('syncClientMaster', values.syncClientMaster || false);
+      formData.append('syncClientMaster', values.syncClientMaster ? 'true' : 'false');
 
       const { data } = await api.post('/uploads', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }

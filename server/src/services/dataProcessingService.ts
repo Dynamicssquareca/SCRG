@@ -147,14 +147,15 @@ function getMonthNumber(name: string): number | null {
 }
 
 export async function processFile(
-  filePath: string,
+  fileBuffer: Buffer,
   uploadId: string,
   month: number,
   year: number,
   syncClientMaster: boolean = false
 ): Promise<{ rowCount: number; clientsDetected: string[]; warnings: string[] }> {
   const warnings: string[] = [];
-  const workbook = XLSX.readFile(filePath);
+  // Read from buffer instead of disk — works on Vercel and locally
+  const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
 
   const clientMap: Record<string, string> = {}; // Name to ID
 
