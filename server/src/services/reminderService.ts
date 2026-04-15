@@ -93,7 +93,7 @@ const getExpirationTemplate = (clientName: string, daysRemaining: number, endDat
 
 
 export async function processReminders(dailyMode: boolean = false) {
-  logger.info('Starting automated contract reminder scan...');
+  logger.debug('Starting automated contract reminder scan...');
   
   try {
     // 1. Get all active configs
@@ -218,7 +218,7 @@ export async function processReminders(dailyMode: boolean = false) {
       }
     }
     
-    logger.info('Finished automated contract reminder scan.');
+    logger.debug('Finished automated contract reminder scan.');
   } catch (err) {
     logger.error('Error during reminder processing job', err);
   }

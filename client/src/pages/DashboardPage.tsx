@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal } from 'antd';
+import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select } from 'antd';
 import {
   UserOutlined, CloudUploadOutlined, WarningOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
@@ -80,6 +80,36 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading]           = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(null);
+  const [uploadTz, setUploadTz] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+
+  // Returns how many minutes `tz` is ahead of UTC right now (same helper as RemindersPage)
+  const tzOffsetMinutes = (tz: string): number => {
+    try {
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false,
+      }).formatToParts(now);
+      const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value);
+      const wallMs = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+      return Math.round((wallMs - now.getTime()) / 60000);
+    } catch { return 0; }
+  };
+
+  // Convert a UTC ISO string → display string in the selected uploadTz
+  const formatInTz = (utcStr: string): string => {
+    if (!utcStr) return '—';
+    try {
+      const utcMs = new Date(utcStr).getTime();
+      const offset = tzOffsetMinutes(uploadTz);
+      const local = new Date(utcMs + offset * 60000);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${pad(local.getUTCDate())} ${months[local.getUTCMonth()]} ${local.getUTCFullYear()}, ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
+    } catch { return utcStr; }
+  };
 
   const [casesModalVisible, setCasesModalVisible] = useState(false);
   const [casesData, setCasesData] = useState<any[]>([]);
@@ -153,7 +183,7 @@ const DashboardPage: React.FC = () => {
     { title: 'Rows', dataIndex: 'row_count', key: 'row_count', width: 80 },
     {
       title: 'Uploaded', dataIndex: 'createdAt', key: 'createdAt',
-      render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(v).format('DD MMM YYYY, HH:mm')}</Text>,
+      render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{formatInTz(v)}</Text>,
     },
     {
       title: 'Status', dataIndex: 'status', key: 'status', width: 120,
@@ -207,13 +237,35 @@ const DashboardPage: React.FC = () => {
             {selectedMonth ? `Showing data for ${selectedMonth.format('MMMM YYYY')}` : 'All time data'}
           </Text>
         </div>
-        <DatePicker.MonthPicker
-          value={selectedMonth}
-          onChange={setSelectedMonth}
-          allowClear
-          placeholder="Filter by Month"
-          style={{ borderRadius: 8, height: 38 }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Select
+            value={uploadTz}
+            onChange={setUploadTz}
+            style={{ width: 220, borderRadius: 8, height: 38 }}
+            options={[
+              { label: 'Local Time',              value: Intl.DateTimeFormat().resolvedOptions().timeZone },
+              { label: 'UTC',                     value: 'UTC' },
+              { label: 'EST / EDT (New York)',     value: 'America/New_York' },
+              { label: 'CST / CDT (Chicago)',      value: 'America/Chicago' },
+              { label: 'MST / MDT (Denver)',       value: 'America/Denver' },
+              { label: 'PST / PDT (Los Angeles)',  value: 'America/Los_Angeles' },
+              { label: 'GMT (London)',             value: 'Europe/London' },
+              { label: 'CET (Paris/Berlin)',       value: 'Europe/Paris' },
+              { label: 'IST (India)',              value: 'Asia/Kolkata' },
+              { label: 'GST (Dubai)',              value: 'Asia/Dubai' },
+              { label: 'SGT (Singapore)',          value: 'Asia/Singapore' },
+              { label: 'JST (Tokyo)',              value: 'Asia/Tokyo' },
+              { label: 'AEST (Sydney)',            value: 'Australia/Sydney' },
+            ]}
+          />
+          <DatePicker.MonthPicker
+            value={selectedMonth}
+            onChange={setSelectedMonth}
+            allowClear
+            placeholder="Filter by Month"
+            style={{ borderRadius: 8, height: 38 }}
+          />
+        </div>
       </motion.div>
 
       {/* Metric cards */}
