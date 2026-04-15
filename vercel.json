@@ -31,7 +31,7 @@
   ],
   "crons": [
     {
-      "path": "/api/v1/cron/reminders",
+      "path": "/api/v1/cron/reminders?dailyMode=true",
       "schedule": "0 4 * * *"
     }
   ]
