@@ -152,7 +152,7 @@ const DashboardPage: React.FC = () => {
     },
     { title: 'Rows', dataIndex: 'row_count', key: 'row_count', width: 80 },
     {
-      title: 'Uploaded', dataIndex: 'created_at', key: 'created_at',
+      title: 'Uploaded', dataIndex: 'createdAt', key: 'createdAt',
       render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(v).format('DD MMM YYYY, HH:mm')}</Text>,
     },
     {
