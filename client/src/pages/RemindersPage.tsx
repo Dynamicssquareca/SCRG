@@ -1,11 +1,53 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Typography, Switch, Button, Tag, Space, message, Modal, Form, Select, Tabs, List, TimePicker, Popconfirm } from 'antd';
-import { BellOutlined, SettingOutlined, UserOutlined, ClockCircleOutlined, SendOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, Table, Typography, Switch, Button, Tag, Space, message, Modal, Form, Select, Tabs, List, TimePicker, Popconfirm, InputNumber, Tooltip } from 'antd';
+import { BellOutlined, SettingOutlined, UserOutlined, ClockCircleOutlined, SendOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 
 const { Title, Text } = Typography;
+
+// ── Timezone helpers (no external libraries needed) ──────────────────────────
+/**
+ * Returns how many minutes `tz` is ahead of UTC right now.
+ * e.g. Asia/Calcutta → +330,  America/New_York (EDT) → -240
+ */
+function tzOffsetMinutes(tz: string): number {
+  try {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(now);
+    const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value);
+    // Reconstruct the wall-clock time in `tz` as if it were UTC
+    const wallMs = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
+    return Math.round((wallMs - now.getTime()) / 60000);
+  } catch {
+    return 0;
+  }
+}
+
+/** Convert "HH:mm" representing a time in `tz` → "HH:mm" in UTC. */
+function tzHHmmToUtcHHmm(hhMm: string, tz: string): string {
+  const [h, m] = hhMm.split(':').map(Number);
+  const offset = tzOffsetMinutes(tz);
+  const utcMin = ((h * 60 + m - offset) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(utcMin / 60)).padStart(2, '0')}:${String(utcMin % 60).padStart(2, '0')}`;
+}
+
+/** Convert "HH:mm" in UTC → "HH:mm" in `tz`. */
+function utcHHmmToTzHHmm(utcHHmm: string, tz: string): string {
+  const [h, m] = utcHHmm.split(':').map(Number);
+  const offset = tzOffsetMinutes(tz);
+  const tzMin = ((h * 60 + m + offset) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(tzMin / 60)).padStart(2, '0')}:${String(tzMin % 60).padStart(2, '0')}`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const RemindersPage: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
@@ -17,6 +59,7 @@ const RemindersPage: React.FC = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingClient, setEditingClient] = useState<any>(null);
   const [form] = Form.useForm();
+  const [customDay, setCustomDay] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -66,24 +109,46 @@ const RemindersPage: React.FC = () => {
 
   const handleEdit = (record: any) => {
     setEditingClient(record);
+    setCustomDay(null);
+
+    // send_time is stored as UTC "HH:mm" in the DB.
+    // Convert it to the currently selected display timezone for the TimePicker.
+    const storedUtcTime = record.setting.send_time || '09:00';
+    const localHHmm = utcHHmmToTzHHmm(storedUtcTime, displayTz);
+    const [lh, lm] = localHHmm.split(':').map(Number);
+
     form.setFieldsValue({
       reminder_days: record.setting.reminder_days || [30],
       recipient_emails: record.setting.recipient_emails || [],
       cc_emails: record.setting.cc_emails || [],
-      send_time: record.setting.send_time ? dayjs(record.setting.send_time, 'HH:mm') : dayjs('09:00', 'HH:mm'),
+      send_time: dayjs().hour(lh).minute(lm).second(0),
     });
     setIsModalVisible(true);
+  };
+
+  const handleAddCustomDay = () => {
+    if (customDay === null) return;
+    const current: number[] = form.getFieldValue('reminder_days') || [];
+    if (current.includes(customDay)) {
+      message.warning(`${customDay} days is already added`);
+      return;
+    }
+    form.setFieldValue('reminder_days', [...current, customDay].sort((a, b) => b - a));
+    setCustomDay(null);
   };
 
   const handleSaveConfig = async () => {
     try {
       const values = await form.validateFields();
       if (values.send_time) {
-        values.send_time = values.send_time.format('HH:mm');
+        // User entered time in `displayTz`. Convert to UTC before storing.
+        const localHHmm = values.send_time.format('HH:mm');
+        values.send_time = tzHHmmToUtcHHmm(localHHmm, displayTz);
       }
-      
+
       await api.post(`/reminders/${editingClient.client._id}`, {
         is_enabled: editingClient.setting.is_enabled,
+        send_timezone: displayTz, // stored for display reference
         ...values
       });
       message.success('Configuration saved');
@@ -282,17 +347,49 @@ const RemindersPage: React.FC = () => {
             label="Trigger Days (Before Expiration)"
             rules={[{ required: true, message: 'Please select at least one trigger' }]}
           >
-            <Select mode="tags" placeholder="Select or type numbers (e.g. 30, 15, 7)">
-              <Select.Option value={60}>60 Days</Select.Option>
-              <Select.Option value={30}>30 Days</Select.Option>
-              <Select.Option value={15}>15 Days</Select.Option>
-              <Select.Option value={7}>7 Days</Select.Option>
-              <Select.Option value={3}>3 Days</Select.Option>
-              <Select.Option value={0}>On Expiration (0 Days)</Select.Option>
-              <Select.Option value={-7}>7 Days Overdue</Select.Option>
-              <Select.Option value={-15}>15 Days Overdue</Select.Option>
-              <Select.Option value={-30}>30 Days Overdue</Select.Option>
+            <Select
+              mode="multiple"
+              placeholder="Select trigger days"
+              optionLabelProp="label"
+            >
+              <Select.Option value={60} label="60 Days">60 Days</Select.Option>
+              <Select.Option value={30} label="30 Days">30 Days</Select.Option>
+              <Select.Option value={15} label="15 Days">15 Days</Select.Option>
+              <Select.Option value={7} label="7 Days">7 Days</Select.Option>
+              <Select.Option value={3} label="3 Days">3 Days</Select.Option>
+              <Select.Option value={0} label="On Expiration">On Expiration (0 Days)</Select.Option>
+              <Select.Option value={-7} label="7 Days Overdue">7 Days Overdue</Select.Option>
+              <Select.Option value={-15} label="15 Days Overdue">15 Days Overdue</Select.Option>
+              <Select.Option value={-30} label="30 Days Overdue">30 Days Overdue</Select.Option>
             </Select>
+          </Form.Item>
+
+          {/* Custom day picker */}
+          <Form.Item label="Add Custom Day">
+            <Space.Compact style={{ width: '100%' }}>
+              <Tooltip title="Enter any number of days before expiration (use negative for overdue, e.g. -10)">
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder="e.g. 45 days before, or -10 for overdue"
+                  value={customDay}
+                  onChange={(v) => setCustomDay(v as number | null)}
+                  onPressEnter={handleAddCustomDay}
+                  addonBefore="Days"
+                />
+              </Tooltip>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleAddCustomDay}
+                disabled={customDay === null}
+                style={{ background: '#1B3A5C' }}
+              >
+                Add
+              </Button>
+            </Space.Compact>
+            <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+              Type any number and click Add — positive = before expiry, negative = overdue.
+            </Text>
           </Form.Item>
 
           <Form.Item 
@@ -312,8 +409,8 @@ const RemindersPage: React.FC = () => {
 
           <Form.Item 
             name="send_time" 
-            label="Exact Trigger Time"
-            extra="The exact time of day you want this email to officially fire."
+            label={`Exact Trigger Time (${displayTz})`}
+            extra={`Time is saved in the currently selected timezone: ${displayTz}. Change the timezone dropdown above to configure in a different zone.`}
             rules={[{ required: true, message: 'Please select a trigger time' }]}
           >
             <TimePicker format="HH:mm" minuteStep={10} style={{ width: 200 }} />

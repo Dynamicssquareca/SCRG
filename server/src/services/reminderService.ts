@@ -10,7 +10,18 @@ import logger from '../utils/logger';
 
 // HTML Template for Contract Expiration
 // HTML Template for Contract Expiration
-const getExpirationTemplate = (clientName: string, daysRemaining: number, endDate: string, accountManager: string) => `
+const getExpirationTemplate = (clientName: string, daysRemaining: number, endDate: string, accountManager: string) => {
+  const isOverdue = daysRemaining < 0;
+  const absdays = Math.abs(daysRemaining);
+  const daysLabel = isOverdue ? 'Days Overdue' : 'Days Remaining';
+  const daysDisplay = isOverdue ? `${absdays} Days Overdue` : `${absdays} Days Remaining`;
+  const badgeColor = isOverdue ? '#DC2626' : '#D97706';
+  const badgeBg = isOverdue ? '#FEF2F2' : '#FFFBEB';
+  const bodyText = isOverdue
+    ? `This is an automated alert that the support contract for <strong style="color: #0F1117;">${clientName}</strong> has <strong style="color: #DC2626;">expired</strong> and is now overdue.`
+    : `This is an automated reminder that the support contract for <strong style="color: #0F1117;">${clientName}</strong> is approaching its expiration date.`;
+
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -33,7 +44,7 @@ const getExpirationTemplate = (clientName: string, daysRemaining: number, endDat
     <p style="font-size: 16px; color: #374151; margin-top: 0;">Hello Team,</p>
     
     <p style="font-size: 15px; color: #4B5568; line-height: 1.6;">
-      This is an automated reminder that the support contract for <strong style="color: #0F1117;">${clientName}</strong> is approaching its expiration date.
+      ${bodyText}
     </p>
 
     <div style="background-color: #F7F8FC; border-left: 4px solid #E8363D; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
@@ -47,10 +58,10 @@ const getExpirationTemplate = (clientName: string, daysRemaining: number, endDat
           <td style="padding: 4px 0; color: #0F1117; font-size: 15px; font-weight: 600;">${endDate}</td>
         </tr>
         <tr>
-          <td style="padding: 4px 0; color: #6B7280; font-size: 13px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Days Remaining</td>
+          <td style="padding: 4px 0; color: #6B7280; font-size: 13px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">${daysLabel}</td>
           <td style="padding: 4px 0;">
-            <span style="display: inline-block; background-color: #FEF2F2; color: #DC2626; padding: 2px 10px; border-radius: 99px; font-weight: 700; font-size: 14px;">
-              ${daysRemaining} Days
+            <span style="display: inline-block; background-color: ${badgeBg}; color: ${badgeColor}; padding: 2px 10px; border-radius: 99px; font-weight: 700; font-size: 14px;">
+              ${daysDisplay}
             </span>
           </td>
         </tr>
@@ -78,6 +89,8 @@ const getExpirationTemplate = (clientName: string, daysRemaining: number, endDat
 </body>
 </html>
 `;
+};
+
 
 export async function processReminders(dailyMode: boolean = false) {
   logger.info('Starting automated contract reminder scan...');
@@ -85,40 +98,44 @@ export async function processReminders(dailyMode: boolean = false) {
   try {
     // 1. Get all active configs
     const activeSettings = await ReminderSetting.find({ is_enabled: true }).populate('client_id');
-    const todayDate = dayjs().utcOffset(330).startOf('day');
-    const now = dayjs().utcOffset(330);
-    const currentHourMinute = now.format('HH:mm');
-    const currentTotalMinutes = now.hour() * 60 + now.minute();
-    
+
+    // Always anchor "today" in UTC for consistent day-diff calculations
+    const todayUtc = dayjs.utc().startOf('day');
+
+    // Current UTC time as total minutes for time-window comparison
+    const nowUtc = dayjs.utc();
+    const currentUtcMinutes = nowUtc.hour() * 60 + nowUtc.minute();
+    const currentUtcHHmm = nowUtc.format('HH:mm');
+
     for (const setting of activeSettings) {
-      // In dailyMode (Vercel free cron — runs once/day), skip the time-of-day check.
-      // In normal mode, check if we're within a 5-minute window of the configured send_time.
+      // send_time is stored in UTC (HH:mm). Compare against current UTC time.
       if (!dailyMode) {
-        const clientSendTime = setting.send_time || '09:00';
-        const [h, m] = clientSendTime.split(':').map(Number);
+        const sendTimeUtc = setting.send_time || '09:00'; // UTC HH:mm
+        const [h, m] = sendTimeUtc.split(':').map(Number);
         const sendTotalMinutes = h * 60 + m;
-        const diff = Math.abs(currentTotalMinutes - sendTotalMinutes);
-        if (diff > 9 && diff < 1431) { // 10-min window (handles midnight wrap)
+        const diff = Math.abs(currentUtcMinutes - sendTotalMinutes);
+        // Allow a 10-minute window; 1430 guard handles midnight wrap (1440-10)
+        if (diff > 9 && diff < 1431) {
           continue;
         }
       }
+
       const client = setting.client_id as any;
       if (!client || !client.is_active || !client.contract_end_date) {
         continue;
       }
 
-      // Calculate days remaining
+      // Calculate days remaining (UTC date diff — no timezone ambiguity)
       const endDateStr = client.contract_end_date.toISOString().substring(0, 10);
-      const endDate = dayjs(endDateStr).startOf('day');
-      // Number of days until expiration (if negative, it already expired)
-      const daysRemaining = endDate.diff(todayDate, 'days');
+      const endDateUtc = dayjs.utc(endDateStr).startOf('day');
+      const daysRemaining = endDateUtc.diff(todayUtc, 'days');
 
       // Check if this exact daysRemaining matches any of the user's triggers
       const activeTriggers = (setting.reminder_days && setting.reminder_days.length > 0)
         ? setting.reminder_days
-        : [30]; // Absolute fallback
+        : [30];
 
-      logger.info(`[Reminder] Client: ${client.client_name} | Days remaining: ${daysRemaining} | Triggers: [${activeTriggers}] | Match: ${activeTriggers.includes(daysRemaining)} | UTC time: ${currentHourMinute} | Send time: ${setting.send_time}`);
+      logger.info(`[Reminder] Client: ${client.client_name} | Days remaining: ${daysRemaining} | Triggers: [${activeTriggers}] | Match: ${activeTriggers.includes(daysRemaining)} | UTC time: ${currentUtcHHmm} | Send time (UTC): ${setting.send_time}`);
 
       if (activeTriggers.includes(daysRemaining)) {
         // Build recipient list
@@ -139,7 +156,7 @@ export async function processReminders(dailyMode: boolean = false) {
         const alreadySent = await ReminderLog.findOne({
           client_id: client._id,
           days_before: daysRemaining,
-          sent_at: { $gte: todayDate.toDate() } // sent anytime today
+          sent_at: { $gte: todayUtc.toDate() } // sent anytime today (UTC)
         });
 
         if (alreadySent) {
@@ -150,7 +167,11 @@ export async function processReminders(dailyMode: boolean = false) {
         // Send Email
         logger.info(`Triggering ${daysRemaining}-day reminder for ${client.client_name}...`);
         
-        const subject = `Notice: Contract Expiring in ${daysRemaining} Days - ${client.client_name}`;
+        const isOverdue = daysRemaining < 0;
+        const absdays = Math.abs(daysRemaining);
+        const subject = isOverdue
+          ? `OVERDUE: Contract Expired ${absdays} Days Ago - ${client.client_name}`
+          : `Notice: Contract Expiring in ${absdays} Days - ${client.client_name}`;
         const endDateDisplay = dayjs(client.contract_end_date.toISOString().substring(0, 10)).format('MMMM DD, YYYY');
         const html = getExpirationTemplate(
           client.client_name,
@@ -160,7 +181,8 @@ export async function processReminders(dailyMode: boolean = false) {
         );
 
         try {
-          const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${endDateDisplay}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
+          const daysLine = isOverdue ? `Days Overdue: ${absdays}` : `Days Remaining: ${absdays}`;
+          const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${endDateDisplay}\n${daysLine}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
 
           await sendEmail({
             to: uniqueTo.length > 0 ? uniqueTo : uniqueCc, // fallback to CC if no TO
@@ -210,7 +232,11 @@ export async function sendTestReminder(clientId: string, to: string[], cc: strin
     ? dayjs(client.contract_end_date).startOf('day').diff(dayjs().startOf('day'), 'days')
     : 30;
 
-  const subject = `[TEST] Notice: Contract Expiring in ${daysRemaining} Days - ${client.client_name}`;
+  const isOverdueTest = daysRemaining < 0;
+  const absdaysTest = Math.abs(daysRemaining);
+  const subject = isOverdueTest
+    ? `[TEST] OVERDUE: Contract Expired ${absdaysTest} Days Ago - ${client.client_name}`
+    : `[TEST] Notice: Contract Expiring in ${absdaysTest} Days - ${client.client_name}`;
   const endDateDisplay = client.contract_end_date 
     ? dayjs(client.contract_end_date.toISOString().substring(0, 10)).format('MMMM DD, YYYY') 
     : 'Not Set';
@@ -222,7 +248,8 @@ export async function sendTestReminder(clientId: string, to: string[], cc: strin
     client.account_manager || 'Not Assigned'
   );
 
-  const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${endDateDisplay}\nDays Remaining: ${daysRemaining}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
+  const daysLineTest = isOverdueTest ? `Days Overdue: ${absdaysTest}` : `Days Remaining: ${absdaysTest}`;
+  const text = `Contract Expiration Notice\n\nClient Name: ${client.client_name}\nExpiration Date: ${endDateDisplay}\n${daysLineTest}\nAccount Manager: ${client.account_manager || 'Not Assigned'}\n\nPlease take the necessary steps to review the account and initiate the renewal process with the client.`;
 
   await sendEmail({
     to,
