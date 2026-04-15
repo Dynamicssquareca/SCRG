@@ -3,7 +3,7 @@ import { processReminders } from './services/reminderService';
 import logger from './utils/logger';
 
 let currentTask: cron.ScheduledTask | null = null;
-const DEFAULT_CRON = '* * * * *'; // Run every single minute
+const DEFAULT_CRON = '*/10 * * * *'; // Run every 10 minutes
 
 export async function initScheduler() {
   // On Vercel (serverless), cron is handled via Vercel Cron Jobs → /api/v1/cron/reminders
