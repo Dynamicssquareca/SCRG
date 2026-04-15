@@ -259,15 +259,15 @@ const ClientPortalDashboard: React.FC = () => {
         <div className="cp-summary-grid cp-fade-in cp-fade-in-delay-2">
           <div className="cp-summary-card opened">
             <div className="cp-summary-number">{ticketSummary.totalOpened}</div>
-            <div className="cp-summary-label">Tickets Opened</div>
+            <div className="cp-summary-label">Tickets Open This Month</div>
           </div>
           <div className="cp-summary-card closed">
             <div className="cp-summary-number">{ticketSummary.totalClosed}</div>
-            <div className="cp-summary-label">Tickets Closed</div>
+            <div className="cp-summary-label">Tickets Closed This Month</div>
           </div>
           <div className="cp-summary-card pending">
             <div className="cp-summary-number">{ticketSummary.pending}</div>
-            <div className="cp-summary-label">Pending</div>
+            <div className="cp-summary-label">All Pending Tickets</div>
           </div>
           <div className="cp-summary-card reopened">
             <div className="cp-summary-number">{ticketSummary.reopened}</div>
@@ -326,7 +326,8 @@ const ClientPortalDashboard: React.FC = () => {
               pagination={false}
               scroll={{ x: 'max-content' }}
               size="small"
-              locale={{ emptyText: 'No resolved tickets for this period' }}
+              locale={{ emptyText: <span style={{ color: 'rgba(241,245,249,0.35)' }}>No resolved tickets for this period</span> }}
+              style={{ background: 'transparent' }}
             />
           </div>
         </div>

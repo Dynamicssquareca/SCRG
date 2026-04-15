@@ -423,7 +423,8 @@
   padding: 14px 16px !important;
 }
 
-.cp-dark-table.resolved-table .ant-table-thead > tr > th {
+.cp-dark-table.resolved-table .ant-table-thead > tr > th,
+.cp-dark-table.resolved-table .ant-table-thead > tr > td {
   background: rgba(45, 212, 191, 0.08) !important;
 }
 
@@ -454,6 +455,25 @@
 
 .cp-dark-table .ant-table-placeholder td {
   background: transparent !important;
+}
+
+/* Nuclear override: force ALL child elements to transparent background.
+   Ant Design 5 uses many internal wrappers (ant-table-wrapper, scroll containers,
+   spin containers, etc.) that default to background:#fff */
+.cp-dark-table *,
+.cp-dark-table .ant-table-wrapper,
+.cp-dark-table .ant-table-body,
+.cp-dark-table .ant-table-content,
+.cp-dark-table .ant-spin-nested-loading,
+.cp-dark-table .ant-spin-container,
+.cp-dark-table .ant-table-scroll,
+.cp-dark-table .ant-table-scroll-horizontal,
+.cp-dark-table .ant-table-placeholder td > div,
+.cp-dark-table .ant-table-placeholder .ant-empty,
+.cp-dark-table .ant-table-expanded-row > td,
+.cp-dark-table .ant-table-wrapper .ant-table {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Status badge */
