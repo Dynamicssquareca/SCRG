@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { OTP } from 'otplib';
+import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import crypto from 'crypto';
 import { User, IUser } from '../models/User';
@@ -37,9 +37,8 @@ export async function authenticate(email: string, password: string) {
 }
 
 export async function setupTOTP(userId: string, email: string) {
-  const otp = new OTP();
-  const secret = otp.generateSecret();
-  const otpauth = otp.generateURI({ issuer: 'SCRG', label: email, secret });
+  const secret = authenticator.generateSecret();
+  const otpauth = authenticator.keyuri(email, 'SCRG', secret);
   const qrCodeUrl = await qrcode.toDataURL(otpauth);
 
   await User.findByIdAndUpdate(userId, { totp_secret: secret });
@@ -51,9 +50,8 @@ export async function verifyTOTPSetup(userId: string, code: string) {
   const user = await User.findById(userId);
   if (!user || !user.totp_secret) throw new ValidationError('Invalid setup request');
 
-  const otp = new OTP();
-  const result = await otp.verify({ token: code, secret: user.totp_secret });
-  if (!result.valid) throw new UnauthorizedError('Invalid verification code');
+  const isValid = authenticator.verify({ token: code, secret: user.totp_secret });
+  if (!isValid) throw new UnauthorizedError('Invalid verification code');
 
   const recoveryCode = crypto.randomBytes(10).toString('hex');
   
@@ -78,9 +76,7 @@ export async function verifyTOTP(userId: string, code: string) {
     user.totp_recovery_code = crypto.randomBytes(10).toString('hex');
     await user.save();
   } else {
-    const otp = new OTP();
-    const result = await otp.verify({ token: code, secret: user.totp_secret });
-    isValid = result.valid;
+    isValid = authenticator.verify({ token: code, secret: user.totp_secret });
   }
 
   if (!isValid) throw new UnauthorizedError('Invalid authentication code');
