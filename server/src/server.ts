@@ -19,11 +19,11 @@ async function start() {
     logger.info('Database connected successfully');
 
     // Check if admin user exists, if not run seed
-    const adminExists = await User.findOne({ email: 'admin@mpg.com' });
+    const adminExists = await User.findOne({ email: 'admin-ds@dynamicssquare.com' });
     if (!adminExists) {
       await User.create({
-        email: 'admin@mpg.com',
-        password_hash: 'admin123',
+        email: 'admin-ds@dynamicssquare.com',
+        password_hash: 'Admin-ds@2026',
         full_name: 'Administrator',
         role: 'admin',
       });

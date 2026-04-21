@@ -267,7 +267,7 @@ Migration order (Knex.js):
   005_create_reports_table.ts
 
 Seed files:
-  001_seed_admin_user.ts          ← Default admin: admin@mpg.com / changeme
+  001_seed_admin_user.ts          ← Default admin: admin-ds@dynamicssquare.com / changeme
   002_seed_sample_client.ts       ← Optional sample client for testing
 
 
