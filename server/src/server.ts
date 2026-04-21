@@ -4,6 +4,7 @@ import { connectDB } from './config/database';
 import logger from './utils/logger';
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcrypt';
 import { User } from './models/User';
 import { initScheduler } from './scheduler';
 
@@ -18,17 +19,21 @@ async function start() {
     await connectDB();
     logger.info('Database connected successfully');
 
-    // Check if admin user exists, if not run seed
-    const adminExists = await User.findOne({ email: 'admin-ds@dynamicssquare.com' });
-    if (!adminExists) {
-      await User.create({
+    // Upsert admin user — always sync credentials from code to DB on startup
+    // Must hash manually since findOneAndUpdate bypasses Mongoose pre-save hooks
+    const ADMIN_PASSWORD = 'Admin-ds@2026';
+    const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    await User.findOneAndUpdate(
+      { email: 'admin-ds@dynamicssquare.com' },
+      {
         email: 'admin-ds@dynamicssquare.com',
-        password_hash: 'Admin-ds@2026',
+        password_hash: hashedPassword,
         full_name: 'Administrator',
         role: 'admin',
-      });
-      logger.info('Database seeded with admin user');
-    }
+      },
+      { upsert: true, new: true }
+    );
+    logger.info('Admin user credentials synced');
 
     // Start background jobs
     await initScheduler();
