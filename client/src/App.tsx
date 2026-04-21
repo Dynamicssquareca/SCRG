@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AppLayout from './components/Layout';
 import LoginPage from './pages/LoginPage';
+import SetupTOTPPage from './pages/SetupTOTPPage';
 import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import ReportsPage from './pages/ReportsPage';
@@ -38,6 +39,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/setup-2fa" element={<SetupTOTPPage />} />
       {/* Client Portal — standalone, no sidebar */}
       <Route path="/portal" element={<ClientRoute><ClientPortalDashboard /></ClientRoute>} />
       {/* Internal Admin/Operator routes */}

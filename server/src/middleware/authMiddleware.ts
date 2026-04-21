@@ -4,7 +4,7 @@ import { env } from '../config/env';
 import { UnauthorizedError } from '../utils/apiResponse';
 
 export interface AuthUser {
-  id: number;
+  id: string;
   email: string;
   role: string;
   client_id: string | null;

@@ -11,6 +11,35 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   } catch (err) { next(err); }
 }
 
+export async function setupTotp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user!.id;
+    const email = req.user!.email;
+    const result = await authService.setupTOTP(userId, email);
+    successResponse(res, result);
+  } catch (err) { next(err); }
+}
+
+export async function verifyTotpSetup(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user!.id;
+    const { code } = req.body;
+    if (!code) throw new ValidationError('Verification code is required');
+    const result = await authService.verifyTOTPSetup(userId, code);
+    successResponse(res, result);
+  } catch (err) { next(err); }
+}
+
+export async function verifyTotp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user!.id;
+    const { code } = req.body;
+    if (!code) throw new ValidationError('Verification code is required');
+    const result = await authService.verifyTOTP(userId, code);
+    successResponse(res, result);
+  } catch (err) { next(err); }
+}
+
 export async function refresh(req: Request, res: Response, next: NextFunction) {
   try {
     const { refreshToken } = req.body;

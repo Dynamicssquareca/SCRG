@@ -14,6 +14,8 @@ const item = (i: number) => ({
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<'login' | 'totp'>('login');
+  const [tempToken, setTempToken] = useState('');
   const { login, isAuthenticated } = useAuth();
 
   // If user navigates to /login while already logged in, clear session so they can switch accounts
@@ -30,10 +32,33 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', values);
+      if (data.data.requiresSetup) {
+        localStorage.setItem('tempToken', data.data.tempToken);
+        window.location.href = '/setup-2fa';
+      } else if (data.data.requiresTOTP) {
+        setTempToken(data.data.tempToken);
+        setStep('totp');
+      } else {
+        login(data.data);
+        message.success('Welcome back!');
+      }
+    } catch (err: any) {
+      message.error(err.response?.data?.error?.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onTotpFinish = async (values: any) => {
+    setLoading(true);
+    try {
+      const { data } = await api.post('/auth/verify-totp', { code: values.code }, {
+        headers: { Authorization: `Bearer ${tempToken}` }
+      });
       login(data.data);
       message.success('Welcome back!');
     } catch (err: any) {
-      message.error(err.response?.data?.error?.message || 'Login failed. Please check your credentials.');
+      message.error(err.response?.data?.error?.message || 'Invalid authentication code.');
     } finally {
       setLoading(false);
     }
@@ -118,74 +143,125 @@ const LoginPage: React.FC = () => {
           <motion.div variants={item(0)} initial="hidden" animate="visible">
             <div style={{ marginBottom: 28 }}>
               <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#0F1117', letterSpacing: '-0.4px' }}>
-                Sign in
+                {step === 'login' ? 'Sign in' : 'Two-Factor Authentication'}
               </h2>
               <Text type="secondary" style={{ fontSize: 13 }}>
-                Enter your credentials to access the dashboard
+                {step === 'login' ? 'Enter your credentials to access the dashboard' : 'Enter the 6-digit code from your authenticator app'}
               </Text>
             </div>
           </motion.div>
 
-          <Form name="login" onFinish={onFinish} layout="vertical" requiredMark={false}>
-            <motion.div variants={item(1)} initial="hidden" animate="visible">
-              <Form.Item
-                name="email"
-                label={<span style={{ fontWeight: 600, fontSize: 13, color: '#374151' }}>Email address</span>}
-                rules={[
-                  { required: true, message: 'Email is required' },
-                  { type: 'email', message: 'Please enter a valid email' },
-                ]}
-              >
-                <Input
-                  prefix={<UserOutlined style={{ color: '#9CA3AF' }} />}
-                  placeholder="you@dynamicssquare.com"
-                  size="large"
-                  style={{ borderRadius: 10, height: 48, fontSize: 14 }}
-                  autoFocus
-                />
-              </Form.Item>
-            </motion.div>
-
-            <motion.div variants={item(2)} initial="hidden" animate="visible">
-              <Form.Item
-                name="password"
-                label={<span style={{ fontWeight: 600, fontSize: 13, color: '#374151' }}>Password</span>}
-                rules={[{ required: true, message: 'Password is required' }]}
-                style={{ marginBottom: 28 }}
-              >
-                <Input.Password
-                  prefix={<LockOutlined style={{ color: '#9CA3AF' }} />}
-                  placeholder="••••••••"
-                  size="large"
-                  style={{ borderRadius: 10, height: 48, fontSize: 14 }}
-                />
-              </Form.Item>
-            </motion.div>
-
-            <motion.div variants={item(3)} initial="hidden" animate="visible">
-              <motion.div whileTap={{ scale: 0.98 }}>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  block
-                  size="large"
-                  style={{
-                    background: '#E8363D',
-                    border: 'none',
-                    height: 50,
-                    borderRadius: 12,
-                    fontSize: 15,
-                    fontWeight: 700,
-                    letterSpacing: '0.2px',
-                    boxShadow: '0 6px 24px rgba(232,54,61,0.38)',
-                  }}
+          {step === 'login' ? (
+            <Form name="login" onFinish={onFinish} layout="vertical" requiredMark={false}>
+              <motion.div variants={item(1)} initial="hidden" animate="visible">
+                <Form.Item
+                  name="email"
+                  label={<span style={{ fontWeight: 600, fontSize: 13, color: '#374151' }}>Email address</span>}
+                  rules={[
+                    { required: true, message: 'Email is required' },
+                    { type: 'email', message: 'Please enter a valid email' },
+                  ]}
                 >
-                  {loading ? 'Signing in…' : 'Sign In →'}
-                </Button>
+                  <Input
+                    prefix={<UserOutlined style={{ color: '#9CA3AF' }} />}
+                    placeholder="you@dynamicssquare.com"
+                    size="large"
+                    style={{ borderRadius: 10, height: 48, fontSize: 14 }}
+                    autoFocus
+                  />
+                </Form.Item>
               </motion.div>
-            </motion.div>
-          </Form>
+
+              <motion.div variants={item(2)} initial="hidden" animate="visible">
+                <Form.Item
+                  name="password"
+                  label={<span style={{ fontWeight: 600, fontSize: 13, color: '#374151' }}>Password</span>}
+                  rules={[{ required: true, message: 'Password is required' }]}
+                  style={{ marginBottom: 28 }}
+                >
+                  <Input.Password
+                    prefix={<LockOutlined style={{ color: '#9CA3AF' }} />}
+                    placeholder="••••••••"
+                    size="large"
+                    style={{ borderRadius: 10, height: 48, fontSize: 14 }}
+                  />
+                </Form.Item>
+              </motion.div>
+
+              <motion.div variants={item(3)} initial="hidden" animate="visible">
+                <motion.div whileTap={{ scale: 0.98 }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    block
+                    size="large"
+                    style={{
+                      background: '#E8363D',
+                      border: 'none',
+                      height: 50,
+                      borderRadius: 12,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      letterSpacing: '0.2px',
+                      boxShadow: '0 6px 24px rgba(232,54,61,0.38)',
+                    }}
+                  >
+                    {loading ? 'Signing in…' : 'Sign In →'}
+                  </Button>
+                </motion.div>
+              </motion.div>
+            </Form>
+          ) : (
+            <Form name="totp" onFinish={onTotpFinish} layout="vertical" requiredMark={false}>
+              <motion.div variants={item(1)} initial="hidden" animate="visible">
+                <Form.Item
+                  name="code"
+                  label={<span style={{ fontWeight: 600, fontSize: 13, color: '#374151' }}>Authentication Code</span>}
+                  rules={[{ required: true, message: 'Code is required' }]}
+                  style={{ marginBottom: 28 }}
+                >
+                  <Input
+                    prefix={<LockOutlined style={{ color: '#9CA3AF' }} />}
+                    placeholder="123456"
+                    size="large"
+                    maxLength={10}
+                    style={{ borderRadius: 10, height: 48, fontSize: 18, letterSpacing: '2px', textAlign: 'center' }}
+                    autoFocus
+                  />
+                </Form.Item>
+              </motion.div>
+
+              <motion.div variants={item(2)} initial="hidden" animate="visible">
+                <motion.div whileTap={{ scale: 0.98 }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    block
+                    size="large"
+                    style={{
+                      background: '#E8363D',
+                      border: 'none',
+                      height: 50,
+                      borderRadius: 12,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      letterSpacing: '0.2px',
+                      boxShadow: '0 6px 24px rgba(232,54,61,0.38)',
+                    }}
+                  >
+                    {loading ? 'Verifying…' : 'Verify Code'}
+                  </Button>
+                </motion.div>
+                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                  <Button type="link" onClick={() => setStep('login')} style={{ color: '#6B7280' }}>
+                    Back to login
+                  </Button>
+                </div>
+              </motion.div>
+            </Form>
+          )}
         </motion.div>
 
         <motion.p

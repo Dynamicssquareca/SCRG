@@ -8,6 +8,9 @@ export interface IUser extends Document {
   role: string;
   client_id: mongoose.Types.ObjectId | null;
   is_active: boolean;
+  totp_secret?: string;
+  totp_enabled: boolean;
+  totp_recovery_code?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +23,9 @@ const UserSchema: Schema = new Schema(
     role: { type: String, required: true, default: 'operator' },
     client_id: { type: Schema.Types.ObjectId, ref: 'Client', default: null },
     is_active: { type: Boolean, default: true },
+    totp_secret: { type: String },
+    totp_enabled: { type: Boolean, default: false },
+    totp_recovery_code: { type: String },
   },
   { timestamps: true }
 );
