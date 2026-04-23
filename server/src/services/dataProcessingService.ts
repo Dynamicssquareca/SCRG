@@ -58,7 +58,16 @@ function parseDate(value: any): string | null {
   if (!isNaN(num) && num > 0 && num < 200000) {
     const excelDate = XLSX.SSF.parse_date_code(num);
     if (excelDate) {
-      return new Date(excelDate.y, excelDate.m - 1, excelDate.d, excelDate.H || 0, excelDate.M || 0, excelDate.S || 0).toISOString();
+      // Create date in UTC to avoid timezone offset issues
+      const utcDate = new Date(Date.UTC(
+        excelDate.y, 
+        excelDate.m - 1, 
+        excelDate.d, 
+        excelDate.H || 0, 
+        excelDate.M || 0, 
+        excelDate.S || 0
+      ));
+      return utcDate.toISOString();
     }
   }
 
@@ -81,10 +90,12 @@ function parseDate(value: any): string | null {
     if (d.isValid()) {
       let year = d.year();
       if (year < 100) year += 2000;
-      return dayjs(d).year(year).toISOString();
+      // Convert dayjs object to UTC ISO string to avoid timezone offset issues
+      return dayjs(d).year(year).utc().toISOString();
     }
   }
 
+  // Parse as UTC to maintain consistency
   const nativeDate = new Date(str);
   if (!isNaN(nativeDate.getTime())) {
     return nativeDate.toISOString();
