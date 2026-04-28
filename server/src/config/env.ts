@@ -28,7 +28,7 @@ export const env = {
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '587', 10),
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
-  STATIC_AUTH_PASSCODE: process.env.STATIC_AUTH_PASSCODE || 'DynamicsAuth2026!',
+  STATIC_AUTH_PASSCODE: process.env.STATIC_AUTH_PASSCODE || 'Dynamicshash2026',
 };
 
 // Critical validation for production

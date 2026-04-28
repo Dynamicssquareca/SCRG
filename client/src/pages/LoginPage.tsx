@@ -8,8 +8,8 @@ import api from '../services/api';
 const { Text } = Typography;
 
 const item = (i: number) => ({
-  hidden:  { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { delay: i * 0.08 + 0.15, duration: 0.45, ease: [0.4, 0, 0.2, 1] } },
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { delay: i * 0.06 + 0.10, duration: 0.15, ease: [0.2, 0, 0.1, 1] } },
 });
 
 const LoginPage: React.FC = () => {
@@ -17,7 +17,7 @@ const LoginPage: React.FC = () => {
   const [step, setStep] = useState<'login' | 'totp'>('login');
   const [tempToken, setTempToken] = useState('');
   const { login, isAuthenticated } = useAuth();
-  
+
   const [isAddDeviceModalVisible, setIsAddDeviceModalVisible] = useState(false);
   const [addDeviceLoading, setAddDeviceLoading] = useState(false);
   const [addDeviceQrUrl, setAddDeviceQrUrl] = useState<string | null>(null);
@@ -83,7 +83,7 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="login-bg">
-      {/* Decorative red blobs */}
+      { /* Decorative red blobs */}
       <motion.div
         style={{
           position: 'absolute', width: 600, height: 600, borderRadius: '50%',
@@ -124,10 +124,10 @@ const LoginPage: React.FC = () => {
             transition={{ type: 'spring', stiffness: 300 }}
           >
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="2" width="9" height="9" rx="2" fill="white"/>
-              <rect x="13" y="2" width="9" height="9" rx="2" fill="rgba(255,255,255,0.5)"/>
-              <rect x="2" y="13" width="9" height="9" rx="2" fill="rgba(255,255,255,0.5)"/>
-              <rect x="13" y="13" width="9" height="9" rx="2" fill="white"/>
+              <rect x="2" y="2" width="9" height="9" rx="2" fill="white" />
+              <rect x="13" y="2" width="9" height="9" rx="2" fill="rgba(255,255,255,0.5)" />
+              <rect x="2" y="13" width="9" height="9" rx="2" fill="rgba(255,255,255,0.5)" />
+              <rect x="13" y="13" width="9" height="9" rx="2" fill="white" />
             </svg>
           </motion.div>
 
