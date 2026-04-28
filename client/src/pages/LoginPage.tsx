@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Typography, message, Divider } from 'antd';
+import { Form, Input, Button, Typography, message, Modal } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +17,10 @@ const LoginPage: React.FC = () => {
   const [step, setStep] = useState<'login' | 'totp'>('login');
   const [tempToken, setTempToken] = useState('');
   const { login, isAuthenticated } = useAuth();
+  
+  const [isAddDeviceModalVisible, setIsAddDeviceModalVisible] = useState(false);
+  const [addDeviceLoading, setAddDeviceLoading] = useState(false);
+  const [addDeviceQrUrl, setAddDeviceQrUrl] = useState<string | null>(null);
 
   // If user navigates to /login while already logged in, clear session so they can switch accounts
   useEffect(() => {
@@ -61,6 +65,19 @@ const LoginPage: React.FC = () => {
       message.error(err.response?.data?.error?.message || 'Invalid authentication code.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRevealQr = async (values: any) => {
+    setAddDeviceLoading(true);
+    try {
+      const { data } = await api.post('/auth/reveal-qr', values);
+      setAddDeviceQrUrl(data.data.qrCodeUrl);
+      message.success('QR Code retrieved successfully!');
+    } catch (err: any) {
+      message.error(err.response?.data?.error?.message || 'Failed to retrieve QR code.');
+    } finally {
+      setAddDeviceLoading(false);
     }
   };
 
@@ -210,6 +227,11 @@ const LoginPage: React.FC = () => {
                     {loading ? 'Signing in…' : 'Sign In →'}
                   </Button>
                 </motion.div>
+                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                  <Button type="link" onClick={() => setIsAddDeviceModalVisible(true)} style={{ color: '#6B7280', fontSize: 13 }}>
+                    Add another 2FA device
+                  </Button>
+                </div>
               </motion.div>
             </Form>
           ) : (
@@ -273,6 +295,51 @@ const LoginPage: React.FC = () => {
           © {new Date().getFullYear()} Dynamics Square™. All rights reserved.
         </motion.p>
       </div>
+
+      {/* Add Device Modal */}
+      <Modal
+        title={<span style={{ fontWeight: 700 }}>Add Another 2FA Device</span>}
+        open={isAddDeviceModalVisible}
+        onCancel={() => {
+          setIsAddDeviceModalVisible(false);
+          setAddDeviceQrUrl(null);
+        }}
+        footer={null}
+        destroyOnClose
+      >
+        {!addDeviceQrUrl ? (
+          <Form layout="vertical" onFinish={handleRevealQr} requiredMark={false} style={{ marginTop: 16 }}>
+            <Form.Item
+              name="email"
+              label={<span style={{ fontWeight: 600, fontSize: 13 }}>Account Email</span>}
+              rules={[{ required: true, message: 'Please enter the account email' }, { type: 'email', message: 'Valid email required' }]}
+            >
+              <Input size="large" prefix={<UserOutlined style={{ color: '#9CA3AF' }} />} placeholder="admin@dynamicssquare.com" style={{ borderRadius: 8 }} />
+            </Form.Item>
+            <Form.Item
+              name="passcode"
+              label={<span style={{ fontWeight: 600, fontSize: 13 }}>Static Security Passcode</span>}
+              rules={[{ required: true, message: 'Please enter the static passcode' }]}
+            >
+              <Input.Password size="large" prefix={<LockOutlined style={{ color: '#9CA3AF' }} />} placeholder="••••••••" style={{ borderRadius: 8 }} />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={addDeviceLoading} block size="large" style={{ background: '#111827', borderRadius: 8, marginTop: 8 }}>
+              Reveal QR Code
+            </Button>
+          </Form>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '24px 0 8px' }}>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+              Scan this QR code with your new authenticator app to start generating valid 2FA codes.
+            </Text>
+            <img src={addDeviceQrUrl} alt="2FA QR Code" style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid #E5E7EB', padding: 8 }} />
+            <Button block size="large" onClick={() => { setIsAddDeviceModalVisible(false); setAddDeviceQrUrl(null); }} style={{ marginTop: 24, borderRadius: 8 }}>
+              Done
+            </Button>
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 };

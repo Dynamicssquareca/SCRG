@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select } from 'antd';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select, Tabs, InputNumber } from 'antd';
 import {
   UserOutlined, CloudUploadOutlined, WarningOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
-  InfoCircleOutlined, BellOutlined, ArrowUpOutlined,
+  InfoCircleOutlined, BellOutlined,
+  ClockCircleOutlined, CalendarOutlined, FileProtectOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
@@ -77,10 +78,33 @@ const DashboardPage: React.FC = () => {
   const [stats, setStats]               = useState<any>({});
   const [uploads, setUploads]           = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [centerData, setCenterData]     = useState<any>(null);
   const [loading, setLoading]           = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(null);
   const [uploadTz, setUploadTz] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+
+  const [maxBalanceFilter, setMaxBalanceFilter] = useState<number>(10);
+  const [minDaysFilter, setMinDaysFilter] = useState<number>(15);
+
+  const [lowBalanceSort, setLowBalanceSort] = useState<'lowest' | 'highest'>('lowest');
+  const [longOpenSort, setLongOpenSort] = useState<'oldest' | 'newest'>('oldest');
+
+  const sortedLowBalance = useMemo(() => {
+    if (!centerData?.lowBalanceClients?.items) return [];
+    const items = [...centerData.lowBalanceClients.items];
+    return items.sort((a, b) => lowBalanceSort === 'lowest' ? a.balance - b.balance : b.balance - a.balance);
+  }, [centerData, lowBalanceSort]);
+
+  const sortedLongOpen = useMemo(() => {
+    if (!centerData?.longOpenTickets?.items) return [];
+    const items = [...centerData.longOpenTickets.items];
+    return items.sort((a, b) => {
+      const timeA = new Date(a.created_on).getTime();
+      const timeB = new Date(b.created_on).getTime();
+      return longOpenSort === 'oldest' ? timeA - timeB : timeB - timeA;
+    });
+  }, [centerData, longOpenSort]);
 
   // Returns how many minutes `tz` is ahead of UTC right now (same helper as RemindersPage)
   const tzOffsetMinutes = (tz: string): number => {
@@ -116,6 +140,15 @@ const DashboardPage: React.FC = () => {
   const [casesLoading, setCasesLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<'open' | 'closed'>('open');
 
+  const fetchCenterData = async () => {
+    try {
+      const res = await api.get(`/notifications/center?maxBalance=${maxBalanceFilter}&minDays=${minDaysFilter}`);
+      setCenterData(res.data.data);
+    } catch {
+      // silent
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -133,6 +166,7 @@ const DashboardPage: React.FC = () => {
       setStats(statsRes.data.data);
       setUploads(uploadsRes.data.data.uploads);
       setNotifications(notifRes.data.data);
+      await fetchCenterData();
     } catch {
       /* silent */
     } finally {
@@ -141,6 +175,7 @@ const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, [selectedMonth]);
+  useEffect(() => { fetchCenterData(); }, [maxBalanceFilter, minDaysFilter]);
 
   const handleClearData = async () => {
     setDeleteLoading(true);
@@ -351,7 +386,7 @@ const DashboardPage: React.FC = () => {
           )}
         </Col>
 
-        {/* Right column — Notifications */}
+        {/* Right column — Notification Center */}
         <Col xs={24} lg={8}>
           <motion.div
             initial={{ opacity: 0, x: 16 }}
@@ -363,73 +398,304 @@ const DashboardPage: React.FC = () => {
               title={
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 8, height: 8, borderRadius: 2, background: '#E8363D' }} />
-                  Contract Notifications
-                  {notifications.length > 0 && (
+                  <BellOutlined style={{ color: '#E8363D' }} />
+                  Notification Center
+                  {/* total alert badge */}
+                  {centerData && (centerData.lowBalanceClients.count + centerData.longOpenTickets.count + centerData.contractAlerts.count) > 0 && (
                     <span style={{
                       marginLeft: 'auto', background: '#E8363D', color: '#fff',
                       fontSize: 11, fontWeight: 700, borderRadius: 99,
                       padding: '1px 8px', lineHeight: '18px',
                     }}>
-                      {notifications.length}
+                      {centerData.lowBalanceClients.count + centerData.longOpenTickets.count + centerData.contractAlerts.count}
                     </span>
                   )}
                 </div>
               }
               loading={loading}
               style={{ height: '100%' }}
-              styles={{ body: { padding: '8px 24px' } }}
+              styles={{ body: { padding: '0 0 8px' } }}
             >
-              {notifications.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-                  style={{ textAlign: 'center', padding: '28px 0' }}
-                >
-                  <CheckCircleOutlined style={{ fontSize: 36, color: '#16A34A', marginBottom: 10, display: 'block' }} />
-                  <Text type="secondary" style={{ fontSize: 13 }}>
-                    No contracts expiring soon or overdue.
-                  </Text>
-                </motion.div>
-              ) : (
-                <List
-                  dataSource={notifications}
-                  renderItem={(item, i) => (
-                    <motion.div
-                      initial={{ opacity: 0, x: 14 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.48 + i * 0.06, duration: 0.32 }}
-                    >
-                      <List.Item className="notif-item">
-                        <List.Item.Meta
-                          avatar={
-                            item.level === 'critical'
-                              ? <ExclamationCircleOutlined style={{ color: '#DC2626', fontSize: 20, marginTop: 2 }} />
-                              : item.level === 'warning'
-                              ? <WarningOutlined style={{ color: '#D97706', fontSize: 20, marginTop: 2 }} />
-                              : <InfoCircleOutlined style={{ color: '#2563EB', fontSize: 20, marginTop: 2 }} />
-                          }
-                          title={<Text strong style={{ fontSize: 13 }}>{item.clientName}</Text>}
-                          description={
-                            <div>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {item.daysRemaining < 0 ? 'Expired: ' : 'Renews: '} {dayjs(String(item.contractEndDate).substring(0, 10)).format('MMM DD, YYYY')}
-                              </Text>
-                              <br />
-                              <Tag
-                                color={item.level === 'critical' ? 'error' : item.level === 'warning' ? 'warning' : 'default'}
-                                style={{ marginTop: 5 }}
+              <Tabs
+                defaultActiveKey="contracts"
+                size="small"
+                style={{ padding: '0 12px' }}
+                tabBarStyle={{ marginBottom: 0 }}
+                items={[
+                  /* ── Tab 1: Contract Alerts ── */
+                  {
+                    key: 'contracts',
+                    label: (
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>
+                        <FileProtectOutlined style={{ marginRight: 5, color: '#7C3AED' }} />
+                        Contracts
+                        {centerData && centerData.contractAlerts.count > 0 && (
+                          <span style={{
+                            marginLeft: 5, background: '#7C3AED', color: '#fff',
+                            borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            padding: '1px 6px',
+                          }}>{centerData.contractAlerts.count}</span>
+                        )}
+                      </span>
+                    ),
+                    children: (
+                      <div style={{ maxHeight: 380, overflowY: 'auto', padding: '8px 12px 4px' }}>
+                        {!centerData || centerData.contractAlerts.count === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                            <CheckCircleOutlined style={{ fontSize: 32, color: '#16A34A', display: 'block', marginBottom: 8 }} />
+                            <Text type="secondary" style={{ fontSize: 12 }}>All contracts are healthy</Text>
+                          </div>
+                        ) : (
+                          <List
+                            dataSource={centerData.contractAlerts.items}
+                            renderItem={(item: any, i: number) => (
+                              <motion.div
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.04, duration: 0.28 }}
                               >
-                                {item.daysRemaining < 0 
-                                  ? `${Math.abs(item.daysRemaining)} days overdue` 
-                                  : `${item.daysRemaining} days remaining`}
-                              </Tag>
+                                <List.Item className="notif-item" style={{ padding: '10px 0' }}>
+                                  <List.Item.Meta
+                                    avatar={
+                                      item.level === 'critical'
+                                        ? <ExclamationCircleOutlined style={{ color: '#DC2626', fontSize: 18, marginTop: 2 }} />
+                                        : item.level === 'warning'
+                                        ? <WarningOutlined style={{ color: '#D97706', fontSize: 18, marginTop: 2 }} />
+                                        : <InfoCircleOutlined style={{ color: '#2563EB', fontSize: 18, marginTop: 2 }} />
+                                    }
+                                    title={<Text strong style={{ fontSize: 12 }}>{item.clientName}</Text>}
+                                    description={
+                                      <div>
+                                        <Text type="secondary" style={{ fontSize: 11 }}>
+                                          {item.daysRemaining < 0 ? 'Expired: ' : 'Renews: '}
+                                          {dayjs(String(item.contractEndDate).substring(0, 10)).format('MMM DD, YYYY')}
+                                        </Text><br />
+                                        <Tag
+                                          color={item.level === 'critical' ? 'error' : item.level === 'warning' ? 'warning' : 'default'}
+                                          style={{ marginTop: 4, fontSize: 10, borderRadius: 10 }}
+                                        >
+                                          {item.daysRemaining < 0
+                                            ? `${Math.abs(item.daysRemaining)} days overdue`
+                                            : `${item.daysRemaining} days left`}
+                                        </Tag>
+                                      </div>
+                                    }
+                                  />
+                                </List.Item>
+                              </motion.div>
+                            )}
+                          />
+                        )}
+                      </div>
+                    ),
+                  },
+                  /* ── Tab 2: Low Balance Clients ── */
+                  {
+                    key: 'low_balance',
+                    label: (
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>
+                        <ClockCircleOutlined style={{ marginRight: 5, color: '#B45309' }} />
+                        Low Balance
+                        {centerData && centerData.lowBalanceClients.count > 0 && (
+                          <span style={{
+                            marginLeft: 5, background: '#B45309', color: '#fff',
+                            borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            padding: '1px 6px',
+                          }}>{centerData.lowBalanceClients.count}</span>
+                        )}
+                      </span>
+                    ),
+                    children: (
+                      <div style={{ maxHeight: 380, overflowY: 'auto', padding: '8px 12px 4px' }}>
+                        {!centerData || centerData.lowBalanceClients.count === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                            <CheckCircleOutlined style={{ fontSize: 32, color: '#16A34A', display: 'block', marginBottom: 8 }} />
+                            <Text type="secondary" style={{ fontSize: 12 }}>All clients have sufficient balance</Text>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, background: '#f9fafb', padding: '6px 8px', borderRadius: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}>Show {'<'} </Text>
+                                <InputNumber 
+                                  size="small" 
+                                  min={0} 
+                                  max={100} 
+                                  value={maxBalanceFilter} 
+                                  onChange={(val) => setMaxBalanceFilter(val || 0)} 
+                                  style={{ width: 60 }} 
+                                />
+                                <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}> hrs</Text>
+                              </div>
+                              <Select
+                                value={lowBalanceSort}
+                                onChange={setLowBalanceSort}
+                                size="small"
+                                style={{ width: 130 }}
+                                options={[
+                                  { value: 'lowest', label: 'Lowest Balance' },
+                                  { value: 'highest', label: 'Highest Balance' },
+                                ]}
+                              />
                             </div>
-                          }
-                        />
-                      </List.Item>
-                    </motion.div>
-                  )}
-                />
-              )}
+                            <List
+                              dataSource={sortedLowBalance}
+                              renderItem={(item: any, i: number) => (
+                                <motion.div
+                                  initial={{ opacity: 0, x: 10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.04, duration: 0.28 }}
+                                >
+                                  <List.Item className="notif-item" style={{ padding: '10px 0' }}>
+                                    <List.Item.Meta
+                                      avatar={
+                                        <WarningOutlined style={{
+                                          color: item.balance <= 0 ? '#DC2626' : '#D97706',
+                                          fontSize: 18, marginTop: 2,
+                                        }} />
+                                      }
+                                      title={<Text strong style={{ fontSize: 12 }}>{item.clientName}</Text>}
+                                      description={
+                                        <div>
+                                          {item.accountManager && (
+                                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                                              AM: {item.accountManager}
+                                            </Text>
+                                          )}
+                                          <Tag
+                                            style={{
+                                              marginTop: 4, fontSize: 10, borderRadius: 10, border: 'none',
+                                              background: item.balance <= 0 ? '#FEF2F2' : '#FFF7ED',
+                                              color: item.balance <= 0 ? '#DC2626' : '#B45309',
+                                              fontWeight: 700,
+                                            }}
+                                          >
+                                            {item.balance <= 0 ? `${item.balance} hrs (Overdrawn)` : `${item.balance} hrs remaining`}
+                                          </Tag>
+                                          {item.lastReportMonth && (
+                                            <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 3 }}>
+                                              As of {dayjs().month(item.lastReportMonth - 1).format('MMM')} {item.lastReportYear}
+                                            </Text>
+                                          )}
+                                        </div>
+                                      }
+                                    />
+                                  </List.Item>
+                                </motion.div>
+                              )}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ),
+                  },
+                  /* ── Tab 3: Long-open Tickets ── */
+                  {
+                    key: 'long_open',
+                    label: (
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>
+                        <CalendarOutlined style={{ marginRight: 5, color: '#DC2626' }} />
+                        {'>'} 15 Days
+                        {centerData && centerData.longOpenTickets.count > 0 && (
+                          <span style={{
+                            marginLeft: 5, background: '#DC2626', color: '#fff',
+                            borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            padding: '1px 6px',
+                          }}>{centerData.longOpenTickets.count}</span>
+                        )}
+                      </span>
+                    ),
+                    children: (
+                      <div style={{ maxHeight: 380, overflowY: 'auto', padding: '8px 12px 4px' }}>
+                        {!centerData || centerData.longOpenTickets.count === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                            <CheckCircleOutlined style={{ fontSize: 32, color: '#16A34A', display: 'block', marginBottom: 8 }} />
+                            <Text type="secondary" style={{ fontSize: 12 }}>No tickets older than 15 days</Text>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, background: '#f9fafb', padding: '6px 8px', borderRadius: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}>Show {'>'} </Text>
+                                <InputNumber 
+                                  size="small" 
+                                  min={0} 
+                                  max={365} 
+                                  value={minDaysFilter} 
+                                  onChange={(val) => setMinDaysFilter(val || 0)} 
+                                  style={{ width: 60 }} 
+                                />
+                                <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}> days</Text>
+                              </div>
+                              <Select
+                                value={longOpenSort}
+                                onChange={setLongOpenSort}
+                                size="small"
+                                style={{ width: 130 }}
+                                options={[
+                                  { value: 'oldest', label: 'Oldest Tickets' },
+                                  { value: 'newest', label: 'Newest Tickets' },
+                                ]}
+                              />
+                            </div>
+                            <List
+                              dataSource={sortedLongOpen}
+                              renderItem={(item: any, i: number) => {
+                                const daysOpen = item.created_on ? dayjs().diff(dayjs(item.created_on), 'day') : null;
+                                return (
+                                  <motion.div
+                                    initial={{ opacity: 0, x: 10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: i * 0.04, duration: 0.28 }}
+                                  >
+                                    <List.Item className="notif-item" style={{ padding: '10px 0' }}>
+                                      <List.Item.Meta
+                                        avatar={
+                                          <ExclamationCircleOutlined style={{
+                                            color: daysOpen && daysOpen > 30 ? '#DC2626' : '#D97706',
+                                            fontSize: 18, marginTop: 2,
+                                          }} />
+                                        }
+                                        title={
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <Text strong style={{ fontSize: 12 }}>{item.case_number}</Text>
+                                            {daysOpen !== null && (
+                                              <Tag style={{
+                                                fontSize: 10, borderRadius: 10, border: 'none', fontWeight: 700,
+                                                background: daysOpen > 30 ? '#FEF2F2' : '#FFF7ED',
+                                                color: daysOpen > 30 ? '#DC2626' : '#B45309',
+                                              }}>
+                                                {daysOpen}d
+                                              </Tag>
+                                            )}
+                                          </div>
+                                        }
+                                        description={
+                                          <div style={{ marginTop: 2 }}>
+                                            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                                              <span style={{ fontWeight: 600 }}>{item.customer_name}</span>
+                                              {item.case_title && ` — ${item.case_title}`}
+                                            </Text>
+                                            {item.support_agent && (
+                                              <Text type="secondary" style={{ fontSize: 11, marginTop: 2, display: 'block' }}>
+                                                Consultant: {item.support_agent}
+                                              </Text>
+                                            )}
+                                          </div>
+                                        }
+                                      />
+                                    </List.Item>
+                                  </motion.div>
+                                );
+                              }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
+              />
             </Card>
           </motion.div>
         </Col>

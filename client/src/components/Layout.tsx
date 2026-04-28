@@ -11,6 +11,8 @@ import {
   BarChartOutlined,
   BellOutlined,
   SafetyCertificateOutlined,
+  KeyOutlined,
+
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -44,13 +46,14 @@ const DSIcon = () => (
 );
 
 const PAGE_LABELS: Record<string, string> = {
-  '/':            'Dashboard',
-  '/upload':      'Upload & Generate',
-  '/reports':     'Reports',
-  '/usage':       'Usage Report',
-  '/clients':     'Client Master',
-  '/reminders':   'Automated Reminders',
-  '/credentials': 'Client Credentials',
+  '/':                    'Dashboard',
+  '/upload':              'Upload & Generate',
+  '/reports':             'Reports',
+  '/usage':               'Usage Report',
+  '/clients':             'Client Master',
+  '/reminders':           'Automated Reminders',
+  '/credentials':         'Client Credentials',
+  '/auth-devices':        'Auth & Devices',
 };
 
 const AppLayout: React.FC = () => {
@@ -66,9 +69,10 @@ const AppLayout: React.FC = () => {
     { key: '/usage',   icon: <BarChartOutlined />,  label: 'Usage Report'  },
     ...(user?.role === 'admin'
       ? [
-          { key: '/clients', icon: <TeamOutlined />, label: 'Client Master' },
-          { key: '/reminders', icon: <BellOutlined />, label: 'Reminders' },
-          { key: '/credentials', icon: <SafetyCertificateOutlined />, label: 'Client Credentials' },
+          { key: '/clients',      icon: <TeamOutlined />,               label: 'Client Master'       },
+          { key: '/reminders',    icon: <BellOutlined />,               label: 'Reminders'           },
+          { key: '/credentials',  icon: <SafetyCertificateOutlined />,  label: 'Client Credentials'  },
+          { key: '/auth-devices', icon: <KeyOutlined />,                label: 'Auth & Devices'      },
         ]
       : []),
   ];

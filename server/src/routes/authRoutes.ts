@@ -10,5 +10,6 @@ router.post('/verify-totp-setup', authenticateTempToken, authController.verifyTo
 router.post('/verify-totp', authenticateTempToken, authController.verifyTotp);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
+router.post('/reveal-qr', authController.revealQr);
 
 export default router;

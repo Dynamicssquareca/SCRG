@@ -11,6 +11,7 @@ import reminderRoutes from './reminderRoutes';
 import clientPortalRoutes from './clientPortalRoutes';
 import clientAccessRoutes from './clientAccessRoutes';
 import cronRoutes from './cronRoutes';
+import userManagementRoutes from './userManagementRoutes';
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.use('/reminders', reminderRoutes);
 router.use('/client-portal', clientPortalRoutes);
 router.use('/client-access', clientAccessRoutes);
 router.use('/cron', cronRoutes);
+router.use('/users', userManagementRoutes);
 
 export default router;
 
