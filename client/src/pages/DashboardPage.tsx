@@ -166,7 +166,6 @@ const DashboardPage: React.FC = () => {
       setStats(statsRes.data.data);
       setUploads(uploadsRes.data.data.uploads);
       setNotifications(notifRes.data.data);
-      await fetchCenterData();
     } catch {
       /* silent */
     } finally {

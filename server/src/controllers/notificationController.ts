@@ -61,8 +61,7 @@ export async function getNotificationCenter(req: Request, res: Response, next: N
     // 1. Clients whose latest report has remaining_balance < maxBalance
     const activeClients = await Client.find({ is_active: true }).select('_id client_name account_manager total_contracted_hours previous_balance_hours');
 
-    const lowBalanceClients: any[] = [];
-    for (const client of activeClients) {
+    const clientReportPromises = activeClients.map(async (client) => {
       // Find the most recent report for this client
       const latestReport = await Report.findOne({ client_id: client._id })
         .sort({ year: -1, month: -1 })
@@ -74,16 +73,20 @@ export async function getNotificationCenter(req: Request, res: Response, next: N
         : (client.previous_balance_hours ?? 0);
 
       if (balance < maxBalance) {
-        lowBalanceClients.push({
+        return {
           clientId: client._id,
           clientName: client.client_name,
           accountManager: client.account_manager,
           balance,
           lastReportMonth: latestReport?.month ?? null,
           lastReportYear: latestReport?.year ?? null,
-        });
+        };
       }
-    }
+      return null;
+    });
+
+    const results = await Promise.all(clientReportPromises);
+    const lowBalanceClients = results.filter(res => res !== null);
     // Sort by balance ascending (most critical first)
     lowBalanceClients.sort((a, b) => a.balance - b.balance);
 
