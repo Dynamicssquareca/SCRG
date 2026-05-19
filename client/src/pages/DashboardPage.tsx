@@ -1,15 +1,17 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select, Tabs, InputNumber } from 'antd';
+import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select, Tabs, InputNumber, Tooltip } from 'antd';
 import {
-  UserOutlined, CloudUploadOutlined, WarningOutlined,
+  UserOutlined, WarningOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
   InfoCircleOutlined, BellOutlined,
   ClockCircleOutlined, CalendarOutlined, FileProtectOutlined,
+  TeamOutlined, BarChartOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import dayjs, { Dayjs } from 'dayjs';
 import { useAuth } from '../context/AuthContext';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const { Text } = Typography;
 
@@ -76,13 +78,22 @@ const MetricCard: React.FC<MetricProps> = ({ label, value, icon, iconBg, iconCol
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats]               = useState<any>({});
-  const [uploads, setUploads]           = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [centerData, setCenterData]     = useState<any>(null);
   const [loading, setLoading]           = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(null);
-  const [uploadTz, setUploadTz] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+  const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
+  const [workload, setWorkload]         = useState<{agent:string;openCount:number}[]>([]);
+  
+  const [compMonth1, setCompMonth1] = useState<Dayjs>(dayjs());
+  const [compMonth2, setCompMonth2] = useState<Dayjs>(dayjs().subtract(1, 'month'));
+  const [customChartData, setCustomChartData] = useState<any>(null);
+
+  const [clientsList, setClientsList] = useState<{_id: string, client_name: string}[]>([]);
+  const [selectedClient, setSelectedClient] = useState<string | null>(null);
+  const [clientMonth, setClientMonth] = useState<Dayjs>(dayjs());
+  const [clientBreakdown, setClientBreakdown] = useState<any>(null);
 
   const [maxBalanceFilter, setMaxBalanceFilter] = useState<number>(10);
   const [minDaysFilter, setMinDaysFilter] = useState<number>(15);
@@ -106,33 +117,9 @@ const DashboardPage: React.FC = () => {
     });
   }, [centerData, longOpenSort]);
 
-  // Returns how many minutes `tz` is ahead of UTC right now (same helper as RemindersPage)
-  const tzOffsetMinutes = (tz: string): number => {
-    try {
-      const now = new Date();
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: tz,
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false,
-      }).formatToParts(now);
-      const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value);
-      const wallMs = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'), get('second'));
-      return Math.round((wallMs - now.getTime()) / 60000);
-    } catch { return 0; }
-  };
-
-  // Convert a UTC ISO string → display string in the selected uploadTz
-  const formatInTz = (utcStr: string): string => {
-    if (!utcStr) return '—';
-    try {
-      const utcMs = new Date(utcStr).getTime();
-      const offset = tzOffsetMinutes(uploadTz);
-      const local = new Date(utcMs + offset * 60000);
-      const pad = (n: number) => String(n).padStart(2, '0');
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return `${pad(local.getUTCDate())} ${months[local.getUTCMonth()]} ${local.getUTCFullYear()}, ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
-    } catch { return utcStr; }
+  const formatDate = (iso: string | null): string => {
+    if (!iso) return '—';
+    return dayjs(iso).format('DD MMM YYYY, HH:mm');
   };
 
   const [casesModalVisible, setCasesModalVisible] = useState(false);
@@ -158,23 +145,63 @@ const DashboardPage: React.FC = () => {
         const end = selectedMonth.endOf('month').toISOString();
         statsUrl += `?month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}&startDate=${start}&endDate=${end}`;
       }
-      const [statsRes, uploadsRes, notifRes] = await Promise.all([
+      const [statsRes, notifRes] = await Promise.all([
         api.get(statsUrl),
-        api.get('/uploads?limit=5'),
         api.get('/notifications'),
       ]);
       setStats(statsRes.data.data);
-      setUploads(uploadsRes.data.data.uploads);
       setNotifications(notifRes.data.data);
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, [selectedMonth]);
+  const fetchLastUpload = async () => {
+    try {
+      const res = await api.get('/dashboard/last-upload');
+      setLastUploadAt(res.data.data.lastUploadAt);
+    } catch { /* silent */ }
+  };
+
+  const fetchWorkload = async () => {
+    try {
+      const res = await api.get('/dashboard/consultant-workload');
+      setWorkload(res.data.data || []);
+    } catch { /* silent */ }
+  };
+
+  const fetchCustomChart = async () => {
+    try {
+      const m1 = compMonth1.month() + 1; const y1 = compMonth1.year();
+      const m2 = compMonth2.month() + 1; const y2 = compMonth2.year();
+      const res = await api.get(`/dashboard/chart/custom-comparison?m1=${m1}&y1=${y1}&m2=${m2}&y2=${y2}`);
+      setCustomChartData(res.data.data);
+    } catch { /* silent */ }
+  };
+
+  const fetchClientList = async () => {
+    try {
+      const res = await api.get('/clients?limit=1000');
+      const clients = res.data.data.clients || [];
+      setClientsList(clients);
+      if (clients.length > 0 && !selectedClient) {
+        setSelectedClient(clients[0]._id);
+      }
+    } catch { /* silent */ }
+  };
+
+  const fetchClientBreakdown = async () => {
+    if (!selectedClient) return;
+    try {
+      const m = clientMonth.month() + 1;
+      const y = clientMonth.year();
+      const res = await api.get(`/dashboard/chart/client-breakdown?clientId=${selectedClient}&month=${m}&year=${y}`);
+      setClientBreakdown(res.data.data);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => { fetchData(); fetchLastUpload(); fetchWorkload(); fetchClientList(); }, [selectedMonth]);
   useEffect(() => { fetchCenterData(); }, [maxBalanceFilter, minDaysFilter]);
+  useEffect(() => { fetchCustomChart(); }, [compMonth1, compMonth2]);
+  useEffect(() => { fetchClientBreakdown(); }, [selectedClient, clientMonth]);
 
   const handleClearData = async () => {
     setDeleteLoading(true);
@@ -209,33 +236,14 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const columns = [
-    {
-      title: 'File Name', dataIndex: 'original_name', key: 'original_name',
-      render: (v: string) => <Text strong style={{ fontSize: 13 }}>{v}</Text>,
-    },
-    { title: 'Rows', dataIndex: 'row_count', key: 'row_count', width: 80 },
-    {
-      title: 'Uploaded', dataIndex: 'createdAt', key: 'createdAt',
-      render: (v: string) => <Text type="secondary" style={{ fontSize: 12 }}>{formatInTz(v)}</Text>,
-    },
-    {
-      title: 'Status', dataIndex: 'status', key: 'status', width: 120,
-      render: (v: string) => (
-        <Tag color={v === 'completed' ? 'success' : v === 'failed' ? 'error' : 'processing'}>
-          {v.toUpperCase()}
-        </Tag>
-      ),
-    },
-  ];
+
 
   const mLabel = selectedMonth ? ` (${selectedMonth.format('MMM YYYY')})` : '';
 
   const metrics: MetricProps[] = [
-    { label: 'Total Clients',           value: stats.totalClients,    icon: <UserOutlined />,          iconBg: 'rgba(232,54,61,0.08)',    iconColor: '#E8363D', accentColor: '#E8363D',          index: 0, loading },
-    { label: 'Total Uploads',           value: stats.totalUploads,    icon: <CloudUploadOutlined />,   iconBg: 'rgba(37,99,235,0.08)',    iconColor: '#2563EB', accentColor: '#2563EB',          index: 1, loading },
-    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,       iconBg: 'rgba(234,179,8,0.10)',    iconColor: '#B45309', accentColor: '#F59E0B',          index: 2, loading, onClick: () => fetchCases('open') },
-    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />,   iconBg: 'rgba(22,163,74,0.09)',    iconColor: '#16A34A', accentColor: '#16A34A',          index: 3, loading, onClick: () => fetchCases('closed') },
+    { label: 'Active Clients',          value: stats.totalClients,    icon: <UserOutlined />,        iconBg: 'rgba(232,54,61,0.08)', iconColor: '#E8363D', accentColor: '#E8363D', index: 0, loading },
+    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,     iconBg: 'rgba(234,179,8,0.10)', iconColor: '#B45309', accentColor: '#F59E0B', index: 1, loading, onClick: () => fetchCases('open') },
+    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />, iconBg: 'rgba(22,163,74,0.09)', iconColor: '#16A34A', accentColor: '#16A34A', index: 2, loading, onClick: () => fetchCases('closed') },
   ];
 
   const caseColumns = [
@@ -271,27 +279,16 @@ const DashboardPage: React.FC = () => {
             {selectedMonth ? `Showing data for ${selectedMonth.format('MMMM YYYY')}` : 'All time data'}
           </Text>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Select
-            value={uploadTz}
-            onChange={setUploadTz}
-            style={{ width: 220, borderRadius: 8, height: 38 }}
-            options={[
-              { label: 'Local Time',              value: Intl.DateTimeFormat().resolvedOptions().timeZone },
-              { label: 'UTC',                     value: 'UTC' },
-              { label: 'EST / EDT (New York)',     value: 'America/New_York' },
-              { label: 'CST / CDT (Chicago)',      value: 'America/Chicago' },
-              { label: 'MST / MDT (Denver)',       value: 'America/Denver' },
-              { label: 'PST / PDT (Los Angeles)',  value: 'America/Los_Angeles' },
-              { label: 'GMT (London)',             value: 'Europe/London' },
-              { label: 'CET (Paris/Berlin)',       value: 'Europe/Paris' },
-              { label: 'IST (India)',              value: 'Asia/Kolkata' },
-              { label: 'GST (Dubai)',              value: 'Asia/Dubai' },
-              { label: 'SGT (Singapore)',          value: 'Asia/Singapore' },
-              { label: 'JST (Tokyo)',              value: 'Asia/Tokyo' },
-              { label: 'AEST (Sydney)',            value: 'Australia/Sydney' },
-            ]}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {lastUploadAt && (
+            <Tooltip title={`Last data sync: ${formatDate(lastUploadAt)}`}>
+              <span className="last-updated-badge">
+                <span className="dot" />
+                <SyncOutlined style={{ fontSize: 11 }} />
+                Last Updated: {formatDate(lastUploadAt)}
+              </span>
+            </Tooltip>
+          )}
           <DatePicker.MonthPicker
             value={selectedMonth}
             onChange={setSelectedMonth}
@@ -305,78 +302,219 @@ const DashboardPage: React.FC = () => {
       {/* Metric cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         {metrics.map(m => (
-          <Col key={m.label} xs={24} sm={12} xl={6}>
+          <Col key={m.label} xs={24} sm={12} xl={8}>
             <MetricCard {...m} />
           </Col>
         ))}
       </Row>
 
-      {/* Lower section */}
-      <Row gutter={[16, 16]}>
-        {/* Left column */}
-        <Col xs={24} lg={16}>
-          {/* Recent Uploads */}
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.32, duration: 0.4 }}
-          >
+      {/* ── Charts Row ─────────────────────────── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        {/* Custom Month Comparison Chart */}
+        <Col xs={24} lg={12}>
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28, duration: 0.4 }} style={{ height: '100%' }}>
             <Card
               title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: '#E8363D' }} />
-                  Recent Data Uploads
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <BarChartOutlined style={{ color: '#2563EB', fontSize: 16 }} />
+                    <span style={{ fontSize: 14 }}>Month Comparison</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <DatePicker.MonthPicker size="small" style={{ width: 110 }} value={compMonth1} onChange={(d) => d && setCompMonth1(d)} allowClear={false} />
+                    <span style={{ color: '#9CA3AF', fontSize: 12, alignSelf: 'center' }}>vs</span>
+                    <DatePicker.MonthPicker size="small" style={{ width: 110 }} value={compMonth2} onChange={(d) => d && setCompMonth2(d)} allowClear={false} />
+                  </div>
+                </div>
+              }
+              loading={loading && !customChartData}
+              style={{ height: '100%' }}
+            >
+              {customChartData ? (() => {
+                const data = [
+                  {
+                    name: 'Open Tickets',
+                    [customChartData.month1.label]: customChartData.month1.open,
+                    [customChartData.month2.label]: customChartData.month2.open,
+                  },
+                  {
+                    name: 'Closed Tickets',
+                    [customChartData.month1.label]: customChartData.month1.closed,
+                    [customChartData.month2.label]: customChartData.month2.closed,
+                  }
+                ];
+                return (
+                  <div style={{ width: '100%', height: 260 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8ECF4" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#4B5568', fontWeight: 500 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                        <RechartsTooltip 
+                          cursor={{ fill: 'rgba(0,0,0,0.03)' }}
+                          contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                          itemStyle={{ fontSize: 13, fontWeight: 600 }}
+                          labelStyle={{ fontSize: 12, color: '#9CA3AF', marginBottom: 4 }}
+                        />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
+                        <Bar dataKey={customChartData.month1.label} fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={50} animationDuration={1000} />
+                        <Bar dataKey={customChartData.month2.label} fill="#93C5FD" radius={[4, 4, 0, 0]} maxBarSize={50} animationDuration={1000} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })() : <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>Loading...</div>}
+            </Card>
+          </motion.div>
+        </Col>
+
+        {/* Per-Client Breakdown Chart */}
+        <Col xs={24} lg={12}>
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.36, duration: 0.4 }} style={{ height: '100%' }}>
+            <Card
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <BarChartOutlined style={{ color: '#7C3AED', fontSize: 16 }} />
+                    <span style={{ fontSize: 14 }}>Client Breakdown</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <DatePicker.MonthPicker size="small" style={{ width: 110 }} value={clientMonth} onChange={(d) => d && setClientMonth(d)} allowClear={false} />
+                    <Select
+                      size="small"
+                      style={{ width: 160 }}
+                      showSearch
+                      optionFilterProp="children"
+                      value={selectedClient}
+                      onChange={setSelectedClient}
+                      placeholder="Select a client"
+                    >
+                      {clientsList.map((c: any) => <Select.Option key={c._id} value={c._id}>{c.client_name}</Select.Option>)}
+                    </Select>
+                  </div>
+                </div>
+              }
+              loading={loading && !clientBreakdown}
+              style={{ height: '100%' }}
+            >
+              {clientBreakdown ? (() => {
+                const data = [
+                  { name: 'Open', value: clientBreakdown.open },
+                  { name: 'Closed', value: clientBreakdown.closed }
+                ].filter(d => d.value > 0);
+                
+                const COLORS = ['#F59E0B', '#16A34A'];
+
+                if (data.length === 0) {
+                  return <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>No tickets for this client.</div>;
+                }
+
+                return (
+                  <div style={{ width: '100%', height: 260, position: 'relative' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={data}
+                          cx="50%"
+                          cy="45%"
+                          innerRadius={65}
+                          outerRadius={90}
+                          paddingAngle={3}
+                          dataKey="value"
+                          stroke="none"
+                          animationDuration={1000}
+                        >
+                          {data.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip 
+                          contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                          itemStyle={{ fontSize: 14, fontWeight: 700 }}
+                        />
+                        <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 24, fontWeight: 800, color: '#0F1117', lineHeight: 1 }}>{clientBreakdown.open + clientBreakdown.closed}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', marginTop: 4 }}>Total</div>
+                    </div>
+                  </div>
+                );
+              })() : <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF' }}>Loading...</div>}
+            </Card>
+          </motion.div>
+        </Col>
+      </Row>
+
+      {/* ── Lower Section ─────────────────────── */}
+      <Row gutter={[16, 16]}>
+        {/* Left column — Consultant Workload */}
+        <Col xs={24} lg={16}>
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32, duration: 0.4 }}>
+            <Card
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <TeamOutlined style={{ color: '#7C3AED', fontSize: 16 }} />
+                  <span>Consultant Workload</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 500, color: '#9CA3AF' }}>Open tickets per consultant</span>
                 </div>
               }
               loading={loading}
             >
-              <Table
-                dataSource={uploads}
-                columns={columns}
-                rowKey="_id"
-                pagination={false}
-                size="middle"
-              />
+              {workload.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <CheckCircleOutlined style={{ fontSize: 32, color: '#16A34A', display: 'block', marginBottom: 8 }} />
+                  <Text type="secondary" style={{ fontSize: 13 }}>No open tickets assigned</Text>
+                </div>
+              ) : (() => {
+                const maxCount = workload[0]?.openCount || 1;
+                return (
+                  <div>
+                    {workload.map((w, i) => {
+                      const pct = (w.openCount / maxCount) * 100;
+                      const color = pct > 70 ? '#EF4444' : pct > 40 ? '#F59E0B' : '#16A34A';
+                      const bg   = pct > 70 ? '#FEF2F2' : pct > 40 ? '#FFFBEB' : '#F0FDF4';
+                      return (
+                        <motion.div key={i} className="workload-row"
+                          initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05, duration: 0.3 }}
+                        >
+                          <div className="workload-name" title={w.agent}>{w.agent}</div>
+                          <div className="workload-bar-track">
+                            <div className="workload-bar-fill"
+                              style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}cc, ${color})`, animationDelay: `${i * 0.05}s` }}
+                            />
+                          </div>
+                          <Tooltip title={`${w.openCount} open ticket${w.openCount !== 1 ? 's' : ''}`}>
+                            <span className="workload-count"
+                              style={{ color, background: bg, borderRadius: 6, padding: '1px 8px' }}
+                            >{w.openCount}</span>
+                          </Tooltip>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </Card>
           </motion.div>
 
           {/* Danger Zone */}
           {user?.role === 'admin' && (
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.44, duration: 0.4 }}
-              style={{ marginTop: 16 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.44, duration: 0.4 }} style={{ marginTop: 16 }}>
               <Card
                 className="danger-card"
-                title={
-                  <span style={{ color: '#DC2626', fontWeight: 700 }}>
-                    <WarningOutlined style={{ marginRight: 8 }} />
-                    Danger Zone
-                  </span>
-                }
+                title={<span style={{ color: '#DC2626', fontWeight: 700 }}><WarningOutlined style={{ marginRight: 8 }} />Danger Zone</span>}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
                   <div>
-                    <Text strong style={{ fontSize: 14 }}>Clear All Application Data</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      Permanently deletes all uploads, cases, and reports. <strong>Client Master and Users are preserved.</strong>
-                    </Text>
+                    <Text strong style={{ fontSize: 14 }}>Clear All Application Data</Text><br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>Permanently deletes all uploads, cases, and reports. <strong>Client Master and Users are preserved.</strong></Text>
                   </div>
-                  <Popconfirm
-                    title="Clear all data?"
-                    description="This will delete all uploads, cases, and reports. Your Client Master will NOT be deleted. This cannot be undone."
-                    onConfirm={handleClearData}
-                    okText="Yes, clear it"
-                    cancelText="Cancel"
-                    okButtonProps={{ danger: true, loading: deleteLoading }}
-                  >
+                  <Popconfirm title="Clear all data?" description="This will delete all uploads, cases, and reports. Your Client Master will NOT be deleted. This cannot be undone." onConfirm={handleClearData} okText="Yes, clear it" cancelText="Cancel" okButtonProps={{ danger: true, loading: deleteLoading }}>
                     <motion.div whileTap={{ scale: 0.97 }}>
-                      <Button danger icon={<WarningOutlined />} style={{ fontWeight: 600, flexShrink: 0 }}>
-                        Clear All Data
-                      </Button>
+                      <Button danger icon={<WarningOutlined />} style={{ fontWeight: 600, flexShrink: 0 }}>Clear All Data</Button>
                     </motion.div>
                   </Popconfirm>
                 </div>
