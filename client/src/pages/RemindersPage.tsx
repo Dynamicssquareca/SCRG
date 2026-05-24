@@ -54,6 +54,7 @@ const RemindersPage: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [displayTz, setDisplayTz] = useState<string>(dayjs.tz?.guess() || 'UTC');
+  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
   
   // Edit Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -70,6 +71,13 @@ const RemindersPage: React.FC = () => {
       ]);
       setData(remData.data);
       setLogs(logData.data);
+
+      try {
+        const suggRes = await api.get('/dashboard/report/recipient-suggestions');
+        setEmailSuggestions(suggRes.data.data || []);
+      } catch (err) {
+        console.error('Failed to load email suggestions', err);
+      }
     } catch {
       message.error('Failed to load reminders');
     } finally {
@@ -151,12 +159,63 @@ const RemindersPage: React.FC = () => {
         send_timezone: displayTz, // stored for display reference
         ...values
       });
+
+      // Refresh suggestions
+      try {
+        const suggRes = await api.get('/dashboard/report/recipient-suggestions');
+        setEmailSuggestions(suggRes.data.data || []);
+      } catch (err) {
+        console.error('Failed to load email suggestions', err);
+      }
+
       message.success('Configuration saved');
       setIsModalVisible(false);
       fetchData();
     } catch {
       message.error('Failed to save configuration');
     }
+  };
+
+  const handleRemoveSuggestion = async (email: string) => {
+    try {
+      await api.post('/dashboard/report/recipient-suggestions/remove', { email });
+      message.success(`Removed '${email}' from suggestions.`);
+      const suggRes = await api.get('/dashboard/report/recipient-suggestions');
+      setEmailSuggestions(suggRes.data.data || []);
+    } catch (err) {
+      message.error('Failed to remove email suggestion.');
+    }
+  };
+
+  const getEmailOptions = () => {
+    return emailSuggestions.map(email => ({
+      value: email,
+      label: (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <span>{email}</span>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleRemoveSuggestion(email);
+            }}
+            style={{
+              color: '#ff4d4f',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '14px',
+              lineHeight: 1,
+              marginLeft: '8px'
+            }}
+            title="Remove email from suggestions"
+          >
+            ✕
+          </span>
+        </div>
+      )
+    }));
   };
 
   const handleTestEmail = async (clientId: string, recipients: string[], ccRecipients: string[] = []) => {
@@ -397,14 +456,22 @@ const RemindersPage: React.FC = () => {
             label="Recipient Emails (To)"
             rules={[{ required: true, message: 'At least one recipient is required' }]}
           >
-            <Select mode="tags" placeholder="Type email and press Enter" />
+            <Select
+              mode="tags"
+              placeholder="Type email and press Enter"
+              options={getEmailOptions()}
+            />
           </Form.Item>
 
           <Form.Item 
             name="cc_emails" 
             label="CC Emails (Optional)"
           >
-            <Select mode="tags" placeholder="Type email and press Enter" />
+            <Select
+              mode="tags"
+              placeholder="Type email and press Enter"
+              options={getEmailOptions()}
+            />
           </Form.Item>
 
           <Form.Item 

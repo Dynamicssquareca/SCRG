@@ -1,5 +1,6 @@
 import * as cron from 'node-cron';
 import { processReminders } from './services/reminderService';
+import { processMonthlyReports } from './services/monthlyReportSchedulerService';
 import logger from './utils/logger';
 
 let currentTask: cron.ScheduledTask | null = null;
@@ -31,6 +32,7 @@ function startCronJob(schedule: string) {
   
   currentTask = cron.schedule(schedule, async () => {
     await processReminders();
+    await processMonthlyReports();
   });
 }
 

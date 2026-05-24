@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { processReminders } from '../services/reminderService';
+import { processMonthlyReports } from '../services/monthlyReportSchedulerService';
 import { successResponse } from '../utils/apiResponse';
 import logger from '../utils/logger';
 
@@ -37,6 +38,34 @@ router.get('/reminders', async (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('[Vercel Cron] Reminder scan failed:', err);
     res.status(500).json({ error: 'Reminder processing failed', details: err.message });
+  }
+});
+
+/**
+ * GET /cron/monthly-report
+ * Called by Vercel Cron once per day.
+ * processMonthlyReports() internally checks whether it's the configured
+ * send_day and the right time window before dispatching — so running it
+ * daily is safe; it simply does nothing on non-trigger days.
+ */
+router.get('/monthly-report', async (req: Request, res: Response) => {
+  const cronSecret = (process.env.CRON_SECRET || '').trim();
+  const authHeader = (req.headers['authorization'] || '').trim();
+  const expected = `Bearer ${cronSecret}`;
+
+  if (cronSecret && authHeader !== expected) {
+    logger.warn('[Cron Auth] Monthly report — unauthorized call rejected.');
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    logger.info('[Vercel Cron] Running monthly report scheduler...');
+    await processMonthlyReports();
+    logger.info('[Vercel Cron] Monthly report scheduler completed.');
+    successResponse(res, { message: 'Monthly report check completed', timestamp: new Date().toISOString() });
+  } catch (err: any) {
+    logger.error('[Vercel Cron] Monthly report scheduler failed:', err);
+    res.status(500).json({ error: 'Monthly report processing failed', details: err.message });
   }
 });
 
