@@ -92,7 +92,7 @@ const DashboardPage: React.FC = () => {
 
   const [clientsList, setClientsList] = useState<{_id: string, client_name: string}[]>([]);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
-  const [clientMonth, setClientMonth] = useState<Dayjs>(dayjs());
+  const [clientMonth, setClientMonth] = useState<Dayjs | null>(null);
   const [clientBreakdown, setClientBreakdown] = useState<any>(null);
 
   const [maxBalanceFilter, setMaxBalanceFilter] = useState<number>(10);
@@ -191,9 +191,11 @@ const DashboardPage: React.FC = () => {
   const fetchClientBreakdown = async () => {
     if (!selectedClient) return;
     try {
-      const m = clientMonth.month() + 1;
-      const y = clientMonth.year();
-      const res = await api.get(`/dashboard/chart/client-breakdown?clientId=${selectedClient}&month=${m}&year=${y}`);
+      let url = `/dashboard/chart/client-breakdown?clientId=${selectedClient}`;
+      if (clientMonth) {
+        url += `&month=${clientMonth.month() + 1}&year=${clientMonth.year()}`;
+      }
+      const res = await api.get(url);
       setClientBreakdown(res.data.data);
     } catch { /* silent */ }
   };
@@ -333,12 +335,12 @@ const DashboardPage: React.FC = () => {
               {customChartData ? (() => {
                 const data = [
                   {
-                    name: 'Open Tickets',
+                    name: 'Tickets Created',
                     [customChartData.month1.label]: customChartData.month1.open,
                     [customChartData.month2.label]: customChartData.month2.open,
                   },
                   {
-                    name: 'Closed Tickets',
+                    name: 'Tickets Resolved',
                     [customChartData.month1.label]: customChartData.month1.closed,
                     [customChartData.month2.label]: customChartData.month2.closed,
                   }
@@ -379,7 +381,14 @@ const DashboardPage: React.FC = () => {
                     <span style={{ fontSize: 14 }}>Client Breakdown</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <DatePicker.MonthPicker size="small" style={{ width: 110 }} value={clientMonth} onChange={(d) => d && setClientMonth(d)} allowClear={false} />
+                    <DatePicker.MonthPicker
+                      size="small"
+                      style={{ width: 120 }}
+                      value={clientMonth}
+                      onChange={(d) => setClientMonth(d)}
+                      placeholder="All time"
+                      allowClear
+                    />
                     <Select
                       size="small"
                       style={{ width: 160 }}

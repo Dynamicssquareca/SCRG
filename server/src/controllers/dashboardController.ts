@@ -128,10 +128,10 @@ export async function getCustomComparisonChart(req: Request, res: Response, next
     const end2 = new Date(year2, month2 + 1, 0, 23, 59, 59, 999);
 
     const [open1, closed1, open2, closed2] = await Promise.all([
-      Case.countDocuments({ created_on: { $gte: start1, $lte: end1 }, status_reason: { $not: closedStatusRegex } }),
-      Case.countDocuments({ updated_on: { $gte: start1, $lte: end1 }, status_reason: { $regex: closedStatusRegex } }),
-      Case.countDocuments({ created_on: { $gte: start2, $lte: end2 }, status_reason: { $not: closedStatusRegex } }),
-      Case.countDocuments({ updated_on: { $gte: start2, $lte: end2 }, status_reason: { $regex: closedStatusRegex } }),
+      Case.countDocuments({ created_on: { $gte: start1, $lte: end1 } }),                                               // all tickets created in month1
+      Case.countDocuments({ updated_on: { $gte: start1, $lte: end1 }, status_reason: { $regex: closedStatusRegex } }), // tickets closed in month1
+      Case.countDocuments({ created_on: { $gte: start2, $lte: end2 } }),                                               // all tickets created in month2
+      Case.countDocuments({ updated_on: { $gte: start2, $lte: end2 }, status_reason: { $regex: closedStatusRegex } }), // tickets closed in month2
     ]);
 
     const formatLabel = (m: number, y: number) => {
@@ -153,24 +153,21 @@ export async function getClientBreakdownChart(req: Request, res: Response, next:
       return successResponse(res, { open: 0, closed: 0 });
     }
 
-    const now = new Date();
-    const m = month ? Number(month) - 1 : now.getMonth();
-    const y = year ? Number(year) : now.getFullYear();
+    const baseFilter: any = { client_id: clientId };
 
-    const start = new Date(y, m, 1);
-    const end = new Date(y, m + 1, 0, 23, 59, 59, 999);
+    // Only apply date filter when month AND year are explicitly provided
+    if (month && year) {
+      const m = Number(month) - 1;
+      const y = Number(year);
+      const start = new Date(y, m, 1);
+      const end   = new Date(y, m + 1, 0, 23, 59, 59, 999);
+      baseFilter.created_on = { $gte: start, $lte: end };
+    }
 
-    const openCount = await Case.countDocuments({ 
-      client_id: clientId, 
-      created_on: { $gte: start, $lte: end },
-      status_reason: { $not: closedStatusRegex } 
-    });
-    
-    const closedCount = await Case.countDocuments({ 
-      client_id: clientId, 
-      updated_on: { $gte: start, $lte: end },
-      status_reason: { $regex: closedStatusRegex } 
-    });
+    const [openCount, closedCount] = await Promise.all([
+      Case.countDocuments({ ...baseFilter, status_reason: { $not: closedStatusRegex } }),
+      Case.countDocuments({ ...baseFilter, status_reason: { $regex: closedStatusRegex } }),
+    ]);
 
     successResponse(res, { open: openCount, closed: closedCount });
   } catch (err) { next(err); }
