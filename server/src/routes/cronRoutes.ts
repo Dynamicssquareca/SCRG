@@ -63,7 +63,8 @@ router.get('/monthly-report', async (req: Request, res: Response) => {
     // in compiled CJS output which Vercel doesn't handle automatically
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { processMonthlyReports } = require('../services/monthlyReportSchedulerService');
-    await processMonthlyReports();
+    // cronMode=true: trust cron-job.org for timing, only check day + duplicate guard
+    await processMonthlyReports(false, true);
     logger.info('[Vercel Cron] Monthly report scheduler completed.');
     successResponse(res, { message: 'Monthly report check completed', timestamp: new Date().toISOString() });
   } catch (err: any) {

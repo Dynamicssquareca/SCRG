@@ -9,18 +9,35 @@ import logger from '../utils/logger';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-export async function processMonthlyReports(forceMode: boolean = false) {
-  logger.debug('Starting automated monthly PDF report scheduler check...');
+/** 
+ * forceMode = true  → skip ALL checks (used for manual test-send from UI)
+ * cronMode  = true  → skip time-window check only; keep day check + duplicate guard
+ *                     (used by cron-job.org — it controls timing, app controls the day)
+ */
+export async function processMonthlyReports(forceMode: boolean = false, cronMode: boolean = false) {
+  logger.debug('Starting automated monthly and bi-weekly PDF report scheduler check...');
+  
+  // 1. Process Monthly Support Report
+  await processReportByType('monthly', forceMode, cronMode);
+
+  // 2. Process Bi-Weekly Support Report
+  await processReportByType('bi-weekly', forceMode, cronMode);
+}
+
+/** Processes a specific support report type (monthly or bi-weekly) */
+async function processReportByType(reportType: 'monthly' | 'bi-weekly', forceMode: boolean = false, cronMode: boolean = false) {
+  const isBiWeekly = reportType === 'bi-weekly';
+  const label = isBiWeekly ? 'bi-weekly' : 'monthly';
 
   try {
-    const settings = await MonthlyReportSetting.findOne({ is_enabled: true });
+    const settings = await MonthlyReportSetting.findOne({ report_type: reportType, is_enabled: true });
     if (!settings) {
-      logger.debug('Monthly report scheduler is disabled or not configured.');
+      logger.debug(`Support report scheduler for ${label} is disabled or not configured.`);
       return;
     }
 
     if (settings.recipient_emails.length === 0) {
-      logger.warn('Monthly report scheduler is enabled but has no recipient emails configured.');
+      logger.warn(`Support report scheduler for ${label} is enabled but has no recipient emails configured.`);
       return;
     }
 
@@ -29,51 +46,73 @@ export async function processMonthlyReports(forceMode: boolean = false) {
     const currentDay = tzTime.date();
     const currentHHmm = tzTime.format('HH:mm');
 
-    // Calculate previous completed month (reporting target)
-    const targetMonthDate = tzTime.subtract(1, 'month');
+    // Calculate report target period
+    // Monthly: full previous completed calendar month
+    // Bi-weekly: first half of the current calendar month (1st-14th)
+    const targetMonthDate = isBiWeekly ? tzTime : tzTime.subtract(1, 'month');
     const reportMonth = targetMonthDate.month() + 1; // 1-12
     const reportYear = targetMonthDate.year();
 
     if (!forceMode) {
-      // 1. Check if today matches the scheduled send_day
+      // 1. Always check if today matches the scheduled send_day (e.g. 1 or 15)
       if (currentDay !== settings.send_day) {
+        logger.debug(`Today is day ${currentDay}, scheduled for day ${settings.send_day} (${label}). Skipping.`);
         return;
       }
 
-      // 2. Check if current time falls within a 10-minute window of send_time
-      const [sh, sm] = settings.send_time.split(':').map(Number);
-      const [ch, cm] = currentHHmm.split(':').map(Number);
-      const diffMinutes = Math.abs((ch * 60 + cm) - (sh * 60 + sm));
+      // 2. Time check
+      if (cronMode) {
+        // Under hourly cron triggers, check if the current hour matches the scheduled hour
+        const [sh] = settings.send_time.split(':').map(Number);
+        const ch = tzTime.hour();
+        if (ch !== sh) {
+          logger.debug(`Current hour is ${ch}, scheduled hour is ${sh} (${label}). Skipping.`);
+          return;
+        }
+      } else {
+        // Under high-frequency local checks, check within a 9-minute window
+        const [sh, sm] = settings.send_time.split(':').map(Number);
+        const [ch, cm] = currentHHmm.split(':').map(Number);
+        const diffMinutes = Math.abs((ch * 60 + cm) - (sh * 60 + sm));
 
-      if (diffMinutes > 9) {
-        return;
+        if (diffMinutes > 9) {
+          return;
+        }
       }
 
-      // 3. Prevent duplicate sends for the same month/year
+      // 3. Prevent duplicate sends for the same period
       if (settings.last_sent_month === reportMonth && settings.last_sent_year === reportYear) {
-        logger.debug(`Monthly report for ${reportMonth}/${reportYear} already sent. Skipping.`);
+        logger.debug(`Support report (${label}) for ${reportMonth}/${reportYear} already sent. Skipping.`);
         return;
       }
     }
 
-    logger.info(`Triggering monthly report distribution for ${reportMonth}/${reportYear}...`);
+    logger.info(`Triggering ${label} support report distribution for ${reportMonth}/${reportYear}...`);
 
     // Generate PDF
-    const data = await getMonthlyReportData(reportMonth, reportYear);
-    const pdfBuffer = await generateMonthlyPdfReport(data);
+    const data = await getMonthlyReportData(reportMonth, reportYear, isBiWeekly);
+    const pdfBuffer = await generateMonthlyPdfReport(data, isBiWeekly);
 
     const monthName = dayjs().month(reportMonth - 1).format('MMMM');
     const monthNameShort = dayjs().month(reportMonth - 1).format('MMM');
     
-    const subject = `Dynamics Square Operations & Support Monthly Report: ${monthName} ${reportYear}`;
-    const fileName = `Support_Monthly_Report_${monthNameShort}_${reportYear}.pdf`;
+    const subject = isBiWeekly
+      ? `Dynamics Square Support Bi-Weekly Report (1st-14th): ${monthName} ${reportYear}`
+      : `Dynamics Square Operations & Support Monthly Report: ${monthName} ${reportYear}`;
+
+    const fileName = isBiWeekly
+      ? `Support_BiWeekly_Report_${monthNameShort}_${reportYear}.pdf`
+      : `Support_Monthly_Report_${monthNameShort}_${reportYear}.pdf`;
+
+    const bodyLabel = isBiWeekly ? 'Bi-Weekly Support (01-14)' : 'Monthly Operations & Support';
+    const periodDesc = isBiWeekly ? `${monthName} 01 - 14, ${reportYear}` : `${monthName} ${reportYear}`;
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #1b3a5c; margin-top: 0;">Dynamics Square Support & Operations Monthly Report</h2>
+        <h2 style="color: #1b3a5c; margin-top: 0;">Dynamics Square ${bodyLabel} Report</h2>
         <p>Hello Team,</p>
-        <p>Please find attached the performance and consumption support report for the month of <strong>${monthName} ${reportYear}</strong>.</p>
-        <p>This report contains key performance metrics, monthly ticket comparison trends, client-wise usage logs, and backlog age tracking.</p>
+        <p>Please find attached the performance and consumption support report for the period of <strong>${periodDesc}</strong>.</p>
+        <p>This report contains key performance metrics, comparison trends, client-wise usage logs, and backlog age tracking.</p>
         <br />
         <p style="font-size: 13px; color: #4a5568;">Sincerely,<br/><strong>Dynamics Square Support Operations</strong></p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
@@ -101,8 +140,8 @@ export async function processMonthlyReports(forceMode: boolean = false) {
     settings.last_sent_year = reportYear;
     await settings.save();
 
-    logger.info(`Successfully dispatched monthly report for ${reportMonth}/${reportYear} to recipients.`);
+    logger.info(`Successfully dispatched ${label} report for ${reportMonth}/${reportYear} to recipients.`);
   } catch (err) {
-    logger.error('Error occurred in monthly report scheduler job:', err);
+    logger.error(`Error occurred in ${label} report scheduler job:`, err);
   }
 }

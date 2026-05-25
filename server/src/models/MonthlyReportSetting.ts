@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMonthlyReportSetting extends Document {
+  report_type: 'monthly' | 'bi-weekly';
   is_enabled: boolean;
   recipient_emails: string[];
   cc_emails: string[];
@@ -15,6 +16,7 @@ export interface IMonthlyReportSetting extends Document {
 
 const MonthlyReportSettingSchema = new Schema(
   {
+    report_type: { type: String, enum: ['monthly', 'bi-weekly'], default: 'monthly' },
     is_enabled: { type: Boolean, default: false },
     recipient_emails: { type: [String], default: [] },
     cc_emails: { type: [String], default: [] },

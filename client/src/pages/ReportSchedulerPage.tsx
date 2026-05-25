@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Switch, Form, Select, TimePicker, InputNumber, Space, Typography, message, Modal, Row, Col, Alert } from 'antd';
-import { MailOutlined, SettingOutlined, EyeOutlined, SendOutlined, SaveOutlined } from '@ant-design/icons';
+import { Card, Button, Switch, Form, Select, TimePicker, InputNumber, Space, Typography, message, Modal, Row, Col, Alert, Tabs } from 'antd';
+import { MailOutlined, SettingOutlined, EyeOutlined, SendOutlined, SaveOutlined, CalendarOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
-// ── Timezone helpers (same as RemindersPage) ──────────────────────────────────
+// ── Timezone helpers ──────────────────────────────────────────────────────────
 function tzOffsetMinutes(tz: string): number {
   try {
     const now = new Date();
@@ -41,16 +41,20 @@ function utcHHmmToTzHHmm(utcHHmm: string, tz: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ReportSchedulerPage: React.FC = () => {
-  const [form] = Form.useForm();
+  const [monthlyForm] = Form.useForm();
+  const [biweeklyForm] = Form.useForm();
   const [testForm] = Form.useForm();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [displayTz, setDisplayTz] = useState<string>('Asia/Kolkata');
+  
+  const [monthlyEnabled, setMonthlyEnabled] = useState(false);
+  const [biweeklyEnabled, setBiweeklyEnabled] = useState(false);
+  
   const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
   
   // Preview / Test States
+  const [previewReportType, setPreviewReportType] = useState<'monthly' | 'bi-weekly'>('monthly');
   const [previewMonth, setPreviewMonth] = useState<number>(new Date().getMonth() + 1);
   const [previewYear, setPreviewYear] = useState<number>(new Date().getFullYear());
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -75,7 +79,7 @@ const ReportSchedulerPage: React.FC = () => {
     setLoading(true);
     try {
       const { data } = await api.get('/dashboard/report/settings');
-      const settings = data.data;
+      const { monthly, biweekly } = data.data;
 
       try {
         const suggRes = await api.get('/dashboard/report/recipient-suggestions');
@@ -84,22 +88,35 @@ const ReportSchedulerPage: React.FC = () => {
         console.error('Failed to load email suggestions', err);
       }
       
-      setIsEnabled(settings.is_enabled);
-      if (settings.send_timezone) {
-        setDisplayTz(settings.send_timezone);
+      // Load Monthly configs
+      if (monthly) {
+        setMonthlyEnabled(monthly.is_enabled);
+        const storedUtcTime = monthly.send_time || '09:00';
+        const localHHmm = utcHHmmToTzHHmm(storedUtcTime, monthly.send_timezone || 'Asia/Kolkata');
+        const [lh, lm] = localHHmm.split(':').map(Number);
+
+        monthlyForm.setFieldsValue({
+          recipient_emails: monthly.recipient_emails || [],
+          cc_emails: monthly.cc_emails || [],
+          send_timezone: monthly.send_timezone || 'Asia/Kolkata',
+          send_time: dayjs().hour(lh).minute(lm).second(0),
+        });
       }
 
-      const storedUtcTime = settings.send_time || '09:00';
-      const localHHmm = utcHHmmToTzHHmm(storedUtcTime, settings.send_timezone || 'Asia/Kolkata');
-      const [lh, lm] = localHHmm.split(':').map(Number);
+      // Load Bi-Weekly configs
+      if (biweekly) {
+        setBiweeklyEnabled(biweekly.is_enabled);
+        const storedUtcTime = biweekly.send_time || '09:00';
+        const localHHmm = utcHHmmToTzHHmm(storedUtcTime, biweekly.send_timezone || 'Asia/Kolkata');
+        const [lh, lm] = localHHmm.split(':').map(Number);
 
-      form.setFieldsValue({
-        recipient_emails: settings.recipient_emails || [],
-        cc_emails: settings.cc_emails || [],
-        send_day: settings.send_day || 1,
-        send_timezone: settings.send_timezone || 'Asia/Kolkata',
-        send_time: dayjs().hour(lh).minute(lm).second(0),
-      });
+        biweeklyForm.setFieldsValue({
+          recipient_emails: biweekly.recipient_emails || [],
+          cc_emails: biweekly.cc_emails || [],
+          send_timezone: biweekly.send_timezone || 'Asia/Kolkata',
+          send_time: dayjs().hour(lh).minute(lm).second(0),
+        });
+      }
     } catch (err) {
       message.error('Failed to load scheduler settings.');
     } finally {
@@ -111,19 +128,23 @@ const ReportSchedulerPage: React.FC = () => {
     fetchSettings();
   }, []);
 
-  const handleSaveSettings = async () => {
+  const handleSaveSettings = async (type: 'monthly' | 'bi-weekly') => {
     setSaving(true);
+    const activeForm = type === 'monthly' ? monthlyForm : biweeklyForm;
+    const isEnabled = type === 'monthly' ? monthlyEnabled : biweeklyEnabled;
+
     try {
-      const values = await form.validateFields();
+      const values = await activeForm.validateFields();
       
       const localHHmm = values.send_time.format('HH:mm');
       const utcTime = tzHHmmToUtcHHmm(localHHmm, values.send_timezone);
 
       await api.post('/dashboard/report/settings', {
+        report_type: type,
         is_enabled: isEnabled,
         recipient_emails: values.recipient_emails,
         cc_emails: values.cc_emails,
-        send_day: values.send_day,
+        send_day: type === 'monthly' ? 1 : 15,
         send_timezone: values.send_timezone,
         send_time: utcTime,
       });
@@ -136,7 +157,7 @@ const ReportSchedulerPage: React.FC = () => {
         console.error('Failed to load email suggestions', err);
       }
 
-      message.success('Scheduler settings saved successfully.');
+      message.success(`${type === 'monthly' ? 'Monthly' : 'Bi-Weekly'} scheduler settings saved successfully.`);
     } catch (err) {
       message.error('Failed to save scheduler settings.');
     } finally {
@@ -144,30 +165,27 @@ const ReportSchedulerPage: React.FC = () => {
     }
   };
 
-  const handleTimezoneChange = (tz: string) => {
-    // Recalculate time display based on new timezone
-    const values = form.getFieldsValue();
+  const handleTimezoneChange = (tz: string, type: 'monthly' | 'bi-weekly') => {
+    const activeForm = type === 'monthly' ? monthlyForm : biweeklyForm;
+    const values = activeForm.getFieldsValue();
     if (values.send_time) {
-      const oldLocalHHmm = values.send_time.format('HH:mm');
-      const utcTime = tzHHmmToUtcHHmm(oldLocalHHmm, displayTz);
-      const newLocalHHmm = utcHHmmToTzHHmm(utcTime, tz);
-      
-      const [nh, nm] = newLocalHHmm.split(':').map(Number);
-      form.setFieldValue('send_time', dayjs().hour(nh).minute(nm).second(0));
+      // Note: simple conversion placeholder, for premium UX we just shift the visual time-picker display
+      const currentLocalHHmm = values.send_time.format('HH:mm');
+      const utcTime = tzHHmmToUtcHHmm(currentLocalHHmm, tz); 
+      const [nh, nm] = currentLocalHHmm.split(':').map(Number); // Visual anchor
+      activeForm.setFieldValue('send_time', dayjs().hour(nh).minute(nm).second(0));
     }
-    setDisplayTz(tz);
   };
 
   const handlePreviewReport = async () => {
     setPreviewLoading(true);
     try {
-      const response = await api.get(`/dashboard/report/preview?month=${previewMonth}&year=${previewYear}`, {
+      const response = await api.get(`/dashboard/report/preview?month=${previewMonth}&year=${previewYear}&reportType=${previewReportType}`, {
         responseType: 'blob',
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       
-      // Revoke old URL if any to prevent memory leak
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
       }
@@ -182,8 +200,9 @@ const ReportSchedulerPage: React.FC = () => {
   };
 
   const handleOpenTestModal = () => {
-    const recipients = form.getFieldValue('recipient_emails') || [];
-    const cc = form.getFieldValue('cc_emails') || [];
+    const activeForm = previewReportType === 'monthly' ? monthlyForm : biweeklyForm;
+    const recipients = activeForm.getFieldValue('recipient_emails') || [];
+    const cc = activeForm.getFieldValue('cc_emails') || [];
     testForm.setFieldsValue({
       recipient_emails: recipients,
       cc_emails: cc,
@@ -196,13 +215,13 @@ const ReportSchedulerPage: React.FC = () => {
     try {
       const values = await testForm.validateFields();
       await api.post('/dashboard/report/test-send', {
+        report_type: previewReportType,
         recipient_emails: values.recipient_emails,
         cc_emails: values.cc_emails,
         month: previewMonth,
         year: previewYear,
       });
 
-      // Refresh suggestions
       try {
         const suggRes = await api.get('/dashboard/report/recipient-suggestions');
         setEmailSuggestions(suggRes.data.data || []);
@@ -224,7 +243,6 @@ const ReportSchedulerPage: React.FC = () => {
       await api.post('/dashboard/report/recipient-suggestions/remove', { email });
       message.success(`Removed '${email}' from suggestions.`);
       
-      // Refresh suggestions
       const suggRes = await api.get('/dashboard/report/recipient-suggestions');
       setEmailSuggestions(suggRes.data.data || []);
     } catch (err) {
@@ -266,75 +284,74 @@ const ReportSchedulerPage: React.FC = () => {
   return (
     <div>
       <Row gutter={[24, 24]}>
-        {/* Left Side: Schedule configuration */}
+        {/* Left Side: Tabs for Monthly & Bi-Weekly configuration */}
         <Col xs={24} lg={14}>
           <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
             <Card
               title={
                 <Space>
                   <SettingOutlined style={{ color: '#1B3A5C' }} />
-                  <span>Report Scheduler Settings</span>
+                  <span style={{ fontWeight: 600 }}>Report Scheduler Settings</span>
                 </Space>
               }
-              extra={
-                <Switch
-                  checkedChildren="Active"
-                  unCheckedChildren="Inactive"
-                  checked={isEnabled}
-                  onChange={setIsEnabled}
-                  disabled={loading}
-                />
-              }
-              styles={{ body: { padding: '24px' } }}
+              styles={{ body: { padding: '12px 24px 24px 24px' } }}
               loading={loading}
             >
-              <Form form={form} layout="vertical" onFinish={handleSaveSettings}>
-                <Form.Item
-                  name="recipient_emails"
-                  label="Recipient Emails (TO)"
-                  rules={[{ required: isEnabled, message: 'Please provide at least one recipient email.' }]}
-                  extra="Enter emails to receive the monthly operations PDF report automatically."
+              <Tabs defaultActiveKey="monthly" type="line" size="large">
+                {/* MONTHLY REPORT SCHEDULER TAB */}
+                <Tabs.TabPane 
+                  tab={
+                    <span>
+                      <CalendarOutlined />
+                      Monthly Report
+                    </span>
+                  }
+                  key="monthly"
                 >
-                  <Select
-                    mode="tags"
-                    placeholder="Press Enter to add email addresses"
-                    style={{ width: '100%' }}
-                    options={getEmailOptions()}
-                  />
-                </Form.Item>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingTop: 10 }}>
+                    <Text type="secondary">Automatically sends a report of the full previous calendar month on the 1st day.</Text>
+                    <Switch
+                      checkedChildren="Active"
+                      unCheckedChildren="Inactive"
+                      checked={monthlyEnabled}
+                      onChange={setMonthlyEnabled}
+                    />
+                  </div>
 
-                <Form.Item
-                  name="cc_emails"
-                  label="CC Emails (Optional)"
-                >
-                  <Select
-                    mode="tags"
-                    placeholder="Press Enter to add CC email addresses"
-                    style={{ width: '100%' }}
-                    options={getEmailOptions()}
-                  />
-                </Form.Item>
-
-                <Row gutter={16}>
-                  <Col span={8}>
+                  <Form form={monthlyForm} layout="vertical" onFinish={() => handleSaveSettings('monthly')}>
                     <Form.Item
-                      name="send_day"
-                      label="Day of Month"
-                      rules={[{ required: true, message: 'Select Day.' }]}
-                      extra="Day (1-28)"
+                      name="recipient_emails"
+                      label="Recipient Emails (TO)"
+                      rules={[{ required: monthlyEnabled, message: 'Please provide at least one recipient email.' }]}
+                      extra="Enter emails to receive the monthly support report automatically."
                     >
-                      <InputNumber min={1} max={28} style={{ width: '100%' }} />
+                      <Select
+                        mode="tags"
+                        placeholder="Press Enter to add email addresses"
+                        style={{ width: '100%' }}
+                        options={getEmailOptions()}
+                      />
                     </Form.Item>
-                  </Col>
 
-                  <Col span={16}>
+                    <Form.Item
+                      name="cc_emails"
+                      label="CC Emails (Optional)"
+                    >
+                      <Select
+                        mode="tags"
+                        placeholder="Press Enter to add CC email addresses"
+                        style={{ width: '100%' }}
+                        options={getEmailOptions()}
+                      />
+                    </Form.Item>
+
                     <Form.Item
                       name="send_timezone"
                       label="Scheduler Timezone"
                       rules={[{ required: true, message: 'Select Timezone.' }]}
                     >
                       <Select
-                        onChange={handleTimezoneChange}
+                        onChange={(tz) => handleTimezoneChange(tz, 'monthly')}
                         options={[
                           { value: 'Asia/Kolkata', label: 'India Standard Time (IST)' },
                           { value: 'UTC', label: 'Coordinated Universal Time (UTC)' },
@@ -345,27 +362,112 @@ const ReportSchedulerPage: React.FC = () => {
                         ]}
                       />
                     </Form.Item>
-                  </Col>
-                </Row>
 
-                <Form.Item
-                  name="send_time"
-                  label="Execution Time"
-                  rules={[{ required: true, message: 'Select Send Time.' }]}
-                >
-                  <TimePicker format="HH:mm" minuteStep={10} style={{ width: '100%' }} />
-                </Form.Item>
+                    <Form.Item
+                      name="send_time"
+                      label="Execution Time"
+                      rules={[{ required: true, message: 'Select Send Time.' }]}
+                    >
+                      <TimePicker format="HH:00" showNow={false} style={{ width: '100%' }} />
+                    </Form.Item>
 
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  icon={<SaveOutlined />}
-                  loading={saving}
-                  style={{ background: '#1B3A5C', borderColor: '#1B3A5C', width: '100%', marginTop: 8 }}
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      icon={<SaveOutlined />}
+                      loading={saving}
+                      style={{ background: '#1B3A5C', borderColor: '#1B3A5C', width: '100%', marginTop: 8 }}
+                    >
+                      Save Monthly Settings
+                    </Button>
+                  </Form>
+                </Tabs.TabPane>
+
+                {/* BI-WEEKLY REPORT SCHEDULER TAB */}
+                <Tabs.TabPane 
+                  tab={
+                    <span>
+                      <CalendarOutlined />
+                      Bi-Weekly Report
+                    </span>
+                  }
+                  key="bi-weekly"
                 >
-                  Save Scheduler Settings
-                </Button>
-              </Form>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, paddingTop: 10 }}>
+                    <Text type="secondary">Automatically sends a report of the first half (1st - 14th day) on the 15th day.</Text>
+                    <Switch
+                      checkedChildren="Active"
+                      unCheckedChildren="Inactive"
+                      checked={biweeklyEnabled}
+                      onChange={setBiweeklyEnabled}
+                    />
+                  </div>
+
+                  <Form form={biweeklyForm} layout="vertical" onFinish={() => handleSaveSettings('bi-weekly')}>
+                    <Form.Item
+                      name="recipient_emails"
+                      label="Recipient Emails (TO)"
+                      rules={[{ required: biweeklyEnabled, message: 'Please provide at least one recipient email.' }]}
+                      extra="Enter emails to receive the bi-weekly support report automatically."
+                    >
+                      <Select
+                        mode="tags"
+                        placeholder="Press Enter to add email addresses"
+                        style={{ width: '100%' }}
+                        options={getEmailOptions()}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="cc_emails"
+                      label="CC Emails (Optional)"
+                    >
+                      <Select
+                        mode="tags"
+                        placeholder="Press Enter to add CC email addresses"
+                        style={{ width: '100%' }}
+                        options={getEmailOptions()}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="send_timezone"
+                      label="Scheduler Timezone"
+                      rules={[{ required: true, message: 'Select Timezone.' }]}
+                    >
+                      <Select
+                        onChange={(tz) => handleTimezoneChange(tz, 'bi-weekly')}
+                        options={[
+                          { value: 'Asia/Kolkata', label: 'India Standard Time (IST)' },
+                          { value: 'UTC', label: 'Coordinated Universal Time (UTC)' },
+                          { value: 'Europe/London', label: 'London Time (GMT/BST)' },
+                          { value: 'America/New_York', label: 'Eastern Time (EST/EDT)' },
+                          { value: 'America/Los_Angeles', label: 'Pacific Time (PST/PDT)' },
+                          { value: 'Australia/Sydney', label: 'Sydney Time (AEST/AEDT)' },
+                        ]}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      name="send_time"
+                      label="Execution Time"
+                      rules={[{ required: true, message: 'Select Send Time.' }]}
+                    >
+                      <TimePicker format="HH:00" showNow={false} style={{ width: '100%' }} />
+                    </Form.Item>
+
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      icon={<SaveOutlined />}
+                      loading={saving}
+                      style={{ background: '#1B3A5C', borderColor: '#1B3A5C', width: '100%', marginTop: 8 }}
+                    >
+                      Save Bi-Weekly Settings
+                    </Button>
+                  </Form>
+                </Tabs.TabPane>
+              </Tabs>
             </Card>
           </motion.div>
         </Col>
@@ -377,20 +479,33 @@ const ReportSchedulerPage: React.FC = () => {
               title={
                 <Space>
                   <EyeOutlined style={{ color: '#006B7B' }} />
-                  <span>Preview & Test Transmission</span>
+                  <span style={{ fontWeight: 600 }}>Preview & Test Transmission</span>
                 </Space>
               }
               styles={{ body: { padding: '24px' } }}
             >
               <Alert
-                message="Monthly operations reports compile stats from the selected month and send automatically on the scheduled schedule."
+                message="Compile performance stats on-demand for manual review or testing."
                 type="info"
                 showIcon
                 style={{ marginBottom: 20 }}
               />
 
+              <div style={{ marginBottom: 18 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Select Report Type</Text>
+                <Select
+                  value={previewReportType}
+                  onChange={setPreviewReportType}
+                  style={{ width: '100%' }}
+                  options={[
+                    { value: 'monthly', label: 'Monthly Report (Full Calendar Month)' },
+                    { value: 'bi-weekly', label: 'Bi-Weekly Report (1st - 14th day)' },
+                  ]}
+                />
+              </div>
+
               <div style={{ marginBottom: 24 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>Select Target Report Month</Text>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Select Target Period</Text>
                 <Space>
                   <Select
                     value={previewMonth}
@@ -434,7 +549,7 @@ const ReportSchedulerPage: React.FC = () => {
 
       {/* PDF Preview Modal */}
       <Modal
-        title={`PDF Report Preview: ${months.find(m => m.value === previewMonth)?.label} ${previewYear}`}
+        title={`PDF Report Preview: ${previewReportType === 'bi-weekly' ? 'Bi-Weekly' : 'Monthly'} - ${months.find(m => m.value === previewMonth)?.label} ${previewYear}`}
         open={isPreviewVisible}
         onCancel={() => setIsPreviewVisible(false)}
         footer={null}
@@ -453,7 +568,7 @@ const ReportSchedulerPage: React.FC = () => {
 
       {/* Test Send Modal */}
       <Modal
-        title="Send Test Monthly Report Email"
+        title={`Send Test ${previewReportType === 'bi-weekly' ? 'Bi-Weekly' : 'Monthly'} Support Report`}
         open={isTestModalVisible}
         onOk={handleSendTestReport}
         onCancel={() => setIsTestModalVisible(false)}

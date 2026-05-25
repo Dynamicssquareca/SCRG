@@ -93,13 +93,14 @@ export async function removeRecipientSuggestion(req: Request, res: Response, nex
   }
 }
 
-/** GET /dashboard/report/settings — Fetch report scheduler settings */
+/** GET /dashboard/report/settings — Fetch report scheduler settings for both monthly & bi-weekly */
 export async function getReportSettings(req: Request, res: Response, next: NextFunction) {
   try {
-    let settings = await MonthlyReportSetting.findOne();
-    if (!settings) {
-      // Create default settings if none exists
-      settings = await MonthlyReportSetting.create({
+    let monthly = await MonthlyReportSetting.findOne({ report_type: 'monthly' });
+    if (!monthly) {
+      // Create default monthly settings if none exists
+      monthly = await MonthlyReportSetting.create({
+        report_type: 'monthly',
         is_enabled: false,
         recipient_emails: [],
         cc_emails: [],
@@ -108,7 +109,22 @@ export async function getReportSettings(req: Request, res: Response, next: NextF
         send_timezone: 'Asia/Kolkata',
       });
     }
-    successResponse(res, settings);
+
+    let biweekly = await MonthlyReportSetting.findOne({ report_type: 'bi-weekly' });
+    if (!biweekly) {
+      // Create default bi-weekly settings if none exists
+      biweekly = await MonthlyReportSetting.create({
+        report_type: 'bi-weekly',
+        is_enabled: false,
+        recipient_emails: [],
+        cc_emails: [],
+        send_day: 15,
+        send_time: '09:00',
+        send_timezone: 'Asia/Kolkata',
+      });
+    }
+
+    successResponse(res, { monthly, biweekly });
   } catch (err) {
     next(err);
   }
@@ -117,17 +133,18 @@ export async function getReportSettings(req: Request, res: Response, next: NextF
 /** POST /dashboard/report/settings — Save/update report scheduler settings */
 export async function saveReportSettings(req: Request, res: Response, next: NextFunction) {
   try {
-    const { is_enabled, recipient_emails, cc_emails, send_day, send_time, send_timezone } = req.body;
+    const { report_type, is_enabled, recipient_emails, cc_emails, send_day, send_time, send_timezone } = req.body;
+    const type = report_type === 'bi-weekly' ? 'bi-weekly' : 'monthly';
     
-    let settings = await MonthlyReportSetting.findOne();
+    let settings = await MonthlyReportSetting.findOne({ report_type: type });
     if (!settings) {
-      settings = new MonthlyReportSetting();
+      settings = new MonthlyReportSetting({ report_type: type });
     }
 
     settings.is_enabled = !!is_enabled;
     settings.recipient_emails = Array.isArray(recipient_emails) ? recipient_emails.map((e: string) => e.trim()).filter(Boolean) : [];
     settings.cc_emails = Array.isArray(cc_emails) ? cc_emails.map((e: string) => e.trim()).filter(Boolean) : [];
-    settings.send_day = Number(send_day) || 1;
+    settings.send_day = Number(send_day) || (type === 'bi-weekly' ? 15 : 1);
     settings.send_time = send_time || '09:00';
     settings.send_timezone = send_timezone || 'Asia/Kolkata';
 
@@ -144,12 +161,16 @@ export async function getReportPreview(req: Request, res: Response, next: NextFu
     const now = new Date();
     const month = req.query.month ? Number(req.query.month) : now.getMonth() + 1;
     const year = req.query.year ? Number(req.query.year) : now.getFullYear();
+    const reportType = req.query.reportType === 'bi-weekly' ? 'bi-weekly' : 'monthly';
+    const isBiWeekly = reportType === 'bi-weekly';
 
-    const data = await getMonthlyReportData(month, year);
-    const pdfBuffer = await generateMonthlyPdfReport(data);
+    const data = await getMonthlyReportData(month, year, isBiWeekly);
+    const pdfBuffer = await generateMonthlyPdfReport(data, isBiWeekly);
 
     const monthName = dayjs().month(month - 1).format('MMM');
-    const fileName = `Support_Monthly_Report_${monthName}_${year}.pdf`;
+    const fileName = isBiWeekly
+      ? `Support_BiWeekly_Report_${monthName}_${year}.pdf`
+      : `Support_Monthly_Report_${monthName}_${year}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
@@ -163,7 +184,9 @@ export async function getReportPreview(req: Request, res: Response, next: NextFu
 /** POST /dashboard/report/test-send — Generates the PDF for selected month and emails it immediately */
 export async function testSendReport(req: Request, res: Response, next: NextFunction) {
   try {
-    const { recipient_emails, cc_emails, month, year } = req.body;
+    const { recipient_emails, cc_emails, month, year, report_type } = req.body;
+    const reportType = report_type === 'bi-weekly' ? 'bi-weekly' : 'monthly';
+    const isBiWeekly = reportType === 'bi-weekly';
 
     const targetMonth = month ? Number(month) : new Date().getMonth() + 1;
     const targetYear = year ? Number(year) : new Date().getFullYear();
@@ -172,17 +195,25 @@ export async function testSendReport(req: Request, res: Response, next: NextFunc
       return res.status(400).json({ success: false, message: 'At least one recipient email is required.' });
     }
 
-    const data = await getMonthlyReportData(targetMonth, targetYear);
-    const pdfBuffer = await generateMonthlyPdfReport(data);
+    const data = await getMonthlyReportData(targetMonth, targetYear, isBiWeekly);
+    const pdfBuffer = await generateMonthlyPdfReport(data, isBiWeekly);
 
     const monthName = dayjs().month(targetMonth - 1).format('MMMM');
-    const subject = `[TEST] Dynamics Square Operations & Support Monthly Report: ${monthName} ${targetYear}`;
     
+    const subject = isBiWeekly
+      ? `[TEST] Dynamics Square Operations & Support Bi-Weekly Report (1st-14th): ${monthName} ${targetYear}`
+      : `[TEST] Dynamics Square Operations & Support Monthly Report: ${monthName} ${targetYear}`;
+    
+    const reportLabel = isBiWeekly ? 'Bi-Weekly Support' : 'Monthly Support';
+    const periodDesc = isBiWeekly
+      ? `<strong>${monthName} 01 - 14, ${targetYear}</strong>`
+      : `<strong>${monthName} ${targetYear}</strong>`;
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #1b3a5c;">Monthly Operations Report Test</h2>
+        <h2 style="color: #1b3a5c;">${reportLabel} Operations Report Test</h2>
         <p>Hello,</p>
-        <p>This is a test transmission of the operations and support monthly report for <strong>${monthName} ${targetYear}</strong>.</p>
+        <p>This is a test transmission of the operations and support ${reportLabel.toLowerCase()} report for ${periodDesc}.</p>
         <p>Please find the generated report attached as a PDF file.</p>
         <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
         <p style="font-size: 12px; color: #718096;">Dynamics Square Support Report Generator</p>
@@ -193,7 +224,9 @@ export async function testSendReport(req: Request, res: Response, next: NextFunc
     const cleanCc = Array.isArray(cc_emails) ? cc_emails.map((e: string) => e.trim()).filter(Boolean) : [];
 
     const monthNameShort = dayjs().month(targetMonth - 1).format('MMM');
-    const fileName = `Support_Monthly_Report_${monthNameShort}_${targetYear}.pdf`;
+    const fileName = isBiWeekly
+      ? `Support_BiWeekly_Report_${monthNameShort}_${targetYear}.pdf`
+      : `Support_Monthly_Report_${monthNameShort}_${targetYear}.pdf`;
 
     await sendEmail({
       to: cleanRecipients,

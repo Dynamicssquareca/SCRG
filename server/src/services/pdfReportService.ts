@@ -48,18 +48,45 @@ interface MonthlyReportData {
   }>;
 }
 
-/** Gathers report data for a specific month and year */
-export async function getMonthlyReportData(month: number, year: number): Promise<MonthlyReportData> {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
-  const monthName = dayjs(start).format('MMMM');
+/** Gathers report data for a specific month and year, with optional bi-weekly mode (1st-14th day only) */
+export async function getMonthlyReportData(month: number, year: number, isBiWeekly: boolean = false): Promise<MonthlyReportData> {
+  let start: Date;
+  let end: Date;
+  let prevStart: Date;
+  let prevEnd: Date;
+  let label1: string;
+  let label2: string;
 
-  // Previous month dates for comparison
+  const monthStart = new Date(year, month - 1, 1);
+  const monthName = dayjs(monthStart).format('MMMM');
+
   const prevMonthIdx = month - 2;
   const prevMonthNum = prevMonthIdx < 0 ? 12 : prevMonthIdx + 1;
   const prevYearNum = prevMonthIdx < 0 ? year - 1 : year;
-  const prevStart = new Date(prevYearNum, prevMonthNum - 1, 1);
-  const prevEnd = new Date(prevYearNum, prevMonthNum, 0, 23, 59, 59, 999);
+
+  if (isBiWeekly) {
+    // 1st to 14th day of the current month
+    start = new Date(year, month - 1, 1);
+    end = new Date(year, month - 1, 14, 23, 59, 59, 999);
+    
+    // 1st to 14th day of the previous month
+    prevStart = new Date(prevYearNum, prevMonthNum - 1, 1);
+    prevEnd = new Date(prevYearNum, prevMonthNum - 1, 14, 23, 59, 59, 999);
+
+    label1 = `${dayjs(prevStart).format('MMM 01-14')} ${prevYearNum}`;
+    label2 = `${dayjs(start).format('MMM 01-14')} ${year}`;
+  } else {
+    // Full calendar month
+    start = new Date(year, month - 1, 1);
+    end = new Date(year, month, 0, 23, 59, 59, 999);
+
+    // Full calendar previous month
+    prevStart = new Date(prevYearNum, prevMonthNum - 1, 1);
+    prevEnd = new Date(prevYearNum, prevMonthNum, 0, 23, 59, 59, 999);
+
+    label1 = dayjs(prevStart).format('MMM YYYY');
+    label2 = dayjs(start).format('MMM YYYY');
+  }
 
   // 1. Overall stats
   const totalCreated = await Case.countDocuments({
@@ -73,32 +100,30 @@ export async function getMonthlyReportData(month: number, year: number): Promise
 
   const activeClientsCount = await Client.countDocuments({ is_active: true });
 
-  // 2. Total hours consumed this month
-  const casesResolvedThisMonth = await Case.find({
+  // 2. Total hours consumed this period
+  const casesResolvedThisPeriod = await Case.find({
     updated_on: { $gte: start, $lte: end },
     status_reason: { $regex: closedStatusRegex },
   });
-  const totalHoursConsumed = casesResolvedThisMonth.reduce(
+  const totalHoursConsumed = casesResolvedThisPeriod.reduce(
     (sum, c) => sum + (Number(c.billable_duration) || 0),
     0
   );
 
-  // 3. Comparison Stats (m1 vs m2)
+  // 3. Comparison Stats (period1 vs period2)
   const created1 = await Case.countDocuments({ created_on: { $gte: prevStart, $lte: prevEnd } });
   const resolved1 = await Case.countDocuments({ updated_on: { $gte: prevStart, $lte: prevEnd }, status_reason: { $regex: closedStatusRegex } });
-  const label1 = dayjs(prevStart).format('MMM YYYY');
 
   const created2 = totalCreated;
   const resolved2 = totalResolved;
-  const label2 = dayjs(start).format('MMM YYYY');
 
   // 4. Client Breakdown
   const clients = await Client.find({ is_active: true }).sort({ client_name: 1 });
   const clientBreakdown = [];
 
   for (const client of clients) {
-    // Try to get existing Report document
-    const reportDoc = await Report.findOne({ client_id: client._id, month, year });
+    // Only fetch from Report collection for full month, not bi-weekly
+    const reportDoc = !isBiWeekly ? await Report.findOne({ client_id: client._id, month, year }) : null;
     
     let created = 0;
     let resolved = 0;
@@ -191,7 +216,7 @@ export async function getMonthlyReportData(month: number, year: number): Promise
 }
 
 /** Generates a beautiful PDF report and returns it as a Buffer */
-export async function generateMonthlyPdfReport(data: MonthlyReportData): Promise<Buffer> {
+export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeekly: boolean = false): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
@@ -224,11 +249,15 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData): Promise
         .fillColor(secondaryColor).text('SQUARE™');
 
       doc.fillColor('#AAAAAA').fontSize(8).font('Helvetica')
-        .text('MONTHLY SUPPORT REPORT', 400, 20, { align: 'right', width: 155 });
+        .text(isBiWeekly ? 'BI-WEEKLY SUPPORT REPORT' : 'MONTHLY SUPPORT REPORT', 400, 20, { align: 'right', width: 155 });
 
       // Page Title Indicator
       doc.fillColor(primaryColor).fontSize(16).font('Helvetica-Bold').text(pageTitle, 40, 75);
-      doc.fontSize(10).font('Helvetica').fillColor(textGray).text(`${data.monthName} ${data.year} Edition`, 40, 95);
+      
+      const periodLabel = isBiWeekly
+        ? `${data.monthName} 01 - 14, ${data.year} Edition`
+        : `${data.monthName} ${data.year} Edition`;
+      doc.fontSize(10).font('Helvetica').fillColor(textGray).text(periodLabel, 40, 95);
       
       // Divider
       doc.moveTo(40, 110).lineTo(555.28, 110).strokeColor(borderGray).lineWidth(1).stroke();
@@ -265,13 +294,16 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData): Promise
 
     // Cover Content
     doc.fillColor('#FFFFFF').fontSize(32).font('Helvetica-Bold')
-      .text('MONTHLY', 60, 240)
+      .text(isBiWeekly ? 'BI-WEEKLY' : 'MONTHLY', 60, 240)
       .fillColor(secondaryColor).text('SUPPORT PERFORMANCE', 60, 280)
       .fillColor('#FFFFFF').text('REPORT', 60, 320);
 
     doc.moveTo(60, 380).lineTo(300, 380).strokeColor(secondaryColor).lineWidth(4).stroke();
 
-    doc.fillColor('#E2E8F0').fontSize(16).font('Helvetica-Bold').text(`Period: ${data.monthName} ${data.year}`, 60, 410);
+    const coverPeriod = isBiWeekly
+      ? `Period: ${data.monthName} 01 - 14, ${data.year}`
+      : `Period: ${data.monthName} ${data.year}`;
+    doc.fillColor('#E2E8F0').fontSize(16).font('Helvetica-Bold').text(coverPeriod, 60, 410);
 
     // Meta details card (Solid background with borders for high visibility)
     doc.rect(60, 500, 380, 70).fill('#1A202C');
