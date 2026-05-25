@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { processReminders } from '../services/reminderService';
-import { processMonthlyReports } from '../services/monthlyReportSchedulerService';
 import { successResponse } from '../utils/apiResponse';
 import logger from '../utils/logger';
 
@@ -60,6 +59,8 @@ router.get('/monthly-report', async (req: Request, res: Response) => {
 
   try {
     logger.info('[Vercel Cron] Running monthly report scheduler...');
+    // Dynamic import to avoid pdfkit crashing the module at load time on serverless
+    const { processMonthlyReports } = await import('../services/monthlyReportSchedulerService');
     await processMonthlyReports();
     logger.info('[Vercel Cron] Monthly report scheduler completed.');
     successResponse(res, { message: 'Monthly report check completed', timestamp: new Date().toISOString() });
