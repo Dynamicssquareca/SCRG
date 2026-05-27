@@ -54,7 +54,7 @@ const RemindersPage: React.FC = () => {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [displayTz, setDisplayTz] = useState<string>(dayjs.tz?.guess() || 'UTC');
-  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
+  const [emailSuggestions, setEmailSuggestions] = useState<{email: string; is_user: boolean}[]>([]);
   
   // Edit Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -188,31 +188,37 @@ const RemindersPage: React.FC = () => {
   };
 
   const getEmailOptions = () => {
-    return emailSuggestions.map(email => ({
-      value: email,
+    return emailSuggestions.map(item => ({
+      value: item.email,
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <span>{email}</span>
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              handleRemoveSuggestion(email);
-            }}
-            style={{
-              color: '#ff4d4f',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '14px',
-              lineHeight: 1,
-              marginLeft: '8px'
-            }}
-            title="Remove email from suggestions"
-          >
-            ✕
-          </span>
+          <span>{item.email}</span>
+          {!item.is_user && (
+            <span
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleRemoveSuggestion(item.email);
+              }}
+              style={{
+                color: '#ff4d4f',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '14px',
+                lineHeight: 1,
+                marginLeft: '8px'
+              }}
+              title="Remove email from suggestions"
+            >
+              ✕
+            </span>
+          )}
         </div>
       )
     }));
@@ -460,6 +466,8 @@ const RemindersPage: React.FC = () => {
               mode="tags"
               placeholder="Type email and press Enter"
               options={getEmailOptions()}
+              optionLabelProp="value"
+              menuItemSelectedIcon={null}
             />
           </Form.Item>
 
@@ -471,6 +479,8 @@ const RemindersPage: React.FC = () => {
               mode="tags"
               placeholder="Type email and press Enter"
               options={getEmailOptions()}
+              optionLabelProp="value"
+              menuItemSelectedIcon={null}
             />
           </Form.Item>
 

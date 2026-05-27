@@ -11,11 +11,16 @@ import dayjs from 'dayjs';
 export async function getRecipientSuggestions(req: Request, res: Response, next: NextFunction) {
   try {
     const emailSet = new Set<string>();
+    const userEmails = new Set<string>();
 
     // 1. Fetch from Users
     const users = await User.find({}, 'email');
     users.forEach(u => {
-      if (u.email) emailSet.add(u.email.trim().toLowerCase());
+      if (u.email) {
+        const email = u.email.trim().toLowerCase();
+        emailSet.add(email);
+        userEmails.add(email);
+      }
     });
 
     // 2. Fetch from MonthlyReportSetting
@@ -40,7 +45,11 @@ export async function getRecipientSuggestions(req: Request, res: Response, next:
       }
     });
 
-    const suggestions = Array.from(emailSet).sort();
+    const suggestions = Array.from(emailSet).sort().map(email => ({
+      email,
+      is_user: userEmails.has(email)
+    }));
+
     successResponse(res, suggestions);
   } catch (err) {
     next(err);
@@ -56,36 +65,29 @@ export async function removeRecipientSuggestion(req: Request, res: Response, nex
     }
 
     const targetEmail = email.trim().toLowerCase();
+    const emailRegex = new RegExp(`^\\s*${targetEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
 
     // 1. Remove from all MonthlyReportSetting
-    const reportSettings = await MonthlyReportSetting.findOne();
-    if (reportSettings) {
-      reportSettings.recipient_emails = (reportSettings.recipient_emails || []).filter(
-        e => e.trim().toLowerCase() !== targetEmail
-      );
-      reportSettings.cc_emails = (reportSettings.cc_emails || []).filter(
-        e => e.trim().toLowerCase() !== targetEmail
-      );
-      await reportSettings.save();
-    }
+    await MonthlyReportSetting.updateMany(
+      {},
+      {
+        $pull: {
+          recipient_emails: emailRegex as any,
+          cc_emails: emailRegex as any
+        }
+      }
+    );
 
     // 2. Remove from all ReminderSetting
-    const reminderSettings = await ReminderSetting.find({
-      $or: [
-        { recipient_emails: { $in: [new RegExp(`^${targetEmail}$`, 'i')] } },
-        { cc_emails: { $in: [new RegExp(`^${targetEmail}$`, 'i')] } }
-      ]
-    });
-
-    for (const rem of reminderSettings) {
-      rem.recipient_emails = (rem.recipient_emails || []).filter(
-        e => e.trim().toLowerCase() !== targetEmail
-      );
-      rem.cc_emails = (rem.cc_emails || []).filter(
-        e => e.trim().toLowerCase() !== targetEmail
-      );
-      await rem.save();
-    }
+    await ReminderSetting.updateMany(
+      {},
+      {
+        $pull: {
+          recipient_emails: emailRegex as any,
+          cc_emails: emailRegex as any
+        }
+      }
+    );
 
     successResponse(res, { message: 'Email suggestion removed successfully.' });
   } catch (err) {

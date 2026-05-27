@@ -17,6 +17,7 @@ interface MonthlyReportData {
     totalResolved: number;
     activeClients: number;
     totalHoursConsumed: number;
+    totalOpenCases: number;
   };
   comparison: {
     label1: string;
@@ -100,6 +101,10 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
 
   const activeClientsCount = await Client.countDocuments({ is_active: true });
 
+  const totalOpenCases = await Case.countDocuments({
+    status_reason: { $not: closedStatusRegex },
+  });
+
   // 2. Total hours consumed this period
   const casesResolvedThisPeriod = await Case.find({
     updated_on: { $gte: start, $lte: end },
@@ -170,12 +175,11 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
     { $project: { _id: 0, agent: '$_id', openCount: 1 } },
   ]);
 
-  // 6. Oldest 10 open cases
+  // 6. All open cases
   const openCases = await Case.find({
     status_reason: { $not: closedStatusRegex },
   })
     .sort({ created_on: 1 })
-    .limit(10)
     .populate('client_id');
 
   const backlog = openCases.map((c: any) => {
@@ -200,6 +204,7 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
       totalResolved,
       activeClients: activeClientsCount,
       totalHoursConsumed,
+      totalOpenCases,
     },
     comparison: {
       label1,
@@ -325,8 +330,8 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     doc.addPage();
     drawPageHeader('Executive Summary & Insights');
 
-    // Stats Grid (4 Metric cards)
-    const cardW = 110;
+    // Stats Grid (5 Metric cards)
+    const cardW = 93;
     const cardH = 65;
     const cardY = 130;
     
@@ -335,6 +340,7 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
       { label: 'Tickets Created', val: String(data.stats.totalCreated), color: '#319795', bg: '#E6FFFA' },
       { label: 'Tickets Resolved', val: String(data.stats.totalResolved), color: '#DD6B20', bg: '#FFFAF0' },
       { label: 'Hours Consumed', val: `${data.stats.totalHoursConsumed.toFixed(1)}h`, color: '#805AD5', bg: '#FAF5FF' },
+      { label: 'Current Opened Tickets', val: String(data.stats.totalOpenCases ?? 0), color: '#E53E3E', bg: '#FEF2F2' },
     ];
 
     cardDetails.forEach((c, idx) => {
@@ -344,9 +350,9 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
       // Top accent bar
       doc.rect(cardX, cardY, cardW, 4).fill(c.color);
       // Label
-      doc.fillColor(textGray).fontSize(8).font('Helvetica-Bold').text(c.label, cardX + 10, cardY + 12, { width: cardW - 20 });
+      doc.fillColor(textGray).fontSize(7.5).font('Helvetica-Bold').text(c.label, cardX + 8, cardY + 12, { width: cardW - 16 });
       // Value
-      doc.fillColor('#1A202C').fontSize(18).font('Helvetica-Bold').text(c.val, cardX + 10, cardY + 32, { width: cardW - 20 });
+      doc.fillColor('#1A202C').fontSize(17).font('Helvetica-Bold').text(c.val, cardX + 8, cardY + 32, { width: cardW - 16 });
     });
 
     // Chart Title
@@ -517,17 +523,21 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     }
 
     // Backlog timelines
-    doc.fillColor(primaryColor).fontSize(12).font('Helvetica-Bold').text('Top 10 Oldest Unresolved Tickets (Backlog)', 40, 360);
+    doc.fillColor(primaryColor).fontSize(12).font('Helvetica-Bold').text('Current Opened Tickets', 40, 360);
 
     const backlogTableY = 385;
-    doc.rect(40, backlogTableY, 515, 20).fill(tealColor);
-    doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
-    doc.text('Case #', 46, backlogTableY + 6, { width: 60 });
-    doc.text('Client', 110, backlogTableY + 6, { width: 90 });
-    doc.text('Subject / Title', 205, backlogTableY + 6, { width: 170 });
-    doc.text('Created On', 380, backlogTableY + 6, { width: 65, align: 'center' });
-    doc.text('Age (Days)', 450, backlogTableY + 6, { width: 50, align: 'center' });
-    doc.text('Status', 505, backlogTableY + 6, { width: 45, align: 'center' });
+    const drawBacklogTableHeader = (y: number) => {
+      doc.rect(40, y, 515, 20).fill(tealColor);
+      doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
+      doc.text('Case #', 46, y + 6, { width: 60 });
+      doc.text('Client', 110, y + 6, { width: 90 });
+      doc.text('Subject / Title', 205, y + 6, { width: 170 });
+      doc.text('Created On', 380, y + 6, { width: 65, align: 'center' });
+      doc.text('Age (Days)', 450, y + 6, { width: 50, align: 'center' });
+      doc.text('Status', 505, y + 6, { width: 45, align: 'center' });
+    };
+
+    drawBacklogTableHeader(backlogTableY);
 
     let blY = backlogTableY + 20;
     let blZebra = false;
@@ -537,6 +547,14 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
       doc.fillColor(textGray).fontSize(8).font('Helvetica').text('No open backlog cases found! Outstanding job.', 50, blY + 10, { align: 'center', width: 495 });
     } else {
       data.backlog.forEach((c) => {
+        // Check if we need to add a new page (limit of ~28 items per page)
+        if (blY > 730) {
+          doc.addPage();
+          drawPageHeader('Current Opened Tickets (Cont.)');
+          drawBacklogTableHeader(130);
+          blY = 150;
+        }
+
         if (blZebra) {
           doc.rect(40, blY, 515, 20).fill('#F9FAFB');
         }

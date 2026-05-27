@@ -51,7 +51,7 @@ const ReportSchedulerPage: React.FC = () => {
   const [monthlyEnabled, setMonthlyEnabled] = useState(false);
   const [biweeklyEnabled, setBiweeklyEnabled] = useState(false);
   
-  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
+  const [emailSuggestions, setEmailSuggestions] = useState<{email: string; is_user: boolean}[]>([]);
   
   // Preview / Test States
   const [previewReportType, setPreviewReportType] = useState<'monthly' | 'bi-weekly'>('monthly');
@@ -251,31 +251,37 @@ const ReportSchedulerPage: React.FC = () => {
   };
 
   const getEmailOptions = () => {
-    return emailSuggestions.map(email => ({
-      value: email,
+    return emailSuggestions.map(item => ({
+      value: item.email,
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <span>{email}</span>
-          <span 
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              handleRemoveSuggestion(email);
-            }}
-            style={{ 
-              color: '#ff4d4f', 
-              cursor: 'pointer', 
-              fontWeight: 'bold', 
-              padding: '2px 8px', 
-              borderRadius: '4px',
-              fontSize: '14px',
-              lineHeight: 1,
-              marginLeft: '8px'
-            }}
-            title="Remove email from suggestions"
-          >
-            ✕
-          </span>
+          <span>{item.email}</span>
+          {!item.is_user && (
+            <span 
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleRemoveSuggestion(item.email);
+              }}
+              style={{ 
+                color: '#ff4d4f', 
+                cursor: 'pointer', 
+                fontWeight: 'bold', 
+                padding: '2px 8px', 
+                borderRadius: '4px',
+                fontSize: '14px',
+                lineHeight: 1,
+                marginLeft: '8px'
+              }}
+              title="Remove email from suggestions"
+            >
+              ✕
+            </span>
+          )}
         </div>
       )
     }));
@@ -330,6 +336,8 @@ const ReportSchedulerPage: React.FC = () => {
                         placeholder="Press Enter to add email addresses"
                         style={{ width: '100%' }}
                         options={getEmailOptions()}
+                        optionLabelProp="value"
+                        menuItemSelectedIcon={null}
                       />
                     </Form.Item>
 
@@ -342,6 +350,8 @@ const ReportSchedulerPage: React.FC = () => {
                         placeholder="Press Enter to add CC email addresses"
                         style={{ width: '100%' }}
                         options={getEmailOptions()}
+                        optionLabelProp="value"
+                        menuItemSelectedIcon={null}
                       />
                     </Form.Item>
 
@@ -415,6 +425,8 @@ const ReportSchedulerPage: React.FC = () => {
                         placeholder="Press Enter to add email addresses"
                         style={{ width: '100%' }}
                         options={getEmailOptions()}
+                        optionLabelProp="value"
+                        menuItemSelectedIcon={null}
                       />
                     </Form.Item>
 
@@ -427,6 +439,8 @@ const ReportSchedulerPage: React.FC = () => {
                         placeholder="Press Enter to add CC email addresses"
                         style={{ width: '100%' }}
                         options={getEmailOptions()}
+                        optionLabelProp="value"
+                        menuItemSelectedIcon={null}
                       />
                     </Form.Item>
 
@@ -586,6 +600,8 @@ const ReportSchedulerPage: React.FC = () => {
               placeholder="Enter target email addresses"
               style={{ width: '100%' }}
               options={getEmailOptions()}
+              optionLabelProp="value"
+              menuItemSelectedIcon={null}
             />
           </Form.Item>
           
@@ -598,6 +614,8 @@ const ReportSchedulerPage: React.FC = () => {
               placeholder="Enter target CC email addresses"
               style={{ width: '100%' }}
               options={getEmailOptions()}
+              optionLabelProp="value"
+              menuItemSelectedIcon={null}
             />
           </Form.Item>
         </Form>
