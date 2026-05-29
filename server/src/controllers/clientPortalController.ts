@@ -238,7 +238,7 @@ export async function createReachout(req: Request, res: Response, next: NextFunc
         const userEmail = userInfo ? userInfo.email : _userEmail;
 
         const subject = `[Support Request] New Comment on Ticket ${case_number} - ${clientName}`;
-        const dashboardUrl = `${env.CLIENT_URL}/dashboard`;
+        const dashboardUrl = `https://scrg-tau.vercel.app/dashboard`;
 
         const html = `
           <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0b0f1a; color: #f1f5f9; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
