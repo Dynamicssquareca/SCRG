@@ -210,7 +210,7 @@
 /* ── Info Grid (Account + Hours) ── */
 .cp-info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
   margin-bottom: 24px;
 }
@@ -585,3 +585,253 @@
   border-top: 1px solid var(--cp-glass-border);
   margin-top: 40px;
 }
+
+/* ── Support Reachout Styling ── */
+@media (min-width: 1025px) {
+  .cp-info-grid.three-cols {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  }
+}
+
+.cp-info-card-icon.reachout {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(99, 102, 241, 0.1));
+  color: var(--cp-accent);
+}
+
+.cp-table-reachout-btn {
+  background: rgba(99, 102, 241, 0.08) !important;
+  border: 1px solid rgba(99, 102, 241, 0.15) !important;
+  color: var(--cp-accent-2) !important;
+  border-radius: var(--cp-radius-xs) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 3px 8px !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+}
+.cp-table-reachout-btn:hover {
+  background: rgba(99, 102, 241, 0.18) !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+.cp-form-label {
+  color: var(--cp-text-secondary) !important;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Custom Select, Input, Radio Dark Overrides */
+.cp-select-dark {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.cp-select-dark .ant-select-selector {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--cp-glass-border) !important;
+  border-radius: var(--cp-radius-sm) !important;
+  color: var(--cp-text-primary) !important;
+  height: 34px !important;
+}
+
+.cp-select-dark .ant-select-selection-placeholder {
+  color: var(--cp-text-muted) !important;
+  line-height: 32px !important;
+}
+
+.cp-select-dark .ant-select-selection-item {
+  color: var(--cp-text-primary) !important;
+  line-height: 32px !important;
+}
+
+.cp-textarea-dark {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--cp-glass-border) !important;
+  border-radius: var(--cp-radius-sm) !important;
+  color: var(--cp-text-primary) !important;
+  transition: all 0.2s;
+}
+.cp-textarea-dark:focus,
+.cp-textarea-dark:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--cp-accent) !important;
+  box-shadow: 0 0 0 2px var(--cp-accent-glow) !important;
+}
+
+.cp-radio-dark .ant-radio-wrapper {
+  color: var(--cp-text-primary) !important;
+  font-weight: 500;
+}
+.cp-radio-dark .ant-radio-checked .ant-radio-inner {
+  border-color: var(--cp-accent) !important;
+  background-color: var(--cp-accent) !important;
+}
+
+.cp-submit-btn-dark {
+  background: linear-gradient(135deg, #6366F1, #818CF8) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  border-radius: var(--cp-radius-sm) !important;
+  height: 34px !important;
+  box-shadow: 0 4px 14px var(--cp-accent-glow) !important;
+  transition: all 0.3s ease !important;
+}
+.cp-submit-btn-dark:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px var(--cp-accent-glow) !important;
+}
+
+/* Modal Dark Theme overrides */
+.cp-modal-dark .ant-modal-content {
+  background-color: #0F1322 !important;
+  border: 1px solid var(--cp-glass-border) !important;
+  box-shadow: var(--cp-shadow-lg) !important;
+  border-radius: var(--cp-radius) !important;
+}
+
+.cp-modal-dark .ant-modal-header {
+  background-color: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding-bottom: 14px !important;
+}
+
+.cp-modal-title {
+  color: var(--cp-text-primary) !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+}
+
+.cp-modal-dark .ant-modal-close-icon {
+  color: var(--cp-text-secondary) !important;
+}
+.cp-modal-dark .ant-modal-close-icon:hover {
+  color: var(--cp-text-primary) !important;
+}
+
+.cp-modal-field-label {
+  color: var(--cp-text-secondary) !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cp-modal-field-value {
+  color: var(--cp-accent-2) !important;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cp-modal-dark .ant-modal-footer .ant-btn-default {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--cp-glass-border) !important;
+  color: var(--cp-text-primary) !important;
+  border-radius: var(--cp-radius-sm) !important;
+}
+.cp-modal-dark .ant-modal-footer .ant-btn-default:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.cp-modal-dark .ant-modal-footer .ant-btn-primary {
+  background: linear-gradient(135deg, #6366F1, #818CF8) !important;
+  border: none !important;
+  font-weight: 600 !important;
+  border-radius: var(--cp-radius-sm) !important;
+  box-shadow: 0 4px 14px var(--cp-accent-glow) !important;
+}
+.cp-modal-dark .ant-modal-footer .ant-btn-primary:hover {
+  box-shadow: 0 6px 20px var(--cp-accent-glow) !important;
+}
+
+/* Ant Design Confirm Modal specific dark overrides */
+.cp-modal-dark .ant-modal-confirm-title {
+  color: var(--cp-text-primary) !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+}
+
+.cp-modal-dark .ant-modal-confirm-content {
+  color: var(--cp-text-secondary) !important;
+  font-size: 14px !important;
+  margin-top: 8px !important;
+}
+
+.cp-modal-dark .ant-modal-confirm-btns .ant-btn {
+  border-radius: var(--cp-radius-sm) !important;
+  font-weight: 600 !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.cp-modal-dark .ant-modal-confirm-btns .ant-btn-default {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--cp-glass-border) !important;
+  color: var(--cp-text-primary) !important;
+}
+.cp-modal-dark .ant-modal-confirm-btns .ant-btn-default:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: var(--cp-text-primary) !important;
+}
+
+.cp-modal-dark .ant-modal-confirm-btns .ant-btn-danger {
+  background: #F87171 !important;
+  border: 1px solid #F87171 !important;
+  color: #fff !important;
+}
+.cp-modal-dark .ant-modal-confirm-btns .ant-btn-danger:hover {
+  background: #EF4444 !important;
+  border-color: #EF4444 !important;
+}
+
+/* Override default Antd Label color in Form */
+.cp-reachout-card .ant-form-item-label > label {
+  color: var(--cp-text-secondary) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+/* Custom Dark Dropdown Styling for Select */
+.cp-select-dropdown-dark {
+  background-color: #0F1322 !important;
+  border: 1px solid var(--cp-glass-border) !important;
+  box-shadow: var(--cp-shadow-lg) !important;
+  border-radius: var(--cp-radius-sm) !important;
+  padding: 4px !important;
+}
+
+.cp-select-dropdown-dark .ant-select-item {
+  color: var(--cp-text-secondary) !important;
+  border-radius: var(--cp-radius-xs) !important;
+  margin: 2px 0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.cp-select-dropdown-dark .ant-select-item-option-content {
+  color: var(--cp-text-primary) !important;
+  font-size: 13px !important;
+}
+
+/* Hover state */
+.cp-select-dropdown-dark .ant-select-item-option-active {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Selected state */
+.cp-select-dropdown-dark .ant-select-item-option-selected {
+  background-color: rgba(99, 102, 241, 0.18) !important;
+  color: var(--cp-accent-2) !important;
+  font-weight: 600 !important;
+}
+
+.cp-select-dropdown-dark .ant-select-empty {
+  color: var(--cp-text-muted) !important;
+}
+
+

@@ -6,6 +6,7 @@ import {
   InfoCircleOutlined, BellOutlined,
   ClockCircleOutlined, CalendarOutlined, FileProtectOutlined,
   TeamOutlined, BarChartOutlined, SyncOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
@@ -85,6 +86,10 @@ const DashboardPage: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(null);
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
   const [workload, setWorkload]         = useState<{agent:string;openCount:number}[]>([]);
+
+  // Reachouts states
+  const [reachouts, setReachouts] = useState<any[]>([]);
+  const [reachoutsLoading, setReachoutsLoading] = useState(false);
   
   const [compMonth1, setCompMonth1] = useState<Dayjs>(dayjs());
   const [compMonth2, setCompMonth2] = useState<Dayjs>(dayjs().subtract(1, 'month'));
@@ -200,7 +205,29 @@ const DashboardPage: React.FC = () => {
     } catch { /* silent */ }
   };
 
-  useEffect(() => { fetchData(); fetchLastUpload(); fetchWorkload(); fetchClientList(); }, [selectedMonth]);
+  const fetchReachouts = async () => {
+    setReachoutsLoading(true);
+    try {
+      const res = await api.get('/dashboard/reachouts');
+      setReachouts(res.data.data);
+    } catch {
+      message.error('Failed to load client reachout comments');
+    } finally {
+      setReachoutsLoading(false);
+    }
+  };
+
+  const handleResolveReachout = async (id: string) => {
+    try {
+      await api.post(`/dashboard/reachouts/${id}/resolve`);
+      message.success('Reachout comment marked as resolved');
+      fetchReachouts();
+    } catch {
+      message.error('Failed to resolve reachout comment');
+    }
+  };
+
+  useEffect(() => { fetchData(); fetchLastUpload(); fetchWorkload(); fetchClientList(); fetchReachouts(); }, [selectedMonth]);
   useEffect(() => { fetchCenterData(); }, [maxBalanceFilter, minDaysFilter]);
   useEffect(() => { fetchCustomChart(); }, [compMonth1, compMonth2]);
   useEffect(() => { fetchClientBreakdown(); }, [selectedClient, clientMonth]);
@@ -263,6 +290,93 @@ const DashboardPage: React.FC = () => {
     { title: 'Total Days', dataIndex: 'total_days', key: 'total_days' },
     { title: 'Comments', dataIndex: 'comments', key: 'comments' },
   ];
+
+  const renderReachoutsTable = (status: 'pending' | 'resolved') => {
+    const filtered = reachouts.filter(r => r.status === status);
+
+    const columns = [
+      {
+        title: 'Client Name',
+        dataIndex: ['client_id', 'client_name'],
+        key: 'client_name',
+        render: (text: string) => <Text strong>{text || '—'}</Text>
+      },
+      {
+        title: 'Ticket Number',
+        dataIndex: 'case_number',
+        key: 'case_number',
+        render: (text: string) => <Tag color="blue">{text}</Tag>
+      },
+      {
+        title: 'Who to Contact',
+        dataIndex: 'assigned_to',
+        key: 'assigned_to',
+        render: (text: string) => (
+          <Tag color={text === 'Gopal' ? 'purple' : 'orange'} style={{ fontWeight: 600 }}>
+            {text}
+          </Tag>
+        )
+      },
+      {
+        title: 'Comment / Query',
+        dataIndex: 'comment',
+        key: 'comment',
+        width: '35%',
+        render: (text: string) => <Text style={{ whiteSpace: 'pre-wrap' }}>{text}</Text>
+      },
+      {
+        title: 'Sent By',
+        dataIndex: ['client_user_id', 'full_name'],
+        key: 'sent_by',
+        render: (text: string, record: any) => (
+          <div>
+            <div style={{ fontWeight: 500 }}>{text || '—'}</div>
+            <div style={{ fontSize: 11, color: '#9CA3AF' }}>{record.client_user_id?.email || ''}</div>
+          </div>
+        )
+      },
+      {
+        title: 'Submitted On',
+        dataIndex: 'createdAt',
+        key: 'createdAt',
+        render: (text: string) => dayjs(text).format('DD MMM YYYY, HH:mm')
+      },
+      ...(status === 'pending' ? [{
+        title: 'Action',
+        key: 'action',
+        align: 'center' as const,
+        render: (_: any, record: any) => (
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => handleResolveReachout(record._id)}
+            style={{
+              background: '#16A34A',
+              borderColor: '#16A34A',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600
+            }}
+          >
+            Mark Handled
+          </Button>
+        )
+      }] : [])
+    ];
+
+    return (
+      <Table
+        loading={reachoutsLoading}
+        dataSource={filtered}
+        columns={columns}
+        rowKey="_id"
+        size="small"
+        pagination={{ pageSize: 5 }}
+        locale={{ emptyText: `No ${status} reachouts found.` }}
+        style={{ marginTop: 10 }}
+      />
+    );
+  };
 
   return (
     <div>
@@ -840,6 +954,65 @@ const DashboardPage: React.FC = () => {
                       </div>
                     ),
                   },
+                ]}
+              />
+            </Card>
+          </motion.div>
+        </Col>
+      </Row>
+
+      {/* ── Client Reachouts Section ── */}
+      <Row gutter={[16, 16]} style={{ marginTop: 20, marginBottom: 20 }}>
+        <Col span={24}>
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42, duration: 0.4 }}>
+            <Card
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MessageOutlined style={{ color: '#6366F1', fontSize: 16 }} />
+                  <span>Client Reachout Comments</span>
+                  <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: '#9CA3AF' }}>
+                    Queries submitted by clients
+                  </span>
+                </div>
+              }
+              extra={
+                <Button
+                  type="text"
+                  icon={<SyncOutlined spin={reachoutsLoading} />}
+                  onClick={fetchReachouts}
+                  disabled={reachoutsLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: '#6366F1' }}
+                >
+                  Refresh
+                </Button>
+              }
+              style={{ borderRadius: 16 }}
+            >
+              <Tabs
+                defaultActiveKey="pending"
+                size="small"
+                items={[
+                  {
+                    key: 'pending',
+                    label: (
+                      <span style={{ fontWeight: 600 }}>
+                        Pending Requests
+                        {reachouts.filter(r => r.status === 'pending').length > 0 && (
+                          <span style={{
+                            marginLeft: 6, background: '#DC2626', color: '#fff',
+                            borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            padding: '1px 6px',
+                          }}>{reachouts.filter(r => r.status === 'pending').length}</span>
+                        )}
+                      </span>
+                    ),
+                    children: renderReachoutsTable('pending'),
+                  },
+                  {
+                    key: 'resolved',
+                    label: <span style={{ fontWeight: 600 }}>Resolved Requests</span>,
+                    children: renderReachoutsTable('resolved'),
+                  }
                 ]}
               />
             </Card>

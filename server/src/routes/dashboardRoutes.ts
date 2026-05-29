@@ -12,6 +12,8 @@ router.get('/last-upload',          dashboardController.getLastUpload);
 router.get('/consultant-workload',  dashboardController.getConsultantWorkload);
 router.get('/chart/custom-comparison', dashboardController.getCustomComparisonChart);
 router.get('/chart/client-breakdown',  dashboardController.getClientBreakdownChart);
+router.get('/reachouts',                dashboardController.getReachouts);
+router.post('/reachouts/:id/resolve',   dashboardController.resolveReachout);
 
 // Monthly PDF Report Scheduler Endpoints
 router.get('/report/settings',              reportSettingsController.getReportSettings);

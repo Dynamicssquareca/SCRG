@@ -3,6 +3,7 @@ import { Client } from '../models/Client';
 import { Upload } from '../models/Upload';
 import { Report } from '../models/Report';
 import { Case } from '../models/Case';
+import { ClientReachout } from '../models/ClientReachout';
 import { successResponse } from '../utils/apiResponse';
 
 const closedStatusRegex = /resolved|closed|problem solved/i;
@@ -172,3 +173,44 @@ export async function getClientBreakdownChart(req: Request, res: Response, next:
     successResponse(res, { open: openCount, closed: closedCount });
   } catch (err) { next(err); }
 }
+
+/**
+ * GET /dashboard/reachouts
+ * Returns all client reachout comments.
+ */
+export async function getReachouts(req: Request, res: Response, next: NextFunction) {
+  try {
+    const reachouts = await ClientReachout.find()
+      .populate('client_id', 'client_name')
+      .populate('client_user_id', 'full_name email')
+      .sort({ createdAt: -1 });
+    successResponse(res, reachouts);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /dashboard/reachouts/:id/resolve
+ * Marks a specific reachout status as resolved.
+ */
+export async function resolveReachout(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const reachout = await ClientReachout.findByIdAndUpdate(
+      id,
+      { status: 'resolved' },
+      { new: true }
+    );
+    if (!reachout) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Reachout comment not found' }
+      });
+    }
+    successResponse(res, reachout);
+  } catch (err) {
+    next(err);
+  }
+}
+
