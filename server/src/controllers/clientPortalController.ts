@@ -213,84 +213,83 @@ export async function createReachout(req: Request, res: Response, next: NextFunc
       status: 'pending',
     });
 
-    // Respond immediately — don't block on email sending
+    // Send the support notification email synchronously to prevent Vercel from freezing/terminating the serverless function mid-connection
+    const _userId = req.user!.id;
+    const _userEmail = req.user!.email;
+    try {
+      const emailMap: Record<string, string> = {
+        'Gopal': 'gopal.kaushal@dynamicssquare.com',
+        'Arish': 'arish.siddiqui@dynamicssquare.com',
+      };
+      const recipientEmail = emailMap[assigned_to] || 'gopal.kaushal@dynamicssquare.com';
+
+      const clientInfo = await Client.findById(clientId);
+      const clientName = clientInfo ? clientInfo.client_name : 'Unknown Client';
+
+      const userInfo = await User.findById(_userId);
+      const userFullName = userInfo ? userInfo.full_name : 'Portal Client User';
+      const userEmail = userInfo ? userInfo.email : _userEmail;
+
+      const subject = `[Support Request] New Comment on Ticket ${case_number} - ${clientName}`;
+      const dashboardUrl = `https://scrg-tau.vercel.app/dashboard`;
+
+      const html = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0b0f1a; color: #f1f5f9; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
+          <div style="background: linear-gradient(135deg, #6366F1, #818CF8); padding: 28px 24px; text-align: center;">
+            <h2 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">New Support Request Comment</h2>
+            <p style="margin: 6px 0 0; color: rgba(255, 255, 255, 0.85); font-size: 13px; font-weight: 500;">Dynamics Square™ Client Portal</p>
+          </div>
+          <div style="padding: 24px; line-height: 1.6; background-color: #0b0f1a;">
+            <div style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 18px; margin-bottom: 24px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr>
+                  <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600; width: 130px;">Ticket No:</td>
+                  <td style="padding: 6px 0; color: #818CF8; font-weight: 700; font-family: monospace; font-size: 14px;">${case_number}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600;">Client Name:</td>
+                  <td style="padding: 6px 0; color: #f1f5f9; font-weight: 600;">${clientName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600;">Submitted By:</td>
+                  <td style="padding: 6px 0; color: #f1f5f9; font-weight: 500;">${userFullName} (${userEmail})</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600;">Assigned To:</td>
+                  <td style="padding: 6px 0; color: #FB923C; font-weight: 700;">${assigned_to}</td>
+                </tr>
+              </table>
+            </div>
+            <div style="margin-bottom: 24px;">
+              <h4 style="margin: 0 0 10px; color: rgba(241, 245, 249, 0.8); font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;">Message/Comment:</h4>
+              <div style="background-color: rgba(255, 255, 255, 0.02); border-left: 4px solid #6366F1; border-radius: 4px; padding: 16px; font-size: 14px; color: #e2e8f0; white-space: pre-wrap; font-style: italic; line-height: 1.5;">${comment}</div>
+            </div>
+            <div style="text-align: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
+              <a href="${dashboardUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366F1, #818CF8); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);">View Dashboard</a>
+            </div>
+          </div>
+          <div style="background-color: rgba(0, 0, 0, 0.25); padding: 16px; text-align: center; font-size: 11px; color: rgba(241, 245, 249, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.04);">
+            This is an automated notification from Dynamics Square™ Client Portal. Please do not reply directly to this email.
+          </div>
+        </div>
+      `;
+
+      await sendEmail({ to: recipientEmail, subject, html });
+      logger.info(`Support request notification email sent to ${recipientEmail}`);
+    } catch (emailErr) {
+      logger.error('Failed to send support comment notification email', emailErr);
+    }
+
+    // Respond to the client after email logic is done
     successResponse(res, {
       message: 'Reachout request submitted successfully',
       data: reachout
-    });
-
-    // Fire-and-forget: send email in the background after responding
-    const _userId = req.user!.id;
-    const _userEmail = req.user!.email;
-    setImmediate(async () => {
-      try {
-        const emailMap: Record<string, string> = {
-          'Gopal': 'gopal.kaushal@dynamicssquare.com',
-          'Arish': 'arish.siddiqui@dynamicssquare.com',
-        };
-        const recipientEmail = emailMap[assigned_to] || 'gopal.kaushal@dynamicssquare.com';
-
-        const clientInfo = await Client.findById(clientId);
-        const clientName = clientInfo ? clientInfo.client_name : 'Unknown Client';
-
-        const userInfo = await User.findById(_userId);
-        const userFullName = userInfo ? userInfo.full_name : 'Portal Client User';
-        const userEmail = userInfo ? userInfo.email : _userEmail;
-
-        const subject = `[Support Request] New Comment on Ticket ${case_number} - ${clientName}`;
-        const dashboardUrl = `https://scrg-tau.vercel.app/dashboard`;
-
-        const html = `
-          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0b0f1a; color: #f1f5f9; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
-            <div style="background: linear-gradient(135deg, #6366F1, #818CF8); padding: 28px 24px; text-align: center;">
-              <h2 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 700; letter-spacing: -0.3px;">New Support Request Comment</h2>
-              <p style="margin: 6px 0 0; color: rgba(255, 255, 255, 0.85); font-size: 13px; font-weight: 500;">Dynamics Square™ Client Portal</p>
-            </div>
-            <div style="padding: 24px; line-height: 1.6; background-color: #0b0f1a;">
-              <div style="background-color: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 18px; margin-bottom: 24px;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                  <tr>
-                    <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600; width: 130px;">Ticket No:</td>
-                    <td style="padding: 6px 0; color: #818CF8; font-weight: 700; font-family: monospace; font-size: 14px;">${case_number}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600;">Client Name:</td>
-                    <td style="padding: 6px 0; color: #f1f5f9; font-weight: 600;">${clientName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600;">Submitted By:</td>
-                    <td style="padding: 6px 0; color: #f1f5f9; font-weight: 500;">${userFullName} (${userEmail})</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 6px 0; color: rgba(241, 245, 249, 0.6); font-weight: 600;">Assigned To:</td>
-                    <td style="padding: 6px 0; color: #FB923C; font-weight: 700;">${assigned_to}</td>
-                  </tr>
-                </table>
-              </div>
-              <div style="margin-bottom: 24px;">
-                <h4 style="margin: 0 0 10px; color: rgba(241, 245, 249, 0.8); font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;">Message/Comment:</h4>
-                <div style="background-color: rgba(255, 255, 255, 0.02); border-left: 4px solid #6366F1; border-radius: 4px; padding: 16px; font-size: 14px; color: #e2e8f0; white-space: pre-wrap; font-style: italic; line-height: 1.5;">${comment}</div>
-              </div>
-              <div style="text-align: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
-                <a href="${dashboardUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366F1, #818CF8); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 13px; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);">View Dashboard</a>
-              </div>
-            </div>
-            <div style="background-color: rgba(0, 0, 0, 0.25); padding: 16px; text-align: center; font-size: 11px; color: rgba(241, 245, 249, 0.35); border-top: 1px solid rgba(255, 255, 255, 0.04);">
-              This is an automated notification from Dynamics Square™ Client Portal. Please do not reply directly to this email.
-            </div>
-          </div>
-        `;
-
-        await sendEmail({ to: recipientEmail, subject, html });
-        logger.info(`Support request notification email sent to ${recipientEmail}`);
-      } catch (emailErr) {
-        logger.error('Failed to send support comment notification email', emailErr);
-      }
     });
   } catch (err) {
     next(err);
   }
 }
+
 
 /**
  * GET /client-portal/reachouts
