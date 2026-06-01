@@ -41,10 +41,14 @@ async function processReportByType(reportType: 'monthly' | 'bi-weekly', forceMod
       return;
     }
 
-    // Anchor time in configured timezone
+    // Anchor time in configured timezone (for day-of-month check)
     const tzTime = dayjs().tz(settings.send_timezone || 'Asia/Kolkata');
     const currentDay = tzTime.date();
-    const currentHHmm = tzTime.format('HH:mm');
+
+    // send_time is stored in UTC (UI converts local→UTC before saving)
+    // Compare scheduled UTC time against current UTC time
+    const utcNow = dayjs().utc();
+    const currentUtcHHmm = utcNow.format('HH:mm');
 
     // Calculate report target period
     // Monthly: full previous completed calendar month
@@ -60,19 +64,19 @@ async function processReportByType(reportType: 'monthly' | 'bi-weekly', forceMod
         return;
       }
 
-      // 2. Time check
+      // 2. Time check — send_time stored as UTC HH:mm
       if (cronMode) {
-        // Under hourly cron triggers, check if the current hour matches the scheduled hour
+        // Under hourly cron triggers, check if current UTC hour matches the scheduled UTC hour
         const [sh] = settings.send_time.split(':').map(Number);
-        const ch = tzTime.hour();
+        const ch = utcNow.hour();
         if (ch !== sh) {
-          logger.debug(`Current hour is ${ch}, scheduled hour is ${sh} (${label}). Skipping.`);
+          logger.debug(`Current UTC hour is ${ch}, scheduled UTC hour is ${sh} (${label}). Skipping.`);
           return;
         }
       } else {
-        // Under high-frequency local checks, check within a 9-minute window
+        // Under high-frequency local checks, check within a 9-minute window against UTC
         const [sh, sm] = settings.send_time.split(':').map(Number);
-        const [ch, cm] = currentHHmm.split(':').map(Number);
+        const [ch, cm] = currentUtcHHmm.split(':').map(Number);
         const diffMinutes = Math.abs((ch * 60 + cm) - (sh * 60 + sm));
 
         if (diffMinutes > 9) {
@@ -86,6 +90,7 @@ async function processReportByType(reportType: 'monthly' | 'bi-weekly', forceMod
         return;
       }
     }
+
 
     logger.info(`Triggering ${label} support report distribution for ${reportMonth}/${reportYear}...`);
 
