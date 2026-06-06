@@ -8,8 +8,6 @@ import {
   MessageOutlined,
   SendOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined as ClockIcon,
-  DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
@@ -52,100 +50,16 @@ const ClientPortalDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
-  // Support Reachout Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalCaseNumber, setModalCaseNumber] = useState('');
-  const [modalAgent, setModalAgent] = useState<'Gopal' | 'Arish'>('Gopal');
-  const [modalComment, setModalComment] = useState('');
-  const [submittingModal, setSubmittingModal] = useState(false);
-
   // Common Support Reachout Card State
   const [commonCaseNumber, setCommonCaseNumber] = useState<string | undefined>(undefined);
   const [commonAgent, setCommonAgent] = useState<'Gopal' | 'Arish'>('Gopal');
   const [commonComment, setCommonComment] = useState('');
   const [submittingCommon, setSubmittingCommon] = useState(false);
 
-  // My submitted reachout requests
-  const [myReachouts, setMyReachouts] = useState<any[]>([]);
-  const [reachoutsLoading, setReachoutsLoading] = useState(false);
-
-  const fetchMyReachouts = async () => {
-    setReachoutsLoading(true);
-    try {
-      const res = await api.get('/client-portal/reachouts');
-      setMyReachouts(res.data.data);
-    } catch {
-      // silent
-    } finally {
-      setReachoutsLoading(false);
-    }
-  };
-
-  const handleOpenReachoutModal = (caseNumber: string) => {
-    setModalCaseNumber(caseNumber);
-    setModalAgent('Gopal');
-    setModalComment('');
-    setIsModalOpen(true);
-  };
-
-  const handleModalSubmit = async () => {
-    if (!modalComment.trim()) {
-      message.error('Please enter your comment/message.');
-      return;
-    }
-    setSubmittingModal(true);
-    try {
-      await api.post('/client-portal/reachout', {
-        case_number: modalCaseNumber,
-        assigned_to: modalAgent,
-        comment: modalComment,
-      });
-      message.success(`Reachout request sent to ${modalAgent} for ticket ${modalCaseNumber}`);
-      setIsModalOpen(false);
-      fetchMyReachouts();
-    } catch (err: any) {
-      message.error(err.response?.data?.error?.message || 'Failed to submit reachout request');
-    } finally {
-      setSubmittingModal(false);
-    }
-  };
-
-  const handleCommonSubmit = async () => {
-    if (!commonCaseNumber) {
-      message.error('Please select a ticket.');
-      return;
-    }
-    if (!commonComment.trim()) {
-      message.error('Please enter your comment/message.');
-      return;
-    }
-    setSubmittingCommon(true);
-    try {
-      await api.post('/client-portal/reachout', {
-        case_number: commonCaseNumber,
-        assigned_to: commonAgent,
-        comment: commonComment,
-      });
-      message.success(`Reachout request sent to ${commonAgent} for ticket ${commonCaseNumber}`);
-      setCommonCaseNumber(undefined);
-      setCommonComment('');
-      fetchMyReachouts();
-    } catch (err: any) {
-      message.error(err.response?.data?.error?.message || 'Failed to submit reachout request');
-    } finally {
-      setSubmittingCommon(false);
-    }
-  };
-
-  const handleDeleteReachout = async (id: string) => {
-    try {
-      await api.delete(`/client-portal/reachouts/${id}`);
-      message.success('Support request deleted successfully');
-      fetchMyReachouts();
-    } catch (err: any) {
-      message.error(err.response?.data?.error?.message || 'Failed to delete support request');
-    }
-  };
+  // Success popup state
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successAgent, setSuccessAgent] = useState('');
+  const [successCaseNumber, setSuccessCaseNumber] = useState('');
 
   const allCaseOptions = useMemo(() => {
     if (!data) return [];
@@ -165,6 +79,40 @@ const ClientPortalDashboard: React.FC = () => {
     return Array.from(optionsMap.values());
   }, [data]);
 
+  const handleCommonSubmit = async () => {
+    if (!commonCaseNumber) {
+      message.error('Please select a ticket.');
+      return;
+    }
+    if (!commonComment.trim()) {
+      message.error('Please enter your comment/message.');
+      return;
+    }
+    setSubmittingCommon(true);
+    try {
+      await api.post('/client-portal/reachout', {
+        case_number: commonCaseNumber,
+        assigned_to: commonAgent,
+        comment: commonComment,
+      });
+
+      // Show success popup
+      const agentLabel = commonAgent === 'Gopal' ? 'Customer Success Manager' : 'Account Manager';
+      setSuccessAgent(agentLabel);
+      setSuccessCaseNumber(commonCaseNumber);
+      setSuccessModalOpen(true);
+
+      // Reset form
+      setCommonCaseNumber(undefined);
+      setCommonComment('');
+      setCommonAgent('Gopal');
+    } catch (err: any) {
+      message.error(err.response?.data?.error?.message || 'Failed to submit reachout request');
+    } finally {
+      setSubmittingCommon(false);
+    }
+  };
+
   const fetchDashboard = async () => {
     setLoading(true);
     try {
@@ -181,7 +129,6 @@ const ClientPortalDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboard();
-    fetchMyReachouts();
   }, [selectedMonth]);
 
   const handleDownload = async () => {
@@ -396,8 +343,8 @@ const ClientPortalDashboard: React.FC = () => {
               </Form.Item>
               <Form.Item label={<span className="cp-form-label">Who to Contact</span>} required style={{ marginBottom: 10 }}>
                 <Radio.Group value={commonAgent} onChange={(e) => setCommonAgent(e.target.value)} className="cp-radio-dark">
-                  <Radio value="Gopal">Gopal</Radio>
-                  <Radio value="Arish">Arish</Radio>
+                  <Radio value="Gopal">Customer Success Manager</Radio>
+                  <Radio value="Arish">Account Manager</Radio>
                 </Radio.Group>
               </Form.Item>
               <Form.Item label={<span className="cp-form-label">Comment / Message</span>} required style={{ marginBottom: 12 }}>
@@ -499,162 +446,102 @@ const ClientPortalDashboard: React.FC = () => {
             />
           </div>
         </div>
-
-        {/* My Support Requests */}
-        <div className="cp-table-section cp-fade-in cp-fade-in-delay-4" style={{ marginTop: 8 }}>
-          <div className="cp-table-header">
-            <div className="cp-table-title">
-              <span className="cp-table-title-dot" style={{ background: 'var(--cp-accent)', boxShadow: '0 0 8px var(--cp-accent-glow)' }} />
-              <span className="cp-table-title-text">My Support Requests</span>
-            </div>
-          </div>
-          <div className="cp-dark-table">
-            <Table
-              loading={reachoutsLoading}
-              columns={[
-                {
-                  title: 'Ticket No.',
-                  dataIndex: 'case_number',
-                  key: 'case_number',
-                  width: 180,
-                  render: (v: string) => (
-                    <span style={{ color: 'var(--cp-accent-2)', fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{v}</span>
-                  ),
-                },
-                {
-                  title: 'Assigned To',
-                  dataIndex: 'assigned_to',
-                  key: 'assigned_to',
-                  width: 120,
-                  render: (v: string) => (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-                      background: v === 'Gopal' ? 'rgba(124,58,237,0.15)' : 'rgba(251,146,60,0.15)',
-                      color: v === 'Gopal' ? '#A78BFA' : '#FB923C',
-                      border: `1px solid ${v === 'Gopal' ? 'rgba(124,58,237,0.3)' : 'rgba(251,146,60,0.3)'}`,
-                    }}>{v}</span>
-                  ),
-                },
-                {
-                  title: 'Comment / Message',
-                  dataIndex: 'comment',
-                  key: 'comment',
-                  width: 350,
-                  render: (v: string) => (
-                    <div style={{
-                      color: 'var(--cp-text-primary)',
-                      fontSize: 13,
-                      whiteSpace: 'normal',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'anywhere',
-                      lineHeight: '1.4',
-                      maxWidth: 350,
-                    }}>
-                      {v}
-                    </div>
-                  ),
-                },
-                {
-                  title: 'Status',
-                  dataIndex: 'status',
-                  key: 'status',
-                  width: 140,
-                  render: (v: string) => (
-                    v === 'resolved'
-                      ? <span className="cp-status-badge resolved"><span className="cp-status-dot" /><CheckCircleOutlined style={{ marginRight: 4 }} />Handled</span>
-                      : <span className="cp-status-badge in-progress"><span className="cp-status-dot" /><ClockIcon style={{ marginRight: 4 }} />Pending</span>
-                  ),
-                },
-                {
-                  title: 'Submitted On',
-                  dataIndex: 'createdAt',
-                  key: 'createdAt',
-                  width: 150,
-                  render: (v: string) => (
-                    <span style={{ color: 'var(--cp-text-secondary)', fontSize: 12 }}>
-                      {dayjs(v).format('DD MMM YYYY, HH:mm')}
-                    </span>
-                  ),
-                },
-                {
-                  title: 'Action',
-                  key: 'action',
-                  width: 90,
-                  align: 'center' as const,
-                  render: (_: any, record: any) => (
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => {
-                        Modal.confirm({
-                          title: 'Delete Support Request',
-                          content: 'Are you sure you want to delete this support request?',
-                          okText: 'Yes, Delete',
-                          okType: 'danger',
-                          cancelText: 'No',
-                          centered: true,
-                          className: 'cp-modal-dark',
-                          onOk: () => handleDeleteReachout(record._id),
-                        });
-                      }}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 4,
-                        height: 'auto',
-                      }}
-                    />
-                  ),
-                },
-              ]}
-              dataSource={myReachouts}
-              rowKey="_id"
-              pagination={{ pageSize: 5, size: 'small' }}
-              scroll={{ x: 'max-content' }}
-              size="small"
-              locale={{ emptyText: <span style={{ color: 'rgba(241,245,249,0.35)' }}>No support requests submitted yet</span> }}
-            />
-          </div>
-        </div>
       </main>
 
-      {/* Reachout Modal */}
+      {/* ── Request Submitted Success Modal ── */}
       <Modal
-        title={<span className="cp-modal-title">Reach Out to Support</span>}
-        open={isModalOpen}
-        onOk={handleModalSubmit}
-        onCancel={() => setIsModalOpen(false)}
-        confirmLoading={submittingModal}
-        okText="Send Request"
-        cancelText="Cancel"
-        className="cp-modal-dark"
+        open={successModalOpen}
+        onOk={() => setSuccessModalOpen(false)}
+        onCancel={() => setSuccessModalOpen(false)}
+        okText="Close"
+        cancelButtonProps={{ style: { display: 'none' } }}
         centered
+        className="cp-modal-dark"
+        footer={null}
+        width={420}
       >
-        <div style={{ padding: '12px 0 0' }}>
-          <div style={{ marginBottom: 16 }}>
-            <span className="cp-modal-field-label">Ticket Number:</span>
-            <span className="cp-modal-field-value"> {modalCaseNumber}</span>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '32px 16px 24px',
+          textAlign: 'center',
+        }}>
+          {/* Animated success icon */}
+          <div style={{
+            width: 72,
+            height: 72,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.1))',
+            border: '2px solid rgba(52,211,153,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 20,
+            boxShadow: '0 0 24px rgba(52,211,153,0.2)',
+          }}>
+            <CheckCircleOutlined style={{ fontSize: 36, color: '#34D399' }} />
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <div className="cp-modal-field-label" style={{ marginBottom: 8 }}>Who to contact:</div>
-            <Radio.Group value={modalAgent} onChange={(e) => setModalAgent(e.target.value)} className="cp-radio-dark">
-              <Radio value="Gopal">Gopal</Radio>
-              <Radio value="Arish">Arish</Radio>
-            </Radio.Group>
-          </div>
-          <div>
-            <div className="cp-modal-field-label" style={{ marginBottom: 8 }}>Comment / Message:</div>
-            <Input.TextArea
-              rows={4}
-              placeholder="Enter your comment or support request..."
-              value={modalComment}
-              onChange={(e) => setModalComment(e.target.value)}
-              className="cp-textarea-dark"
-            />
-          </div>
+
+          <h2 style={{
+            margin: '0 0 8px',
+            color: '#f1f5f9',
+            fontSize: 20,
+            fontWeight: 700,
+            letterSpacing: '-0.3px',
+          }}>
+            Request Submitted Successfully!
+          </h2>
+
+          <p style={{
+            margin: '0 0 6px',
+            color: 'rgba(241,245,249,0.65)',
+            fontSize: 14,
+            lineHeight: 1.6,
+          }}>
+            Your support request for ticket
+          </p>
+          <span style={{
+            display: 'inline-block',
+            background: 'rgba(99,102,241,0.15)',
+            border: '1px solid rgba(99,102,241,0.3)',
+            borderRadius: 8,
+            padding: '4px 14px',
+            color: '#818CF8',
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 15,
+            marginBottom: 12,
+          }}>
+            {successCaseNumber}
+          </span>
+          <p style={{
+            margin: '0 0 24px',
+            color: 'rgba(241,245,249,0.65)',
+            fontSize: 14,
+            lineHeight: 1.6,
+          }}>
+            has been sent to your <strong style={{ color: '#FB923C' }}>{successAgent}</strong>.<br />
+            They will get back to you shortly.
+          </p>
+
+          <button
+            onClick={() => setSuccessModalOpen(false)}
+            style={{
+              background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              padding: '10px 32px',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(99,102,241,0.3)',
+              transition: 'opacity 0.2s',
+            }}
+          >
+            Got it, thanks!
+          </button>
         </div>
       </Modal>
     </div>
