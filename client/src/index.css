@@ -106,7 +106,7 @@ html, body {
 }
 
 /* Buttons */
-.ant-btn-primary {
+.ant-btn.ant-btn-primary {
   background: var(--accent) !important;
   border: none !important;
   font-weight: 600 !important;
@@ -115,12 +115,12 @@ html, body {
   transition: all 0.2s ease !important;
   height: 38px !important;
 }
-.ant-btn-primary:hover {
+.ant-btn.ant-btn-primary:hover {
   background: var(--ds-red-dark) !important;
   box-shadow: 0 6px 20px rgba(232,54,61,0.35) !important;
   transform: translateY(-1px) !important;
 }
-.ant-btn-primary:active { transform: translateY(0) !important; }
+.ant-btn.ant-btn-primary:active { transform: translateY(0) !important; }
 
 /* Inputs */
 .ant-input-affix-wrapper, .ant-input, .ant-picker, .ant-select-selector {

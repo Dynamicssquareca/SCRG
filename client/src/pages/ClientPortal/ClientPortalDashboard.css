@@ -835,3 +835,94 @@
 }
 
 
+/* ── Download Button Group (table header) ── */
+.cp-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.cp-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  outline: none;
+  letter-spacing: 0.2px;
+}
+.cp-dl-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.cp-dl-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.cp-dl-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* Excel — teal */
+.cp-dl-excel {
+  background: linear-gradient(135deg, #006B7B, #00909E);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0,107,123,0.3);
+}
+.cp-dl-excel:not(:disabled):hover {
+  background: linear-gradient(135deg, #005a68, #007d8b);
+  box-shadow: 0 6px 16px rgba(0,107,123,0.4);
+}
+
+/* PDF — red */
+.cp-dl-pdf {
+  background: linear-gradient(135deg, #DC2626, #EF4444);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(220,38,38,0.3);
+}
+.cp-dl-pdf:not(:disabled):hover {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  box-shadow: 0 6px 16px rgba(220,38,38,0.4);
+}
+
+/* Preview — indigo */
+.cp-dl-preview {
+  background: linear-gradient(135deg, #4F46E5, #6366F1);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(79,70,229,0.3);
+}
+.cp-dl-preview:not(:disabled):hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  box-shadow: 0 6px 16px rgba(79,70,229,0.4);
+}
+
+/* ── Table header improved layout ── */
+.cp-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ── Info grid improved responsive ── */
+@media (max-width: 900px) {
+  .cp-btn-group {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cp-info-grid.three-cols {
+    grid-template-columns: 1fr !important;
+  }
+}
+

@@ -312,7 +312,7 @@ const DashboardPage: React.FC = () => {
         dataIndex: 'assigned_to',
         key: 'assigned_to',
         render: (text: string) => (
-          <Tag color={text === 'Gopal' ? 'purple' : 'orange'} style={{ fontWeight: 600 }}>
+          <Tag color={text === 'Gopal' || text === 'Customer success manager' ? 'purple' : 'orange'} style={{ fontWeight: 600 }}>
             {text}
           </Tag>
         )

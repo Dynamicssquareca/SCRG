@@ -595,3 +595,407 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     doc.end();
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENT PORTAL PDF — Only client-visible data (mirrors dashboard)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ClientPortalPdfData {
+  month: number;
+  year: number;
+  monthName: string;
+  clientInfo: {
+    client_name: string;
+    account_manager: string;
+    customer_success_mgr: string;
+    tool_version: string;
+    contract_start_date: string | null;
+    contract_end_date: string | null;
+  };
+  hoursDetails: {
+    totalContracted: number;
+    previousBalance: number;
+    hoursConsumed: number;
+    hoursOnOpen: number;
+    currentBalance: number;
+  };
+  ticketSummary: {
+    totalOpened: number;
+    totalClosed: number;
+    pending: number;
+    reopened: number;
+    highPriority: number;
+  };
+  openCases: Array<{
+    sno: number;
+    case_number: string;
+    contact: string;
+    subject: string;
+    created_on: string | null;
+    hours: number;
+    consultant: string;
+    status: string;
+  }>;
+  resolvedCases: Array<{
+    sno: number;
+    case_number: string;
+    contact: string;
+    subject: string;
+    created_on: string | null;
+    resolved_on: string | null;
+    consultant: string;
+    hours: number;
+  }>;
+}
+
+/** Generates a branded, client-facing PDF report with only dashboard-visible data */
+export async function generateClientPortalPdf(data: ClientPortalPdfData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    // Portrait A4, NO bufferPages — bottom margin of 20 avoids auto-pagination blank pages
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 40, bottom: 20, left: 40, right: 40 },
+    });
+
+    const buffers: Buffer[] = [];
+    doc.on('data', (chunk) => buffers.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
+
+    // ── Constants ──────────────────────────────────────────────────────────
+    const PW        = 595.28;   // A4 portrait width
+    const PH        = 841.89;   // A4 portrait height
+    const ML        = 40;       // left margin
+    const MR        = 40;       // right margin
+    const tableW    = PW - ML - MR;          // 515.28
+    const footerY   = PH - 50;              // 791.89
+    const pageBottom = footerY - 10;        // stop adding rows before footer
+
+    const ink        = '#111318';
+    const red        = '#E8363D';
+    const deepBlue   = '#1B3A5C';
+    const teal       = '#006B7B';
+    const textGray   = '#4B5568';
+    const borderGray = '#E8ECF4';
+    const lightBg    = '#F7F8FC';
+    const green      = '#059669';
+
+    const MIN_ROW_H  = 20;
+    const CELL_PAD_V = 8;   // total vertical padding per row (4 top + 4 bottom)
+
+    let pageNum = 1;
+
+    const formatDate = (d: string | null) => (d ? dayjs(d).format('DD MMM YYYY') : '—');
+
+    // ── drawHeader — portrait ──
+    const drawHeader = (title: string) => {
+      doc.rect(0, 0, PW, 50).fill(ink);
+      doc.fillColor('#FFFFFF').fontSize(14).font('Helvetica-Bold')
+        .text('DYNAMICS ', ML, 18, { continued: true })
+        .fillColor(red).text('SQUARE™');
+      doc.fillColor('#AAAAAA').fontSize(8).font('Helvetica')
+        .text('CLIENT SUPPORT REPORT', PW - MR - 160, 20, { align: 'right', width: 160 });
+      doc.fillColor(ink).fontSize(16).font('Helvetica-Bold').text(title, ML, 70);
+      doc.fontSize(9).font('Helvetica').fillColor(textGray)
+        .text(`${data.monthName} ${data.year}  ·  ${data.clientInfo.client_name}`, ML, 90);
+      doc.moveTo(ML, 106).lineTo(PW - MR, 106).strokeColor(borderGray).lineWidth(1).stroke();
+    };
+
+    // ── drawFooter — portrait inline ──
+    const drawFooter = () => {
+      doc.moveTo(ML, footerY).lineTo(PW - MR, footerY).strokeColor(borderGray).lineWidth(0.5).stroke();
+      doc.fillColor('#9CA3AF').fontSize(8).font('Helvetica')
+        .text('Dynamics Square Support Report — Confidential', ML, footerY + 6, { lineBreak: false })
+        .text(`Page ${pageNum}`, PW - MR - 80, footerY + 6, { align: 'right', width: 80, lineBreak: false });
+    };
+
+    // ── Helper: start a new continuation page ──
+    const addContinuationPage = (title: string) => {
+      drawFooter();
+      doc.addPage();
+      pageNum++;
+      drawHeader(title);
+    };
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PAGE 1: COVER
+    // ══════════════════════════════════════════════════════════════════════
+    doc.rect(0, 0, PW, PH).fill(ink);
+    doc.rect(0, 0, 15, PH).fill(red);
+    doc.rect(580, 0, 15, PH).fill(deepBlue);
+    doc.rect(60, 80, 16, 16).fill(red);
+    doc.rect(80, 80, 16, 16).fill('rgba(255,255,255,0.4)');
+    doc.rect(60, 100, 16, 16).fill('rgba(255,255,255,0.4)');
+    doc.rect(80, 100, 16, 16).fill(red);
+    doc.fillColor('#FFFFFF').fontSize(18).font('Helvetica-Bold')
+      .text('DYNAMICS ', 106, 88, { continued: true })
+      .fillColor(red).text('SQUARE™');
+    doc.fillColor('#FFFFFF').fontSize(32).font('Helvetica-Bold')
+      .text('CLIENT SUPPORT', 60, 230)
+      .fillColor(red).text('PERFORMANCE', 60, 272)
+      .fillColor('#FFFFFF').text('REPORT', 60, 314);
+    doc.moveTo(60, 368).lineTo(300, 368).strokeColor(red).lineWidth(4).stroke();
+    doc.fillColor('#E2E8F0').fontSize(20).font('Helvetica-Bold').text(data.clientInfo.client_name, 60, 398);
+    doc.fillColor('#94A3B8').fontSize(14).font('Helvetica').text(`${data.monthName} ${data.year}`, 60, 428);
+    doc.rect(60, 498, 430, 116).fill('#1A202C');
+    doc.rect(60, 498, 430, 116).strokeColor('#2D3748').lineWidth(1).stroke();
+    const coverInfoRows: [string, string][] = [
+      ['Account Manager',          data.clientInfo.account_manager       || '—'],
+      ['Customer Success Manager', data.clientInfo.customer_success_mgr  || '—'],
+      ['Tool Version (ERP / CRM)', data.clientInfo.tool_version          || '—'],
+      ['Report Generated On',      dayjs().format('DD MMM YYYY, HH:mm')],
+    ];
+    let infoY = 514;
+    coverInfoRows.forEach(([label, value]) => {
+      doc.fillColor('#94A3B8').fontSize(8).font('Helvetica-Bold').text(label, 80, infoY);
+      doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica').text(value, 272, infoY, { width: 200 });
+      infoY += 22;
+    });
+    doc.fillColor('#64748B').fontSize(10).font('Helvetica')
+      .text('© 2026 MPG Business Information Systems. All rights reserved.', 60, 770);
+    // No footer on cover page
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PAGE 2: ACCOUNT DETAILS + HOURS + TICKET SUMMARY
+    // ══════════════════════════════════════════════════════════════════════
+    doc.addPage(); pageNum++;
+    drawHeader('Account Overview & Hours Summary');
+    let y = 122;
+
+    doc.rect(ML, y, tableW, 22).fill(deepBlue);
+    doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold').text('ACCOUNT DETAILS', ML + 10, y + 7);
+    y += 22;
+    const accountRows: [string, string][] = [
+      ['Client Name',              data.clientInfo.client_name],
+      ['Account Manager',          data.clientInfo.account_manager         || '—'],
+      ['Customer Success Manager', data.clientInfo.customer_success_mgr    || '—'],
+      ['Tool Version (ERP / CRM)', data.clientInfo.tool_version            || '—'],
+      ['Contract Start Date',      formatDate(data.clientInfo.contract_start_date)],
+      ['Contract End Date',        formatDate(data.clientInfo.contract_end_date)],
+    ];
+    let zebra = false;
+    accountRows.forEach(([label, value]) => {
+      if (zebra) doc.rect(ML, y, tableW, 20).fill(lightBg);
+      doc.rect(ML, y, tableW, 20).strokeColor(borderGray).lineWidth(0.5).stroke();
+      doc.fillColor(textGray).fontSize(9).font('Helvetica-Bold').text(label, ML + 10, y + 6, { width: 220 });
+      doc.fillColor(ink).font('Helvetica').text(value, ML + 240, y + 6, { width: 260 });
+      y += 20; zebra = !zebra;
+    });
+
+    y += 14;
+    doc.rect(ML, y, tableW, 22).fill(teal);
+    doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold').text('HOURS DETAILS', ML + 10, y + 7);
+    y += 22;
+    const hoursRows: [string, number, boolean][] = [
+      ['Total Contracted Hours',         data.hoursDetails.totalContracted,  false],
+      ['Previous Balance Hours',         data.hoursDetails.previousBalance,  false],
+      ['Hours Consumed This Month',      data.hoursDetails.hoursConsumed,    false],
+      ['Hours Allotted to Open Tickets', data.hoursDetails.hoursOnOpen,      false],
+      ['Current Balance Hours',          data.hoursDetails.currentBalance,   true],
+    ];
+    zebra = false;
+    hoursRows.forEach(([label, value, isBalance]) => {
+      const isNeg = value < 0;
+      const rowFill = isBalance ? (isNeg ? '#FEF2F2' : '#ECFDF5') : (zebra ? lightBg : '#FFFFFF');
+      doc.rect(ML, y, tableW, 22).fill(rowFill);
+      if (isBalance) doc.rect(ML, y, 4, 22).fill(isNeg ? red : green);
+      doc.rect(ML, y, tableW, 22).strokeColor(borderGray).lineWidth(0.5).stroke();
+      doc.fillColor(isBalance ? (isNeg ? red : green) : textGray)
+        .fontSize(9).font('Helvetica-Bold').text(label, ML + 10, y + 7, { width: 300 });
+      doc.fillColor(isBalance ? (isNeg ? red : green) : ink)
+        .fontSize(isBalance ? 11 : 9).font('Helvetica-Bold')
+        .text(value.toFixed(2), ML, y + 6, { width: tableW - 10, align: 'right' });
+      y += 22; zebra = !zebra;
+    });
+
+    y += 18;
+    doc.fillColor(ink).fontSize(12).font('Helvetica-Bold').text('Ticket Summary', ML, y);
+    y += 16;
+    const summaryCards = [
+      { label: 'Tickets\nOpened', val: data.ticketSummary.totalOpened, color: '#3182CE', bg: '#EBF8FF' },
+      { label: 'Tickets\nClosed',  val: data.ticketSummary.totalClosed,  color: green,     bg: '#ECFDF5' },
+      { label: 'Pending\nTickets', val: data.ticketSummary.pending,      color: '#DD6B20', bg: '#FFFAF0' },
+      { label: 'Reopened',         val: data.ticketSummary.reopened,     color: '#805AD5', bg: '#FAF5FF' },
+      { label: 'High\nPriority',   val: data.ticketSummary.highPriority, color: red,       bg: '#FEF2F2' },
+    ];
+    const cW = 95; const cH = 64;
+    summaryCards.forEach((c, idx) => {
+      const cx = ML + idx * (cW + 9);
+      doc.rect(cx, y, cW, cH).fill(c.bg);
+      doc.rect(cx, y, cW, 4).fill(c.color);
+      doc.fillColor(textGray).fontSize(7.5).font('Helvetica-Bold').text(c.label, cx + 8, y + 10, { width: cW - 16 });
+      doc.fillColor('#1A202C').fontSize(20).font('Helvetica-Bold').text(String(c.val), cx + 8, y + 34, { width: cW - 16 });
+    });
+
+    drawFooter();
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PAGE 3: OPEN TICKETS  (Portrait — dynamic row height via heightOfString)
+    // ══════════════════════════════════════════════════════════════════════
+    // Portrait column layout (x: 44..555, available 511px):
+    // # | CaseNo | Contact | Subject(wide) | Created | Hrs | Status
+    const openCols = {
+      sno:     { x: 44,  w: 15  },
+      caseNo:  { x: 62,  w: 70  },
+      contact: { x: 135, w: 65  },
+      subject: { x: 203, w: 185 },
+      created: { x: 391, w: 52  },
+      hrs:     { x: 446, w: 22  },
+      status:  { x: 471, w: 84  },
+    };
+
+
+    doc.addPage(); pageNum++;
+    drawHeader('Open Tickets Report');
+
+    const drawOpenHeader = (ty: number) => {
+      doc.rect(ML, ty, tableW, 22).fill(deepBlue);
+      doc.fillColor('#FFFFFF').fontSize(7.5).font('Helvetica-Bold');
+      doc.text('#',        openCols.sno.x,     ty + 7, { width: openCols.sno.w,     align: 'center', lineBreak: false });
+      doc.text('Case No.', openCols.caseNo.x,  ty + 7, { width: openCols.caseNo.w,  lineBreak: false });
+      doc.text('Contact',  openCols.contact.x, ty + 7, { width: openCols.contact.w, lineBreak: false });
+      doc.text('Subject',  openCols.subject.x, ty + 7, { width: openCols.subject.w, lineBreak: false });
+      doc.text('Created',  openCols.created.x, ty + 7, { width: openCols.created.w, align: 'center', lineBreak: false });
+      doc.text('Hrs',      openCols.hrs.x,     ty + 7, { width: openCols.hrs.w,     align: 'center', lineBreak: false });
+      doc.text('Status',   openCols.status.x,  ty + 7, { width: openCols.status.w,  align: 'center', lineBreak: false });
+    };
+
+    let tblY = 122;
+    drawOpenHeader(tblY); tblY += 22;
+    let rz = false;
+
+    if (data.openCases.length === 0) {
+      doc.rect(ML, tblY, tableW, 28).strokeColor(borderGray).lineWidth(0.5).stroke();
+      doc.fillColor(textGray).fontSize(9).font('Helvetica')
+        .text('No open tickets for this period.', ML, tblY + 9, { align: 'center', width: tableW });
+    } else {
+      data.openCases.forEach((c) => {
+        const subjectText = c.subject || '—';
+
+        // ── Measure actual rendered height before drawing ──
+        doc.fontSize(7.5).font('Helvetica');
+        const subjectH = doc.heightOfString(subjectText, { width: openCols.subject.w });
+        const statusH = doc.heightOfString(c.status || '—', { width: openCols.status.w });
+        const contactH = doc.heightOfString(c.contact || '—', { width: openCols.contact.w });
+        const maxTextH = Math.max(subjectH, statusH, contactH);
+        const rowH = Math.max(MIN_ROW_H, Math.ceil(maxTextH) + CELL_PAD_V);
+
+        // New page if row won't fit
+        if (tblY + rowH > pageBottom) {
+          addContinuationPage('Open Tickets Report (Cont.)');
+          tblY = 122; drawOpenHeader(tblY); tblY += 22; rz = false;
+        }
+
+        // Background + border drawn with correct height
+        if (rz) doc.rect(ML, tblY, tableW, rowH).fill(lightBg);
+        doc.rect(ML, tblY, tableW, rowH).strokeColor(borderGray).lineWidth(0.5).stroke();
+
+        // Vertical center for single-line cells
+        const midY = tblY + (rowH - 8) / 2;
+
+        // Draw all single-line cells first (lineBreak:false keeps cursor in place)
+        doc.fillColor(textGray).fontSize(7.5).font('Helvetica')
+          .text(String(c.sno),             openCols.sno.x,     midY, { width: openCols.sno.w,     align: 'center', lineBreak: false });
+        doc.fillColor('#1A202C').font('Helvetica-Bold')
+          .text(c.case_number || '—',      openCols.caseNo.x,  midY, { width: openCols.caseNo.w,  lineBreak: false });
+        doc.fillColor(textGray).font('Helvetica')
+          .text(c.contact || '—',          openCols.contact.x, midY, { width: openCols.contact.w, lineBreak: false, ellipsis: true })
+          .text(formatDate(c.created_on),  openCols.created.x, midY, { width: openCols.created.w, align: 'center', lineBreak: false })
+          .text((c.hours || 0).toFixed(2), openCols.hrs.x,     midY, { width: openCols.hrs.w,     align: 'center', lineBreak: false })
+          .text(c.status || '—',           openCols.status.x,  midY, { width: openCols.status.w,  align: 'center', lineBreak: false, ellipsis: true });
+
+        // Draw subject LAST (may wrap — drawn at top of cell, not centered)
+        doc.fillColor(ink).fontSize(7.5).font('Helvetica')
+          .text(subjectText, openCols.subject.x, tblY + CELL_PAD_V / 2,
+                { width: openCols.subject.w, lineBreak: true });
+
+        tblY += rowH;
+        rz = !rz;
+      });
+    }
+
+    drawFooter();
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PAGE 4: RESOLVED TICKETS  (Portrait — dynamic row height)
+    // ══════════════════════════════════════════════════════════════════════
+    // #(16) | CaseNo(86) | Contact(62) | Subject(162) | Created(60) | Resolved(60) | Hrs(28)
+    const resolvedCols = {
+      sno:      { x: 44,  w: 16  },
+      caseNo:   { x: 62,  w: 88  },
+      contact:  { x: 153, w: 70  },
+      subject:  { x: 226, w: 172 },
+      created:  { x: 401, w: 60  },
+      resolved: { x: 464, w: 60  },
+      hrs:      { x: 527, w: 28  },
+    };
+
+    doc.addPage(); pageNum++;
+    drawHeader('Resolved Tickets Report');
+
+    const drawResolvedHeader = (ty: number) => {
+      doc.rect(ML, ty, tableW, 22).fill(teal);
+      doc.fillColor('#FFFFFF').fontSize(7.5).font('Helvetica-Bold');
+      doc.text('#',         resolvedCols.sno.x,      ty + 7, { width: resolvedCols.sno.w,      align: 'center', lineBreak: false });
+      doc.text('Case No.',  resolvedCols.caseNo.x,   ty + 7, { width: resolvedCols.caseNo.w,   lineBreak: false });
+      doc.text('Contact',   resolvedCols.contact.x,  ty + 7, { width: resolvedCols.contact.w,  lineBreak: false });
+      doc.text('Subject',   resolvedCols.subject.x,  ty + 7, { width: resolvedCols.subject.w,  lineBreak: false });
+      doc.text('Created',   resolvedCols.created.x,  ty + 7, { width: resolvedCols.created.w,  align: 'center', lineBreak: false });
+      doc.text('Resolved',  resolvedCols.resolved.x, ty + 7, { width: resolvedCols.resolved.w, align: 'center', lineBreak: false });
+      doc.text('Hrs',       resolvedCols.hrs.x,      ty + 7, { width: resolvedCols.hrs.w,      align: 'center', lineBreak: false });
+    };
+
+    tblY = 122;
+    drawResolvedHeader(tblY); tblY += 22; rz = false;
+
+    if (data.resolvedCases.length === 0) {
+      doc.rect(ML, tblY, tableW, 28).strokeColor(borderGray).lineWidth(0.5).stroke();
+      doc.fillColor(textGray).fontSize(9).font('Helvetica')
+        .text('No resolved tickets for this period.', ML, tblY + 9, { align: 'center', width: tableW });
+    } else {
+      data.resolvedCases.forEach((c) => {
+        const subjectText = c.subject || '—';
+
+        // ── Measure actual height ──
+        doc.fontSize(7.5).font('Helvetica');
+        const subjectH = doc.heightOfString(subjectText, { width: resolvedCols.subject.w });
+        const contactH = doc.heightOfString(c.contact || '—', { width: resolvedCols.contact.w });
+        const maxTextH = Math.max(subjectH, contactH);
+        const rowH = Math.max(MIN_ROW_H, Math.ceil(maxTextH) + CELL_PAD_V);
+
+        if (tblY + rowH > pageBottom) {
+          addContinuationPage('Resolved Tickets Report (Cont.)');
+          tblY = 122; drawResolvedHeader(tblY); tblY += 22; rz = false;
+        }
+
+        if (rz) doc.rect(ML, tblY, tableW, rowH).fill(lightBg);
+        doc.rect(ML, tblY, tableW, rowH).strokeColor(borderGray).lineWidth(0.5).stroke();
+
+        const midY = tblY + (rowH - 8) / 2;
+
+        // Single-line cells first
+        doc.fillColor(textGray).fontSize(7.5).font('Helvetica')
+          .text(String(c.sno),              resolvedCols.sno.x,      midY, { width: resolvedCols.sno.w,      align: 'center', lineBreak: false });
+        doc.fillColor('#1A202C').font('Helvetica-Bold')
+          .text(c.case_number || '—',       resolvedCols.caseNo.x,   midY, { width: resolvedCols.caseNo.w,   lineBreak: false });
+        doc.fillColor(textGray).font('Helvetica')
+          .text(c.contact || '—',           resolvedCols.contact.x,  midY, { width: resolvedCols.contact.w,  lineBreak: false, ellipsis: true })
+          .text(formatDate(c.created_on),   resolvedCols.created.x,  midY, { width: resolvedCols.created.w,  align: 'center', lineBreak: false })
+          .text(formatDate(c.resolved_on),  resolvedCols.resolved.x, midY, { width: resolvedCols.resolved.w, align: 'center', lineBreak: false })
+          .text((c.hours || 0).toFixed(2),  resolvedCols.hrs.x,      midY, { width: resolvedCols.hrs.w,      align: 'center', lineBreak: false });
+
+        // Subject last — wraps cleanly within its column
+        doc.fillColor(ink).fontSize(7.5).font('Helvetica')
+          .text(subjectText, resolvedCols.subject.x, tblY + CELL_PAD_V / 2,
+                { width: resolvedCols.subject.w, lineBreak: true });
+
+        tblY += rowH;
+        rz = !rz;
+      });
+    }
+
+    drawFooter();
+
+    doc.end();
+  });
+}

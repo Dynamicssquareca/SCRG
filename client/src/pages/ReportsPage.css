@@ -1,0 +1,188 @@
+/* ═══════════════════════════════════════════════════════════
+   REPORTS PAGE — Premium Stylesheet
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Page wrapper ── */
+.rp-page {
+  padding: 0;
+}
+
+/* ── Top card ── */
+.rp-card.ant-card {
+  border-radius: 16px !important;
+  border: 1px solid #E8ECF4 !important;
+  box-shadow: 0 2px 12px rgba(15,17,23,0.06) !important;
+  overflow: hidden;
+}
+
+.rp-card .ant-card-body {
+  padding: 24px !important;
+}
+
+/* ── Filter Bar ── */
+.rp-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.rp-search-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-filter-selects {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rp-search-btn.ant-btn {
+  border-radius: 8px !important;
+  border: 1px solid #D1D9E8 !important;
+  background: #fff !important;
+  color: #4B5568 !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  height: 32px !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease !important;
+}
+.rp-search-btn.ant-btn:hover {
+  border-color: #E8363D !important;
+  color: #E8363D !important;
+  transform: none !important;
+}
+
+/* ── ZIP Download button ── */
+.rp-zip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1B3A5C, #2B5A8A);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 12px rgba(27,58,92,0.28);
+  transition: all 0.2s ease;
+  letter-spacing: 0.2px;
+}
+.rp-zip-btn:hover {
+  background: linear-gradient(135deg, #152d49, #234870);
+  box-shadow: 0 6px 20px rgba(27,58,92,0.35);
+  transform: translateY(-1px);
+}
+.rp-zip-btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Table ── */
+.rp-table .ant-table-thead > tr > th {
+  background: #F9FAFB !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.7px !important;
+  color: #9CA3AF !important;
+  border-bottom: 1px solid #E8ECF4 !important;
+  padding: 12px 16px !important;
+}
+
+.rp-table .ant-table-tbody > tr > td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #F1F5F9 !important;
+  font-size: 13.5px !important;
+  vertical-align: middle !important;
+}
+
+.rp-table .ant-table-tbody > tr:hover > td {
+  background: #FFF8F8 !important;
+}
+
+/* ── Action button group ── */
+.rp-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.rp-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  letter-spacing: 0.1px;
+  outline: none;
+}
+.rp-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.rp-action-btn:active {
+  transform: translateY(0);
+}
+
+/* Excel — teal/green */
+.rp-btn-excel {
+  background: linear-gradient(135deg, #006B7B, #00909E);
+  color: #fff;
+}
+.rp-btn-excel:hover {
+  background: linear-gradient(135deg, #005a68, #007d8b);
+  box-shadow: 0 4px 14px rgba(0,107,123,0.35) !important;
+}
+
+/* PDF — warm red/orange */
+.rp-btn-pdf {
+  background: linear-gradient(135deg, #DC2626, #EF4444);
+  color: #fff;
+}
+.rp-btn-pdf:hover {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  box-shadow: 0 4px 14px rgba(220,38,38,0.35) !important;
+}
+
+/* Preview — indigo/blue */
+.rp-btn-preview {
+  background: linear-gradient(135deg, #4F46E5, #6366F1);
+  color: #fff;
+}
+.rp-btn-preview:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  box-shadow: 0 4px 14px rgba(79,70,229,0.35) !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .rp-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rp-action-group {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}

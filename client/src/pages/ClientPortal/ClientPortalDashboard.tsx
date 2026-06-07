@@ -8,6 +8,7 @@ import {
   MessageOutlined,
   SendOutlined,
   CheckCircleOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useAuth } from '../../context/AuthContext';
@@ -49,10 +50,12 @@ const ClientPortalDashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [previewingPdf, setPreviewingPdf] = useState(false);
 
   // Common Support Reachout Card State
   const [commonCaseNumber, setCommonCaseNumber] = useState<string | undefined>(undefined);
-  const [commonAgent, setCommonAgent] = useState<'Gopal' | 'Arish'>('Gopal');
+  const [commonAgent, setCommonAgent] = useState<'Customer success manager' | 'Account manager'>('Customer success manager');
   const [commonComment, setCommonComment] = useState('');
   const [submittingCommon, setSubmittingCommon] = useState(false);
 
@@ -97,15 +100,14 @@ const ClientPortalDashboard: React.FC = () => {
       });
 
       // Show success popup
-      const agentLabel = commonAgent === 'Gopal' ? 'Customer Success Manager' : 'Account Manager';
-      setSuccessAgent(agentLabel);
+      setSuccessAgent(commonAgent);
       setSuccessCaseNumber(commonCaseNumber);
       setSuccessModalOpen(true);
 
       // Reset form
       setCommonCaseNumber(undefined);
       setCommonComment('');
-      setCommonAgent('Gopal');
+      setCommonAgent('Customer success manager');
     } catch (err: any) {
       message.error(err.response?.data?.error?.message || 'Failed to submit reachout request');
     } finally {
@@ -156,6 +158,53 @@ const ClientPortalDashboard: React.FC = () => {
       message.error('Report not available for this period yet.');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const month = selectedMonth.month() + 1;
+      const year = selectedMonth.year();
+      const res = await api.get(`/client-portal/report/download?month=${month}&year=${year}&format=pdf`, {
+        responseType: 'blob',
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = res.headers['content-disposition'];
+      const filename = disposition
+        ? disposition.split('filename=')[1]?.replace(/"/g, '')
+        : `Support_Report_${month}_${year}.pdf`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('PDF Report downloaded successfully!');
+    } catch {
+      message.error('PDF Report not available for this period.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handlePreviewPdf = async () => {
+    setPreviewingPdf(true);
+    try {
+      const month = selectedMonth.month() + 1;
+      const year = selectedMonth.year();
+      const res = await api.get(`/client-portal/report/download?month=${month}&year=${year}&format=pdf`, {
+        responseType: 'blob',
+      });
+      const file = new Blob([res.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+      message.success('PDF preview opened in a new tab!');
+    } catch {
+      message.error('Failed to preview PDF report.');
+    } finally {
+      setPreviewingPdf(false);
     }
   };
 
@@ -343,8 +392,8 @@ const ClientPortalDashboard: React.FC = () => {
               </Form.Item>
               <Form.Item label={<span className="cp-form-label">Who to Contact</span>} required style={{ marginBottom: 10 }}>
                 <Radio.Group value={commonAgent} onChange={(e) => setCommonAgent(e.target.value)} className="cp-radio-dark">
-                  <Radio value="Gopal">Customer Success Manager</Radio>
-                  <Radio value="Arish">Account Manager</Radio>
+                  <Radio value="Customer success manager">Customer success manager</Radio>
+                  <Radio value="Account manager">Account manager</Radio>
                 </Radio.Group>
               </Form.Item>
               <Form.Item label={<span className="cp-form-label">Comment / Message</span>} required style={{ marginBottom: 12 }}>
@@ -402,14 +451,35 @@ const ClientPortalDashboard: React.FC = () => {
               <span className="cp-table-title-text">Open Tickets Report</span>
             </div>
             {data.hasReport && (
-              <Button
-                className="cp-download-btn"
-                icon={<DownloadOutlined />}
-                onClick={handleDownload}
-                loading={downloading}
-              >
-                Download Excel Report
-              </Button>
+              <div className="cp-btn-group">
+                <button
+                  className="cp-dl-btn cp-dl-excel"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  title="Download Excel Report"
+                >
+                  <DownloadOutlined />
+                  {downloading ? 'Downloading…' : 'Excel'}
+                </button>
+                <button
+                  className="cp-dl-btn cp-dl-pdf"
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  title="Download PDF Report"
+                >
+                  <DownloadOutlined />
+                  {downloadingPdf ? 'Downloading…' : 'PDF'}
+                </button>
+                <button
+                  className="cp-dl-btn cp-dl-preview"
+                  onClick={handlePreviewPdf}
+                  disabled={previewingPdf}
+                  title="Preview PDF in new tab"
+                >
+                  <EyeOutlined />
+                  {previewingPdf ? 'Loading…' : 'Preview'}
+                </button>
+              </div>
             )}
           </div>
           <div className="cp-dark-table">

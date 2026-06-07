@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { Row, Col } from 'antd';
 import { Card, Table, Typography, Space, Button, Input, Select, Tag, message } from 'antd';
-import { SearchOutlined, DownloadOutlined, FileZipOutlined } from '@ant-design/icons';
+import { SearchOutlined, DownloadOutlined, FileZipOutlined, EyeOutlined, FilePdfOutlined, FileExcelOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import dayjs from 'dayjs';
+import './ReportsPage.css';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -55,24 +57,44 @@ const ReportsPage: React.FC = () => {
 
   useEffect(() => {
     fetchReports();
-  }, [month, year]); // Search triggers on enter, pagination triggers via table change
+  }, [month, year]);
 
   const handleTableChange = (newPagination: any) => {
     fetchReports(newPagination.current);
   };
 
-  const downloadReport = async (reportId: number, fileName: string) => {
+  const downloadReport = async (reportId: number, fileName: string, format: 'xlsx' | 'pdf' = 'xlsx') => {
     try {
-      const response = await api.get(`/reports/${reportId}/download`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await api.get(`/reports/${reportId}/download?format=${format}`, { responseType: 'blob' });
+      const mimeType = format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: mimeType }));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', fileName);
+      
+      let downloadName = fileName;
+      if (format === 'pdf') {
+        downloadName = fileName.replace(/\.xlsx$/i, '.pdf');
+      }
+      
+      link.setAttribute('download', downloadName);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       message.error('Download failed');
+    }
+  };
+
+  const previewReport = async (reportId: number) => {
+    try {
+      const response = await api.get(`/reports/${reportId}/download?format=pdf`, { responseType: 'blob' });
+      const file = new Blob([response.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+      message.success('PDF preview opened in a new tab!');
+    } catch (err) {
+      message.error('Failed to preview PDF report');
     }
   };
 
@@ -132,71 +154,92 @@ const ReportsPage: React.FC = () => {
     },
     { 
       title: 'Actions', 
-      key: 'actions', 
+      key: 'actions',
+      width: 340,
       render: (_: any, record: any) => (
-        <Button 
-          type="primary" 
-          icon={<DownloadOutlined />} 
-          size="small"
-          onClick={() => downloadReport(record.id, record.file_name)}
-          style={{ background: '#006B7B' }}
-        >
-          Download XLSX
-        </Button>
+        <div className="rp-action-group">
+          <button 
+            className="rp-action-btn rp-btn-excel"
+            onClick={() => downloadReport(record.id, record.file_name, 'xlsx')}
+            title="Download Excel"
+          >
+            <FileExcelOutlined />
+            <span>XLSX</span>
+          </button>
+          <button 
+            className="rp-action-btn rp-btn-pdf"
+            onClick={() => downloadReport(record.id, record.file_name, 'pdf')}
+            title="Download PDF"
+          >
+            <FilePdfOutlined />
+            <span>PDF</span>
+          </button>
+          <button 
+            className="rp-action-btn rp-btn-preview"
+            onClick={() => previewReport(record.id)}
+            title="Preview PDF"
+          >
+            <EyeOutlined />
+            <span>Preview</span>
+          </button>
+        </div>
       ) 
     },
   ];
 
   return (
-    <div>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+    <div className="rp-page">
+      <Row justify="space-between" align="middle" style={{ marginBottom: 20 }}>
         <Col>
           <Title level={4} style={{ margin: 0 }}>Generated Reports</Title>
         </Col>
         <Col>
-          <Button 
-            type="primary" 
-            icon={<FileZipOutlined />} 
+          <button 
+            className={`rp-zip-btn${(!month || !year) ? ' rp-zip-btn-disabled' : ''}`}
             onClick={downloadAllZip}
             disabled={!month || !year}
-            style={{ background: '#1B3A5C' }}
           >
+            <FileZipOutlined />
             Download Filtered ZIP
-          </Button>
+          </button>
         </Col>
       </Row>
 
-      <Card>
-        <Space style={{ marginBottom: 24 }} wrap>
-          <Input 
-            placeholder="Search clients..." 
-            prefix={<SearchOutlined />} 
-            allowClear
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onPressEnter={() => fetchReports(1)}
-            style={{ width: 250 }}
-          />
-          <Button onClick={() => fetchReports(1)}>Search</Button>
-          
-          <Select 
-            placeholder="Month" 
-            style={{ width: 120, marginLeft: 16 }} 
-            allowClear
-            value={month}
-            onChange={setMonth}
-            options={months}
-          />
-          <Select 
-            placeholder="Year" 
-            style={{ width: 100 }} 
-            allowClear
-            value={year}
-            onChange={setYear}
-          >
-            {years.map(y => <Option key={y} value={y}>{y}</Option>)}
-          </Select>
-        </Space>
+      <Card className="rp-card">
+        {/* ── Filter Bar ── */}
+        <div className="rp-filter-bar">
+          <div className="rp-search-group">
+            <Input 
+              placeholder="Search clients..." 
+              prefix={<SearchOutlined />} 
+              allowClear
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onPressEnter={() => fetchReports(1)}
+              style={{ width: 240 }}
+            />
+            <Button onClick={() => fetchReports(1)} className="rp-search-btn">Search</Button>
+          </div>
+          <div className="rp-filter-selects">
+            <Select 
+              placeholder="Month" 
+              style={{ width: 130 }} 
+              allowClear
+              value={month}
+              onChange={setMonth}
+              options={months}
+            />
+            <Select 
+              placeholder="Year" 
+              style={{ width: 100 }} 
+              allowClear
+              value={year}
+              onChange={setYear}
+            >
+              {years.map(y => <Option key={y} value={y}>{y}</Option>)}
+            </Select>
+          </div>
+        </div>
 
         <Table
           dataSource={reports}
@@ -205,13 +248,11 @@ const ReportsPage: React.FC = () => {
           loading={loading}
           pagination={pagination}
           onChange={handleTableChange}
+          className="rp-table"
         />
       </Card>
     </div>
   );
 };
-
-// Assuming Row and Col from antd need to be imported:
-import { Row, Col } from 'antd';
 
 export default ReportsPage;

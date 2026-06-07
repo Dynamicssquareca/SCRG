@@ -7,6 +7,9 @@ import { successResponse, ValidationError, NotFoundError } from '../utils/apiRes
 import { Report, IReport } from '../models/Report';
 import { Upload } from '../models/Upload';
 import mongoose from 'mongoose';
+import { getClientDashboardDataHelper } from './clientPortalController';
+import { generateClientPortalPdf, ClientPortalPdfData } from '../services/pdfReportService';
+import dayjs from 'dayjs';
 
 export async function generate(req: Request, res: Response, next: NextFunction) {
   try {
@@ -100,6 +103,43 @@ export async function download(req: Request, res: Response, next: NextFunction) 
   try {
     const report = await Report.findById(req.params.id);
     if (!report) throw new NotFoundError('Report not found');
+
+    const { format } = req.query;
+
+    if (format === 'pdf') {
+      const clientId = report.client_id.toString();
+      const m = report.month;
+      const y = report.year;
+
+      const data = await getClientDashboardDataHelper(clientId, m, y);
+      const monthStart = new Date(y, m - 1, 1);
+      const monthName = dayjs(monthStart).format('MMMM');
+
+      const pdfData: ClientPortalPdfData = {
+        month: m,
+        year: y,
+        monthName,
+        clientInfo: data.clientInfo,
+        hoursDetails: data.hoursDetails,
+        ticketSummary: data.ticketSummary,
+        openCases: data.openCases,
+        resolvedCases: data.resolvedCases,
+      };
+
+      const pdfBuffer = await generateClientPortalPdf(pdfData);
+
+      const cleanClientName = data.clientInfo.client_name.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Support_Report_${cleanClientName}_${monthName.substring(0, 3)}_${y}.pdf`;
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': String(pdfBuffer.length),
+      });
+      res.send(pdfBuffer);
+      return;
+    }
+
     if (!report.file_name) throw new ValidationError('This is a seeded historical report and has no downloadable file.');
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
