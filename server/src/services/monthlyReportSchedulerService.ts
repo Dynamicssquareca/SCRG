@@ -13,19 +13,26 @@ dayjs.extend(timezone);
  * forceMode = true  → skip ALL checks (used for manual test-send from UI)
  * cronMode  = true  → skip time-window check only; keep day check + duplicate guard
  *                     (used by cron-job.org — it controls timing, app controls the day)
+ * dailyMode = true  → skip time checks entirely; only keep day check + duplicate guard
+ *                     (used by Vercel daily Cron Jobs)
  */
-export async function processMonthlyReports(forceMode: boolean = false, cronMode: boolean = false) {
+export async function processMonthlyReports(forceMode: boolean = false, cronMode: boolean = false, dailyMode: boolean = false) {
   logger.debug('Starting automated monthly and bi-weekly PDF report scheduler check...');
   
   // 1. Process Monthly Support Report
-  await processReportByType('monthly', forceMode, cronMode);
+  await processReportByType('monthly', forceMode, cronMode, dailyMode);
 
   // 2. Process Bi-Weekly Support Report
-  await processReportByType('bi-weekly', forceMode, cronMode);
+  await processReportByType('bi-weekly', forceMode, cronMode, dailyMode);
 }
 
 /** Processes a specific support report type (monthly or bi-weekly) */
-async function processReportByType(reportType: 'monthly' | 'bi-weekly', forceMode: boolean = false, cronMode: boolean = false) {
+async function processReportByType(
+  reportType: 'monthly' | 'bi-weekly',
+  forceMode: boolean = false,
+  cronMode: boolean = false,
+  dailyMode: boolean = false
+) {
   const isBiWeekly = reportType === 'bi-weekly';
   const label = isBiWeekly ? 'bi-weekly' : 'monthly';
 
@@ -65,22 +72,24 @@ async function processReportByType(reportType: 'monthly' | 'bi-weekly', forceMod
       }
 
       // 2. Time check — send_time stored as UTC HH:mm
-      if (cronMode) {
-        // Under hourly cron triggers, check if current UTC hour matches the scheduled UTC hour
-        const [sh] = settings.send_time.split(':').map(Number);
-        const ch = utcNow.hour();
-        if (ch !== sh) {
-          logger.debug(`Current UTC hour is ${ch}, scheduled UTC hour is ${sh} (${label}). Skipping.`);
-          return;
-        }
-      } else {
-        // Under high-frequency local checks, check within a 9-minute window against UTC
-        const [sh, sm] = settings.send_time.split(':').map(Number);
-        const [ch, cm] = currentUtcHHmm.split(':').map(Number);
-        const diffMinutes = Math.abs((ch * 60 + cm) - (sh * 60 + sm));
+      if (!dailyMode) {
+        if (cronMode) {
+          // Under hourly cron triggers, check if current UTC hour matches the scheduled UTC hour
+          const [sh] = settings.send_time.split(':').map(Number);
+          const ch = utcNow.hour();
+          if (ch !== sh) {
+            logger.debug(`Current UTC hour is ${ch}, scheduled UTC hour is ${sh} (${label}). Skipping.`);
+            return;
+          }
+        } else {
+          // Under high-frequency local checks, check within a 9-minute window against UTC
+          const [sh, sm] = settings.send_time.split(':').map(Number);
+          const [ch, cm] = currentUtcHHmm.split(':').map(Number);
+          const diffMinutes = Math.abs((ch * 60 + cm) - (sh * 60 + sm));
 
-        if (diffMinutes > 9) {
-          return;
+          if (diffMinutes > 9) {
+            return;
+          }
         }
       }
 
