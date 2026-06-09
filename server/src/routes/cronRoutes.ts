@@ -57,16 +57,18 @@ router.get('/monthly-report', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  const dailyMode = req.query.dailyMode === 'true';
+
   try {
-    logger.info('[Vercel Cron] Running monthly report scheduler...');
+    logger.info(`[Vercel Cron] Running monthly report scheduler (dailyMode=${dailyMode})...`);
     // Use require() instead of import() — ESM dynamic imports need .js extensions
     // in compiled CJS output which Vercel doesn't handle automatically
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { processMonthlyReports } = require('../services/monthlyReportSchedulerService');
     // cronMode=true: trust cron-job.org for timing, only check day + duplicate guard
-    await processMonthlyReports(false, true);
+    await processMonthlyReports(false, !dailyMode, dailyMode);
     logger.info('[Vercel Cron] Monthly report scheduler completed.');
-    successResponse(res, { message: 'Monthly report check completed', timestamp: new Date().toISOString() });
+    successResponse(res, { message: 'Monthly report check completed', timestamp: new Date().toISOString(), dailyMode });
   } catch (err: any) {
     logger.error('[Vercel Cron] Monthly report scheduler failed:', err);
     res.status(500).json({ error: 'Monthly report processing failed', details: err.message });
