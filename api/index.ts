@@ -13,3 +13,4 @@ export default async (req: any, res: any) => {
   await connect();
   return app(req, res);
 };
+
