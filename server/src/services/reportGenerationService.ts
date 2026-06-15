@@ -205,7 +205,7 @@ function buildOverviewSheet(workbook: ExcelJS.Workbook, data: ClientReportData) 
     ['Client Name', data.clientInfo?.client_name || ''],
     ['Account Manager', data.clientInfo?.account_manager || ''],
     ['Customer Success Manager', data.clientInfo?.customer_success_mgr || ''],
-    ['Tool Version (ERP / CRM)', data.clientInfo?.tool_version || ''],
+    ['Solution', data.clientInfo?.tool_version || ''],
     ['Start Date', formatDate(data.clientInfo?.contract_start_date)],
     ['End Date', formatDate(data.clientInfo?.contract_end_date)],
   ];
