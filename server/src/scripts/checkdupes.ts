@@ -29,7 +29,7 @@ if (files[0]) {
   console.log(JSON.stringify(dupes, null, 2));
 
   if (dupes.length === 0) {
-    console.log('No duplicates found — the 3 missing rows must have empty Case Numbers');
+    console.log('No duplicates found - the 3 missing rows must have empty Case Numbers');
     const empty = data.filter(row => !String(row['Case Number'] || '').trim());
     console.log('Rows with empty Case Numbers:', empty.length);
   }

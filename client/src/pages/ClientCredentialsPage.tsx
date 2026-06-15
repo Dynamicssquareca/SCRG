@@ -195,7 +195,7 @@ const ClientCredentialsPage: React.FC = () => {
             />
           </Tooltip>
 
-          {/* Revoke / Grant Again — contextual */}
+          {/* Revoke / Grant Again - contextual */}
           {record.isActive ? (
             <Popconfirm
               title="Revoke this client's portal access?"
@@ -427,7 +427,7 @@ const ClientCredentialsPage: React.FC = () => {
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <KeyOutlined style={{ color: '#6366F1' }} />
-            <span>Reset Password — {selectedUser?.clientName}</span>
+            <span>Reset Password - {selectedUser?.clientName}</span>
           </div>
         }
         open={resetModalOpen}

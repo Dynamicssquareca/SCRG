@@ -159,13 +159,13 @@ const ClientMasterPage: React.FC = () => {
       title: 'Contract Start', 
       dataIndex: 'contract_start_date', 
       key: 'start_date',
-      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <span style={{ color: '#999' }}>—</span> 
+      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <span style={{ color: '#999' }}>-</span> 
     },
     { 
       title: 'Contract Ends', 
       dataIndex: 'contract_end_date', 
       key: 'end_date',
-      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <span style={{ color: '#999' }}>—</span> 
+      render: (date: string) => date ? dayjs(date).tz(displayTz).format('DD MMM YYYY') : <span style={{ color: '#999' }}>-</span> 
     },
     { title: 'Contracted Hours', dataIndex: 'total_contracted_hours', key: 'hours' },
     { 
@@ -173,7 +173,7 @@ const ClientMasterPage: React.FC = () => {
       dataIndex: 'last_month_balance', 
       key: 'last_month_balance',
       render: (val: any) => {
-        if (val === null || val === undefined) return <span style={{ color: '#999' }}>—</span>;
+        if (val === null || val === undefined) return <span style={{ color: '#999' }}>-</span>;
         const num = Number(val);
         const color = num < 0 ? '#cf1322' : '#389e0d';
         return <span style={{ color, fontWeight: 500 }}>{num.toFixed(2)}</span>;
@@ -184,7 +184,7 @@ const ClientMasterPage: React.FC = () => {
       dataIndex: 'current_balance', 
       key: 'balance',
       render: (val: any) => {
-        if (val === null || val === undefined) return <span style={{ color: '#999' }}>—</span>;
+        if (val === null || val === undefined) return <span style={{ color: '#999' }}>-</span>;
         const num = Number(val);
         const color = num < 0 ? '#cf1322' : '#389e0d';
         return <span style={{ color, fontWeight: 500 }}>{num.toFixed(2)}</span>;

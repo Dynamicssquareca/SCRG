@@ -42,7 +42,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup-2fa" element={<SetupTOTPPage />} />
-      {/* Client Portal — standalone, no sidebar */}
+      {/* Client Portal - standalone, no sidebar */}
       <Route path="/portal" element={<ClientRoute><ClientPortalDashboard /></ClientRoute>} />
       {/* Internal Admin/Operator routes */}
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

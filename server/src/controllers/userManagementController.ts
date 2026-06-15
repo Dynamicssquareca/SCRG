@@ -3,7 +3,7 @@ import { User } from '../models/User';
 import * as authService from '../services/authService';
 import { successResponse, NotFoundError } from '../utils/apiResponse';
 
-/* GET /users — list all users (admin only) */
+/* GET /users - list all users (admin only) */
 export async function listUsers(req: Request, res: Response, next: NextFunction) {
   try {
     const users = await User.find({}, {
@@ -26,7 +26,7 @@ export async function listUsers(req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 }
 
-/* DELETE /users/:id/totp — revoke 2FA for a user (admin only) */
+/* DELETE /users/:id/totp - revoke 2FA for a user (admin only) */
 export async function revokeTotp(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
@@ -47,7 +47,7 @@ export async function revokeTotp(req: Request, res: Response, next: NextFunction
   } catch (err) { next(err); }
 }
 
-/* GET /users/:id/qr-code — get existing QR code for a user (admin only) */
+/* GET /users/:id/qr-code - get existing QR code for a user (admin only) */
 export async function getQrCode(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;

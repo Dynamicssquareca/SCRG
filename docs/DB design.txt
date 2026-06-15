@@ -1,6 +1,6 @@
 ================================================================================
                     DATABASE DESIGN DOCUMENT
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
               RDBMS: PostgreSQL 16.x
 ================================================================================
 

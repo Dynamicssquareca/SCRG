@@ -1,16 +1,16 @@
 ================================================================================
                        UI DESIGN DOCUMENT
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
 ================================================================================
 
 1. SITEMAP & NAVIGATION
 --------------------------------------------------------------------------------
   Pages:
-    /login           — Login Page
-    /dashboard       — Dashboard (stats summary)
-    /upload          — Upload Data Sheet Page
-    /reports         — Reports Listing Page (main page)
-    /clients         — Client Master Management Page
+    /login           - Login Page
+    /dashboard       - Dashboard (stats summary)
+    /upload          - Upload Data Sheet Page
+    /reports         - Reports Listing Page (main page)
+    /clients         - Client Master Management Page
 
   Navigation Bar (top):
     [Logo] Support Report Generator
@@ -34,7 +34,7 @@
   - Quick action buttons to Upload or View Reports
 
 
-4. PAGE: UPLOAD DATA (/upload) — PRIMARY PAGE
+4. PAGE: UPLOAD DATA (/upload) - PRIMARY PAGE
 --------------------------------------------------------------------------------
   Layout (top to bottom):
 
@@ -56,7 +56,7 @@
     Per-client status: ✅ Generated / ⏳ Processing / ⬜ Pending
 
 
-5. PAGE: REPORTS (/reports) — PRIMARY PAGE
+5. PAGE: REPORTS (/reports) - PRIMARY PAGE
 --------------------------------------------------------------------------------
   Filters Row:
     Month [January ▼]  Year [2026 ▼]  Client [All ▼]
@@ -99,22 +99,22 @@
 
 8. COLOR SCHEME
 --------------------------------------------------------------------------------
-  Primary:    #1B3A5C  (dark navy) — nav, headers, primary buttons
-  Secondary:  #006B7B  (teal)      — accents, secondary actions
-  Success:    #52C41A               — completed states
-  Warning:    #FAAD14               — warnings
-  Error:      #FF4D4F               — errors
-  Background: #F5F5F5               — page bg
-  Cards:      #FFFFFF               — white cards
-  Text:       #1F1F1F / #8C8C8C     — primary / secondary text
+  Primary:    #1B3A5C  (dark navy) - nav, headers, primary buttons
+  Secondary:  #006B7B  (teal)      - accents, secondary actions
+  Success:    #52C41A               - completed states
+  Warning:    #FAAD14               - warnings
+  Error:      #FF4D4F               - errors
+  Background: #F5F5F5               - page bg
+  Cards:      #FFFFFF               - white cards
+  Text:       #1F1F1F / #8C8C8C     - primary / secondary text
 
 
 9. RESPONSIVE BREAKPOINTS
 --------------------------------------------------------------------------------
-  ≥ 1200px  — Full layout, wide tables
-  992-1199  — Tables scroll horizontally, cards stack 2×2
-  768-991   — Single column, hamburger menu
-  < 768     — Mobile: stacked, compact (secondary priority)
+  ≥ 1200px  - Full layout, wide tables
+  992-1199  - Tables scroll horizontally, cards stack 2×2
+  768-991   - Single column, hamburger menu
+  < 768     - Mobile: stacked, compact (secondary priority)
 
 
 10. USER FLOWS

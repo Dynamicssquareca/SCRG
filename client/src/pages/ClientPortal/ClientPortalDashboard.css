@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   CLIENT PORTAL — Premium Dashboard Stylesheet
+   CLIENT PORTAL - Premium Dashboard Stylesheet
    ═══════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -872,7 +872,7 @@
   transform: translateY(0);
 }
 
-/* Excel — teal */
+/* Excel - teal */
 .cp-dl-excel {
   background: linear-gradient(135deg, #006B7B, #00909E);
   color: #fff;
@@ -883,7 +883,7 @@
   box-shadow: 0 6px 16px rgba(0,107,123,0.4);
 }
 
-/* PDF — red */
+/* PDF - red */
 .cp-dl-pdf {
   background: linear-gradient(135deg, #DC2626, #EF4444);
   color: #fff;
@@ -894,7 +894,7 @@
   box-shadow: 0 6px 16px rgba(220,38,38,0.4);
 }
 
-/* Preview — indigo */
+/* Preview - indigo */
 .cp-dl-preview {
   background: linear-gradient(135deg, #4F46E5, #6366F1);
   color: #fff;

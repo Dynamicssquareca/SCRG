@@ -48,7 +48,7 @@ export async function getNotifications(req: Request, res: Response, next: NextFu
   } catch (err) { next(err); }
 }
 
-/* GET /notifications/center — aggregated notification center data */
+/* GET /notifications/center - aggregated notification center data */
 export async function getNotificationCenter(req: Request, res: Response, next: NextFunction) {
   try {
     const today = dayjs();

@@ -209,7 +209,7 @@ const ClientPortalDashboard: React.FC = () => {
   };
 
   const formatDate = (d: any) => {
-    if (!d) return '—';
+    if (!d) return '-';
     return dayjs(d).format('DD-MM-YYYY');
   };
 
@@ -313,30 +313,42 @@ const ClientPortalDashboard: React.FC = () => {
               </div>
               <div className="cp-info-card-title">Account Details</div>
             </div>
-            <div className="cp-info-row">
-              <span className="cp-info-label highlight">Client Name</span>
-              <span className="cp-info-value">{clientInfo.client_name}</span>
-            </div>
-            <div className="cp-info-row">
-              <span className="cp-info-label">Account Manager</span>
-              <span className="cp-info-value">{clientInfo.account_manager || '—'}</span>
-            </div>
-            <div className="cp-info-row">
-              <span className="cp-info-label">Customer Success Manager</span>
-              <span className="cp-info-value">{clientInfo.customer_success_mgr || '—'}</span>
-            </div>
-            <div className="cp-info-row">
-              <span className="cp-info-label">Solution</span>
-              <span className="cp-info-value">{clientInfo.tool_version || '—'}</span>
-            </div>
-            <div className="cp-info-row">
-              <span className="cp-info-label">Start Date</span>
-              <span className="cp-info-value">{formatDate(clientInfo.contract_start_date)}</span>
-            </div>
-            <div className="cp-info-row">
-              <span className="cp-info-label">End Date</span>
-              <span className="cp-info-value">{formatDate(clientInfo.contract_end_date)}</span>
-            </div>
+            {clientInfo.client_name && (
+              <div className="cp-info-row">
+                <span className="cp-info-label highlight">Client Name</span>
+                <span className="cp-info-value">{clientInfo.client_name}</span>
+              </div>
+            )}
+            {clientInfo.account_manager && (
+              <div className="cp-info-row">
+                <span className="cp-info-label">Account Manager</span>
+                <span className="cp-info-value">{clientInfo.account_manager}</span>
+              </div>
+            )}
+            {clientInfo.customer_success_mgr && (
+              <div className="cp-info-row">
+                <span className="cp-info-label">Customer Success Manager</span>
+                <span className="cp-info-value">{clientInfo.customer_success_mgr}</span>
+              </div>
+            )}
+            {clientInfo.tool_version && (
+              <div className="cp-info-row">
+                <span className="cp-info-label">Solution</span>
+                <span className="cp-info-value">{clientInfo.tool_version}</span>
+              </div>
+            )}
+            {clientInfo.contract_start_date && (
+              <div className="cp-info-row">
+                <span className="cp-info-label">Start Date</span>
+                <span className="cp-info-value">{formatDate(clientInfo.contract_start_date)}</span>
+              </div>
+            )}
+            {clientInfo.contract_end_date && (
+              <div className="cp-info-row">
+                <span className="cp-info-label">End Date</span>
+                <span className="cp-info-value">{formatDate(clientInfo.contract_end_date)}</span>
+              </div>
+            )}
           </div>
 
           {/* Hours Details */}

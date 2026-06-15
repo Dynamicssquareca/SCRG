@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   REPORTS PAGE — Premium Stylesheet
+   REPORTS PAGE - Premium Stylesheet
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Page wrapper ── */
@@ -145,7 +145,7 @@
   transform: translateY(0);
 }
 
-/* Excel — teal/green */
+/* Excel - teal/green */
 .rp-btn-excel {
   background: linear-gradient(135deg, #006B7B, #00909E);
   color: #fff;
@@ -155,7 +155,7 @@
   box-shadow: 0 4px 14px rgba(0,107,123,0.35) !important;
 }
 
-/* PDF — warm red/orange */
+/* PDF - warm red/orange */
 .rp-btn-pdf {
   background: linear-gradient(135deg, #DC2626, #EF4444);
   color: #fff;
@@ -165,7 +165,7 @@
   box-shadow: 0 4px 14px rgba(220,38,38,0.35) !important;
 }
 
-/* Preview — indigo/blue */
+/* Preview - indigo/blue */
 .rp-btn-preview {
   background: linear-gradient(135deg, #4F46E5, #6366F1);
   color: #fff;

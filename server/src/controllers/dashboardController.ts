@@ -85,7 +85,7 @@ export async function getCases(req: Request, res: Response, next: NextFunction) 
   } catch (err) { next(err); }
 }
 
-/** GET /dashboard/last-upload — returns the createdAt of the most recent upload */
+/** GET /dashboard/last-upload - returns the createdAt of the most recent upload */
 export async function getLastUpload(req: Request, res: Response, next: NextFunction) {
   try {
     const last = await Upload.findOne({}, { createdAt: 1 }).sort({ createdAt: -1 }).lean();
@@ -93,7 +93,7 @@ export async function getLastUpload(req: Request, res: Response, next: NextFunct
   } catch (err) { next(err); }
 }
 
-/** GET /dashboard/consultant-workload — open ticket counts grouped by support_agent */
+/** GET /dashboard/consultant-workload - open ticket counts grouped by support_agent */
 export async function getConsultantWorkload(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await Case.aggregate([
@@ -106,7 +106,7 @@ export async function getConsultantWorkload(req: Request, res: Response, next: N
   } catch (err) { next(err); }
 }
 
-/** GET /dashboard/chart/custom-comparison — compares two specific months */
+/** GET /dashboard/chart/custom-comparison - compares two specific months */
 export async function getCustomComparisonChart(req: Request, res: Response, next: NextFunction) {
   try {
     const { m1, y1, m2, y2 } = req.query;
@@ -146,7 +146,7 @@ export async function getCustomComparisonChart(req: Request, res: Response, next
   } catch (err) { next(err); }
 }
 
-/** GET /dashboard/chart/client-breakdown — detailed ticket breakdown for a specific client */
+/** GET /dashboard/chart/client-breakdown - detailed ticket breakdown for a specific client */
 export async function getClientBreakdownChart(req: Request, res: Response, next: NextFunction) {
   try {
     const { clientId, month, year } = req.query;

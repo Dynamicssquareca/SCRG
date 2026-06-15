@@ -3,7 +3,7 @@ import dns from 'dns';
 import { env } from '../config/env';
 import logger from '../utils/logger';
 
-// Force IPv4 DNS resolution — prevents EHOSTUNREACH on networks without IPv6 SMTP routing
+// Force IPv4 DNS resolution - prevents EHOSTUNREACH on networks without IPv6 SMTP routing
 dns.setDefaultResultOrder('ipv4first');
 
 // Create a reusable transporter using the default SMTP transport
@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
   secure: env.SMTP_PORT === 465, // true for 465 (SSL), false for 587 (STARTTLS)
-  family: 4, // Force IPv4 — prevents EHOSTUNREACH on networks without IPv6 SMTP routing
+  family: 4, // Force IPv4 - prevents EHOSTUNREACH on networks without IPv6 SMTP routing
   auth: {
     user: env.SMTP_USER,
     pass: env.SMTP_PASS,

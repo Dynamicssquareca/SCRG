@@ -1,5 +1,5 @@
 ================================================================================
-     TOOLS & FRAMEWORKS — INSTALLATION GUIDE
+     TOOLS & FRAMEWORKS - INSTALLATION GUIDE
      Support Case Report Generator Project
 ================================================================================
 
@@ -7,7 +7,7 @@ Below is everything you need to install on your PC before we can start
 building the project. Follow the steps in order.
 
 ================================================================================
-1. NODE.JS (Required — JavaScript Runtime)
+1. NODE.JS (Required - JavaScript Runtime)
 ================================================================================
    What   : Server-side JavaScript runtime. Powers both frontend & backend.
    Version: LTS (v20.x or v22.x recommended)
@@ -15,7 +15,7 @@ building the project. Follow the steps in order.
    
    Install Steps:
      1. Go to the link above
-     2. Download the "Windows Installer (.msi)" — LTS version
+     2. Download the "Windows Installer (.msi)" - LTS version
      3. Run the installer
      4. IMPORTANT: Check the box "Automatically install the necessary tools"
      5. IMPORTANT: Make sure "Add to PATH" is checked
@@ -30,7 +30,7 @@ building the project. Follow the steps in order.
 
 
 ================================================================================
-2. GIT (Required — Version Control)
+2. GIT (Required - Version Control)
 ================================================================================
    What   : Version control system to track code changes.
    Version: Latest (2.x)
@@ -47,7 +47,7 @@ building the project. Follow the steps in order.
 
 
 ================================================================================
-3. VISUAL STUDIO CODE (Recommended — Code Editor)
+3. VISUAL STUDIO CODE (Recommended - Code Editor)
 ================================================================================
    What   : Code editor (you likely already have this)
    Download: https://code.visualstudio.com/
@@ -61,10 +61,10 @@ building the project. Follow the steps in order.
 
 
 ================================================================================
-4. DATABASE — Choose ONE of the following:
+4. DATABASE - Choose ONE of the following:
 ================================================================================
 
---- OPTION A: SQLite (EASIEST — Recommended for getting started) ---
+--- OPTION A: SQLite (EASIEST - Recommended for getting started) ---
 
    What   : Lightweight file-based database. No installation needed!
    Install: Nothing to install. The npm package handles everything.
@@ -73,7 +73,7 @@ building the project. Follow the steps in order.
    No server to run, no configuration, no passwords.
    
 
---- OPTION B: PostgreSQL (Production-grade — More setup required) ---
+--- OPTION B: PostgreSQL (Production-grade - More setup required) ---
 
    What   : Powerful relational database server.
    Version: 16.x
@@ -97,7 +97,7 @@ building the project. Follow the steps in order.
 
 
 ================================================================================
-5. POSTMAN (Optional — API Testing Tool)
+5. POSTMAN (Optional - API Testing Tool)
 ================================================================================
    What   : Tool to test API endpoints manually.
    Download: https://www.postman.com/downloads/
@@ -106,7 +106,7 @@ building the project. Follow the steps in order.
 
 
 ================================================================================
-SUMMARY — MINIMUM REQUIRED INSTALLATIONS
+SUMMARY - MINIMUM REQUIRED INSTALLATIONS
 ================================================================================
 
    #   Tool          Required?   Download Link
@@ -115,7 +115,7 @@ SUMMARY — MINIMUM REQUIRED INSTALLATIONS
    2   Git           YES         https://git-scm.com/download/win
    3   VS Code       YES*        https://code.visualstudio.com
    4   SQLite        NO INSTALL  (handled by npm automatically)
-       — OR —
+       - OR -
    4   PostgreSQL    YES (if     https://www.postgresql.org/download/windows
                      chosen)
    5   Postman       OPTIONAL    https://www.postman.com/downloads
@@ -149,7 +149,7 @@ project. You do NOT need to download or install these yourself:
 
 
 ================================================================================
-AFTER INSTALLING — NEXT STEPS
+AFTER INSTALLING - NEXT STEPS
 ================================================================================
 
 Once you have installed the required tools (at minimum: Node.js + Git):

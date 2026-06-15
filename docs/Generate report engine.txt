@@ -1,6 +1,6 @@
 ================================================================================
                REPORT GENERATION ENGINE DOCUMENT
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
 ================================================================================
 
 1. OVERVIEW
@@ -49,16 +49,16 @@ column widths, borders) to match the provided template pixel-perfectly.
   ──────────────────────────────────────────
   Element                    Color (Hex)    RGB
   ─────────────────────────  ────────────   ──────────────
-  Overview headers bg        #1B3A5C        (27, 58, 92)  — Dark navy blue
-  Overview headers text       #FFFFFF        (255,255,255) — White
-  OPEN TICKETS REPORT header bg  #006B7B        (0, 107, 123) — Teal
-  OPEN TICKETS REPORT header txt #FFFFFF        (255,255,255) — White
-  Resolved header bg          #006B7B        (0, 107, 123) — Teal
-  Resolved header txt         #FFFFFF        (255,255,255) — White
-  Data rows bg (alternating)  #FFFFFF / none — White / no fill
-  Data rows text              #000000        (0, 0, 0)    — Black
-  Feedback link text          #CC0000        (204, 0, 0)  — Red
-  Cell borders                #808080        (128,128,128) — Gray
+  Overview headers bg        #1B3A5C        (27, 58, 92)  - Dark navy blue
+  Overview headers text       #FFFFFF        (255,255,255) - White
+  OPEN TICKETS REPORT header bg  #006B7B        (0, 107, 123) - Teal
+  OPEN TICKETS REPORT header txt #FFFFFF        (255,255,255) - White
+  Resolved header bg          #006B7B        (0, 107, 123) - Teal
+  Resolved header txt         #FFFFFF        (255,255,255) - White
+  Data rows bg (alternating)  #FFFFFF / none - White / no fill
+  Data rows text              #000000        (0, 0, 0)    - Black
+  Feedback link text          #CC0000        (204, 0, 0)  - Red
+  Cell borders                #808080        (128,128,128) - Gray
 
 3.2 FONT SPECIFICATIONS
   ──────────────────────────────────────────
@@ -72,7 +72,7 @@ column widths, borders) to match the provided template pixel-perfectly.
   Feedback text              Calibri      10      No      Red
 
 
-4. SHEET 1: OVERVIEW — Detailed Build Logic
+4. SHEET 1: OVERVIEW - Detailed Build Logic
 --------------------------------------------------------------------------------
 
   function buildOverviewSheet(workbook, clientData) {
@@ -80,13 +80,13 @@ column widths, borders) to match the provided template pixel-perfectly.
 
     // Set column widths
     ws.columns = [
-      { width: 30 },  // A — labels
-      { width: 25 },  // B — values
-      { width: 5 },   // C — spacer
-      { width: 30 },  // D — hours labels
-      { width: 25 },  // E — hours values
-      { width: 5 },   // F — spacer
-      { width: 40 },  // G — feedback area
+      { width: 30 },  // A - labels
+      { width: 25 },  // B - values
+      { width: 5 },   // C - spacer
+      { width: 30 },  // D - hours labels
+      { width: 25 },  // E - hours values
+      { width: 5 },   // F - spacer
+      { width: 40 },  // G - feedback area
     ];
 
     // --- ACCOUNT DETAILS SECTION (A1:B7) ---
@@ -188,7 +188,7 @@ column widths, borders) to match the provided template pixel-perfectly.
   }
 
 
-5. SHEET 2: OPEN TICKETS REPORT— Detailed Build Logic
+5. SHEET 2: OPEN TICKETS REPORT- Detailed Build Logic
 --------------------------------------------------------------------------------
 
   function buildOpenCaseSheet(workbook, openCases) {
@@ -196,15 +196,15 @@ column widths, borders) to match the provided template pixel-perfectly.
 
     // Set column widths
     ws.columns = [
-      { width: 8 },   // A — S.No
-      { width: 20 },  // B — Case Number
-      { width: 20 },  // C — Contact
-      { width: 50 },  // D — Subject
-      { width: 22 },  // E — Created On
-      { width: 10 },  // F — Hours
-      { width: 22 },  // G — Consultant Ass.
-      { width: 15 },  // H — Status
-      { width: 5 },   // I — spacer
+      { width: 8 },   // A - S.No
+      { width: 20 },  // B - Case Number
+      { width: 20 },  // C - Contact
+      { width: 50 },  // D - Subject
+      { width: 22 },  // E - Created On
+      { width: 10 },  // F - Hours
+      { width: 22 },  // G - Consultant Ass.
+      { width: 15 },  // H - Status
+      { width: 5 },   // I - spacer
     ];
 
     // Row 1: Title "OPEN CASE REPORT" (merged across columns)
@@ -245,7 +245,7 @@ column widths, borders) to match the provided template pixel-perfectly.
   }
 
 
-6. SHEET 3: RESOLVED TICKETS REPORT— Detailed Build Logic
+6. SHEET 3: RESOLVED TICKETS REPORT- Detailed Build Logic
 --------------------------------------------------------------------------------
 
   function buildResolvedCaseSheet(workbook, resolvedCases) {
@@ -253,15 +253,15 @@ column widths, borders) to match the provided template pixel-perfectly.
 
     // Set column widths
     ws.columns = [
-      { width: 8 },   // A — S.No
-      { width: 20 },  // B — Case Number
-      { width: 20 },  // C — Contact
-      { width: 50 },  // D — Subject
-      { width: 22 },  // E — Created On
-      { width: 22 },  // F — Resolved On
-      { width: 22 },  // G — Consultant Ass.
-      { width: 10 },  // H — Hours
-      { width: 5 },   // I — spacer
+      { width: 8 },   // A - S.No
+      { width: 20 },  // B - Case Number
+      { width: 20 },  // C - Contact
+      { width: 50 },  // D - Subject
+      { width: 22 },  // E - Created On
+      { width: 22 },  // F - Resolved On
+      { width: 22 },  // G - Consultant Ass.
+      { width: 10 },  // H - Hours
+      { width: 5 },   // I - spacer
     ];
 
     // Row 1: Title "RESOLVED CASE REPORT" (merged)

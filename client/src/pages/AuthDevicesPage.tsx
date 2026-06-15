@@ -196,7 +196,7 @@ const AuthDevicesPage: React.FC = () => {
             </Popconfirm>
           </Space>
         ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>-</Text>
         )
       ),
     },

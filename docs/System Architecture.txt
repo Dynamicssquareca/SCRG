@@ -1,6 +1,6 @@
 ================================================================================
               SYSTEM ARCHITECTURE DOCUMENT
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
 ================================================================================
 
 1. HIGH-LEVEL ARCHITECTURE
@@ -10,7 +10,7 @@ The system follows a classic 3-Tier Web Architecture:
 
   ┌─────────────────────────────────────────────────────────────────────┐
   │                        PRESENTATION TIER                           │
-  │                   (React.js SPA — Browser)                         │
+  │                   (React.js SPA - Browser)                         │
   │                                                                     │
   │  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌──────────────────┐  │
   │  │  Upload   │  │  Reports  │  │  Client  │  │  Login / Auth    │  │

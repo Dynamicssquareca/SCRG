@@ -3,7 +3,7 @@ import path from 'path';
 import { env } from '../config/env';
 
 // Use memory storage so that uploads work both locally and on Vercel
-// (Vercel has a read-only filesystem — disk storage would fail in production)
+// (Vercel has a read-only filesystem - disk storage would fail in production)
 const storage = multer.memoryStorage();
 
 const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {

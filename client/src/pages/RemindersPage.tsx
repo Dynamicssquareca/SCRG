@@ -271,7 +271,7 @@ const RemindersPage: React.FC = () => {
           {record.setting.reminder_days?.map((day: number) => (
             <Tag color="red" key={day}>{day} Days</Tag>
           ))}
-          {!record.setting.reminder_days?.length && <Text type="secondary">—</Text>}
+          {!record.setting.reminder_days?.length && <Text type="secondary">-</Text>}
         </Space>
       ),
     },
@@ -453,7 +453,7 @@ const RemindersPage: React.FC = () => {
               </Button>
             </Space.Compact>
             <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
-              Type any number and click Add — positive = before expiry, negative = overdue.
+              Type any number and click Add - positive = before expiry, negative = overdue.
             </Text>
           </Form.Item>
 
