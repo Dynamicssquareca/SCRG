@@ -273,7 +273,7 @@ const ClientPortalDashboard: React.FC = () => {
             </svg>
           </div>
           <div>
-            <div className="cp-header-title">Client Portal</div>
+            <div className="cp-header-title">Support Desk</div>
             <div className="cp-header-subtitle">Dynamics Square™</div>
           </div>
         </div>
@@ -299,7 +299,7 @@ const ClientPortalDashboard: React.FC = () => {
         <div className="cp-welcome-banner cp-fade-in">
           <h1 className="cp-welcome-title">{clientInfo.client_name}</h1>
           <p className="cp-welcome-sub">
-            Showing data for {selectedMonth.format('MMMM YYYY')} · Welcome back, {user?.fullName}
+            Welcome back, {user?.fullName}
           </p>
         </div>
 
@@ -326,7 +326,7 @@ const ClientPortalDashboard: React.FC = () => {
               <span className="cp-info-value">{clientInfo.customer_success_mgr || '—'}</span>
             </div>
             <div className="cp-info-row">
-              <span className="cp-info-label">Tool Version (ERP / CRM)</span>
+              <span className="cp-info-label">Solution</span>
               <span className="cp-info-value">{clientInfo.tool_version || '—'}</span>
             </div>
             <div className="cp-info-row">

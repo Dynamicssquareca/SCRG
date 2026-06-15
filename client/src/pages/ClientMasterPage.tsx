@@ -298,7 +298,7 @@ const ClientMasterPage: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="toolVersion" label="Tool Version (NAV / BC)">
+              <Form.Item name="toolVersion" label="Solution">
                 <Input />
               </Form.Item>
             </Col>

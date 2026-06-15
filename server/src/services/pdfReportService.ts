@@ -394,8 +394,13 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
 
       // Created Bar (dark blue)
       doc.rect(xCenter - barW - 4, barYCreated, barW, hCreated).fill(darkBlue);
-      // Resolved Bar (accent red)
+      // Value on top of Created Bar
+      doc.fillColor(darkBlue).fontSize(9).font('Helvetica-Bold').text(String(created), xCenter - barW - 4, barYCreated - 12, { align: 'center', width: barW });
+
+      // Resolved Bar (teal color)
       doc.rect(xCenter + 4, barYResolved, barW, hResolved).fill(tealColor);
+      // Value on top of Resolved Bar
+      doc.fillColor(tealColor).fontSize(9).font('Helvetica-Bold').text(String(resolved), xCenter + 4, barYResolved - 12, { align: 'center', width: barW });
 
       // Label under columns
       doc.fillColor('#2D3748').fontSize(9).font('Helvetica-Bold').text(label, xCenter - 60, chartY + chartH + 10, { align: 'center', width: 120 });
@@ -742,7 +747,7 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     const coverInfoRows: [string, string][] = [
       ['Account Manager',          data.clientInfo.account_manager       || '—'],
       ['Customer Success Manager', data.clientInfo.customer_success_mgr  || '—'],
-      ['Tool Version (ERP / CRM)', data.clientInfo.tool_version          || '—'],
+      ['Solution',                 data.clientInfo.tool_version          || '—'],
       ['Report Generated On',      dayjs().format('DD MMM YYYY, HH:mm')],
     ];
     let infoY = 514;
@@ -769,7 +774,7 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
       ['Client Name',              data.clientInfo.client_name],
       ['Account Manager',          data.clientInfo.account_manager         || '—'],
       ['Customer Success Manager', data.clientInfo.customer_success_mgr    || '—'],
-      ['Tool Version (ERP / CRM)', data.clientInfo.tool_version            || '—'],
+      ['Solution',                 data.clientInfo.tool_version            || '—'],
       ['Contract Start Date',      formatDate(data.clientInfo.contract_start_date)],
       ['Contract End Date',        formatDate(data.clientInfo.contract_end_date)],
     ];
