@@ -12,7 +12,7 @@ dayjs.extend(timezone);
 /** 
  * forceMode = true  → skip ALL checks (used for manual test-send from UI)
  * cronMode  = true  → skip time-window check only; keep day check + duplicate guard
- *                     (used by cron-job.org — it controls timing, app controls the day)
+ *                     (used by cron-job.org - it controls timing, app controls the day)
  * dailyMode = true  → skip time checks entirely; only keep day check + duplicate guard
  *                     (used by Vercel daily Cron Jobs)
  */
@@ -71,7 +71,7 @@ async function processReportByType(
         return;
       }
 
-      // 2. Time check — send_time stored as UTC HH:mm
+      // 2. Time check - send_time stored as UTC HH:mm
       if (!dailyMode) {
         if (cronMode) {
           // Under hourly cron triggers, check if current UTC hour matches the scheduled UTC hour

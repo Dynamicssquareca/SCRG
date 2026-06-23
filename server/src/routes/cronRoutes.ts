@@ -44,7 +44,7 @@ router.get('/reminders', async (req: Request, res: Response) => {
  * GET /cron/monthly-report
  * Called by Vercel Cron once per day.
  * processMonthlyReports() internally checks whether it's the configured
- * send_day and the right time window before dispatching — so running it
+ * send_day and the right time window before dispatching - so running it
  * daily is safe; it simply does nothing on non-trigger days.
  */
 router.get('/monthly-report', async (req: Request, res: Response) => {
@@ -53,7 +53,7 @@ router.get('/monthly-report', async (req: Request, res: Response) => {
   const expected = `Bearer ${cronSecret}`;
 
   if (cronSecret && authHeader !== expected) {
-    logger.warn('[Cron Auth] Monthly report — unauthorized call rejected.');
+    logger.warn('[Cron Auth] Monthly report - unauthorized call rejected.');
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -61,7 +61,7 @@ router.get('/monthly-report', async (req: Request, res: Response) => {
 
   try {
     logger.info(`[Vercel Cron] Running monthly report scheduler (dailyMode=${dailyMode})...`);
-    // Use require() instead of import() — ESM dynamic imports need .js extensions
+    // Use require() instead of import() - ESM dynamic imports need .js extensions
     // in compiled CJS output which Vercel doesn't handle automatically
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { processMonthlyReports } = require('../services/monthlyReportSchedulerService');

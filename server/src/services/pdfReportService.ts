@@ -272,7 +272,7 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     const drawPageFooter = (pageNum: number, totalPages: number) => {
       doc.moveTo(40, 790).lineTo(555.28, 790).strokeColor(borderGray).lineWidth(1).stroke();
       doc.fillColor('#9CA3AF').fontSize(8).font('Helvetica')
-        .text('Dynamics Square Support Report system — Confidential', 40, 800)
+        .text('Dynamics Square Support Report system - Confidential', 40, 800)
         .text(`Page ${pageNum} of ${totalPages}`, 400, 800, { align: 'right', width: 155 });
     };
 
@@ -315,14 +315,12 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     doc.rect(60, 500, 380, 70).strokeColor('#2D3748').lineWidth(1).stroke();
     
     doc.fillColor('#94A3B8').fontSize(9).font('Helvetica-Bold').text('GENERATED ON', 80, 518);
-    doc.fillColor('#FFFFFF').fontSize(11).font('Helvetica').text(dayjs().format('MMMM DD, YYYY — HH:mm'), 80, 534);
+    doc.fillColor('#FFFFFF').fontSize(11).font('Helvetica').text(dayjs().format('MMMM DD, YYYY - HH:mm'), 80, 534);
 
     // Bottom Branding
     doc.fillColor('#E2E8F0').fontSize(14).font('Helvetica-Bold')
       .text('DYNAMICS ', 60, 750, { continued: true })
       .fillColor(secondaryColor).text('SQUARE™');
-    
-    doc.fillColor('#64748B').fontSize(10).font('Helvetica').text('© 2026 MPG Business Information Systems. All rights reserved.', 60, 770);
 
     // ==========================================
     // PAGE 2: EXECUTIVE SUMMARY & CHARTS
@@ -602,7 +600,7 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CLIENT PORTAL PDF — Only client-visible data (mirrors dashboard)
+// CLIENT PORTAL PDF - Only client-visible data (mirrors dashboard)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ClientPortalPdfData {
@@ -656,7 +654,7 @@ export interface ClientPortalPdfData {
 /** Generates a branded, client-facing PDF report with only dashboard-visible data */
 export async function generateClientPortalPdf(data: ClientPortalPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    // Portrait A4, NO bufferPages — bottom margin of 20 avoids auto-pagination blank pages
+    // Portrait A4, NO bufferPages - bottom margin of 20 avoids auto-pagination blank pages
     const doc = new PDFDocument({
       size: 'A4',
       margins: { top: 40, bottom: 20, left: 40, right: 40 },
@@ -690,9 +688,9 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
 
     let pageNum = 1;
 
-    const formatDate = (d: string | null) => (d ? dayjs(d).format('DD MMM YYYY') : '—');
+    const formatDate = (d: string | null) => (d ? dayjs(d).format('DD MMM YYYY') : '-');
 
-    // ── drawHeader — portrait ──
+    // ── drawHeader - portrait ──
     const drawHeader = (title: string) => {
       doc.rect(0, 0, PW, 50).fill(ink);
       doc.fillColor('#FFFFFF').fontSize(14).font('Helvetica-Bold')
@@ -706,11 +704,11 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
       doc.moveTo(ML, 106).lineTo(PW - MR, 106).strokeColor(borderGray).lineWidth(1).stroke();
     };
 
-    // ── drawFooter — portrait inline ──
+    // ── drawFooter - portrait inline ──
     const drawFooter = () => {
       doc.moveTo(ML, footerY).lineTo(PW - MR, footerY).strokeColor(borderGray).lineWidth(0.5).stroke();
       doc.fillColor('#9CA3AF').fontSize(8).font('Helvetica')
-        .text('Dynamics Square Support Report — Confidential', ML, footerY + 6, { lineBreak: false })
+        .text('Dynamics Square Support Report - Confidential', ML, footerY + 6, { lineBreak: false })
         .text(`Page ${pageNum}`, PW - MR - 80, footerY + 6, { align: 'right', width: 80, lineBreak: false });
     };
 
@@ -742,22 +740,28 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     doc.moveTo(60, 368).lineTo(300, 368).strokeColor(red).lineWidth(4).stroke();
     doc.fillColor('#E2E8F0').fontSize(20).font('Helvetica-Bold').text(data.clientInfo.client_name, 60, 398);
     doc.fillColor('#94A3B8').fontSize(14).font('Helvetica').text(`${data.monthName} ${data.year}`, 60, 428);
-    doc.rect(60, 498, 430, 116).fill('#1A202C');
-    doc.rect(60, 498, 430, 116).strokeColor('#2D3748').lineWidth(1).stroke();
-    const coverInfoRows: [string, string][] = [
-      ['Account Manager',          data.clientInfo.account_manager       || '—'],
-      ['Customer Success Manager', data.clientInfo.customer_success_mgr  || '—'],
-      ['Solution',                 data.clientInfo.tool_version          || '—'],
-      ['Report Generated On',      dayjs().format('DD MMM YYYY, HH:mm')],
-    ];
+    const coverInfoRows: [string, string][] = [];
+    if (data.clientInfo.account_manager) {
+      coverInfoRows.push(['Account Manager', data.clientInfo.account_manager]);
+    }
+    if (data.clientInfo.customer_success_mgr) {
+      coverInfoRows.push(['Customer Success Manager', data.clientInfo.customer_success_mgr]);
+    }
+    if (data.clientInfo.tool_version) {
+      coverInfoRows.push(['Solution', data.clientInfo.tool_version]);
+    }
+    coverInfoRows.push(['Report Generated On', dayjs().format('DD MMM YYYY, HH:mm')]);
+
+    const cardHeight = 28 + coverInfoRows.length * 22;
+    doc.rect(60, 498, 430, cardHeight).fill('#1A202C');
+    doc.rect(60, 498, 430, cardHeight).strokeColor('#2D3748').lineWidth(1).stroke();
+
     let infoY = 514;
     coverInfoRows.forEach(([label, value]) => {
       doc.fillColor('#94A3B8').fontSize(8).font('Helvetica-Bold').text(label, 80, infoY);
       doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica').text(value, 272, infoY, { width: 200 });
       infoY += 22;
     });
-    doc.fillColor('#64748B').fontSize(10).font('Helvetica')
-      .text('© 2026 MPG Business Information Systems. All rights reserved.', 60, 770);
     // No footer on cover page
 
     // ══════════════════════════════════════════════════════════════════════
@@ -770,14 +774,25 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     doc.rect(ML, y, tableW, 22).fill(deepBlue);
     doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold').text('ACCOUNT DETAILS', ML + 10, y + 7);
     y += 22;
-    const accountRows: [string, string][] = [
-      ['Client Name',              data.clientInfo.client_name],
-      ['Account Manager',          data.clientInfo.account_manager         || '—'],
-      ['Customer Success Manager', data.clientInfo.customer_success_mgr    || '—'],
-      ['Solution',                 data.clientInfo.tool_version            || '—'],
-      ['Contract Start Date',      formatDate(data.clientInfo.contract_start_date)],
-      ['Contract End Date',        formatDate(data.clientInfo.contract_end_date)],
-    ];
+    const accountRows: [string, string][] = [];
+    if (data.clientInfo.client_name) {
+      accountRows.push(['Client Name', data.clientInfo.client_name]);
+    }
+    if (data.clientInfo.account_manager) {
+      accountRows.push(['Account Manager', data.clientInfo.account_manager]);
+    }
+    if (data.clientInfo.customer_success_mgr) {
+      accountRows.push(['Customer Success Manager', data.clientInfo.customer_success_mgr]);
+    }
+    if (data.clientInfo.tool_version) {
+      accountRows.push(['Solution', data.clientInfo.tool_version]);
+    }
+    if (data.clientInfo.contract_start_date) {
+      accountRows.push(['Contract Start Date', formatDate(data.clientInfo.contract_start_date)]);
+    }
+    if (data.clientInfo.contract_end_date) {
+      accountRows.push(['Contract End Date', formatDate(data.clientInfo.contract_end_date)]);
+    }
     let zebra = false;
     accountRows.forEach(([label, value]) => {
       if (zebra) doc.rect(ML, y, tableW, 20).fill(lightBg);
@@ -835,7 +850,7 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     drawFooter();
 
     // ══════════════════════════════════════════════════════════════════════
-    // PAGE 3: OPEN TICKETS  (Portrait — dynamic row height via heightOfString)
+    // PAGE 3: OPEN TICKETS  (Portrait - dynamic row height via heightOfString)
     // ══════════════════════════════════════════════════════════════════════
     // Portrait column layout (x: 44..555, available 511px):
     // # | CaseNo | Contact | Subject(wide) | Created | Hrs | Status
@@ -875,13 +890,13 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
         .text('No open tickets for this period.', ML, tblY + 9, { align: 'center', width: tableW });
     } else {
       data.openCases.forEach((c) => {
-        const subjectText = c.subject || '—';
+        const subjectText = c.subject || '-';
 
         // ── Measure actual rendered height before drawing ──
         doc.fontSize(7.5).font('Helvetica');
         const subjectH = doc.heightOfString(subjectText, { width: openCols.subject.w });
-        const statusH = doc.heightOfString(c.status || '—', { width: openCols.status.w });
-        const contactH = doc.heightOfString(c.contact || '—', { width: openCols.contact.w });
+        const statusH = doc.heightOfString(c.status || '-', { width: openCols.status.w });
+        const contactH = doc.heightOfString(c.contact || '-', { width: openCols.contact.w });
         const maxTextH = Math.max(subjectH, statusH, contactH);
         const rowH = Math.max(MIN_ROW_H, Math.ceil(maxTextH) + CELL_PAD_V);
 
@@ -902,14 +917,14 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
         doc.fillColor(textGray).fontSize(7.5).font('Helvetica')
           .text(String(c.sno),             openCols.sno.x,     midY, { width: openCols.sno.w,     align: 'center', lineBreak: false });
         doc.fillColor('#1A202C').font('Helvetica-Bold')
-          .text(c.case_number || '—',      openCols.caseNo.x,  midY, { width: openCols.caseNo.w,  lineBreak: false });
+          .text(c.case_number || '-',      openCols.caseNo.x,  midY, { width: openCols.caseNo.w,  lineBreak: false });
         doc.fillColor(textGray).font('Helvetica')
-          .text(c.contact || '—',          openCols.contact.x, midY, { width: openCols.contact.w, lineBreak: false, ellipsis: true })
+          .text(c.contact || '-',          openCols.contact.x, midY, { width: openCols.contact.w, lineBreak: false, ellipsis: true })
           .text(formatDate(c.created_on),  openCols.created.x, midY, { width: openCols.created.w, align: 'center', lineBreak: false })
           .text((c.hours || 0).toFixed(2), openCols.hrs.x,     midY, { width: openCols.hrs.w,     align: 'center', lineBreak: false })
-          .text(c.status || '—',           openCols.status.x,  midY, { width: openCols.status.w,  align: 'center', lineBreak: false, ellipsis: true });
+          .text(c.status || '-',           openCols.status.x,  midY, { width: openCols.status.w,  align: 'center', lineBreak: false, ellipsis: true });
 
-        // Draw subject LAST (may wrap — drawn at top of cell, not centered)
+        // Draw subject LAST (may wrap - drawn at top of cell, not centered)
         doc.fillColor(ink).fontSize(7.5).font('Helvetica')
           .text(subjectText, openCols.subject.x, tblY + CELL_PAD_V / 2,
                 { width: openCols.subject.w, lineBreak: true });
@@ -922,7 +937,7 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     drawFooter();
 
     // ══════════════════════════════════════════════════════════════════════
-    // PAGE 4: RESOLVED TICKETS  (Portrait — dynamic row height)
+    // PAGE 4: RESOLVED TICKETS  (Portrait - dynamic row height)
     // ══════════════════════════════════════════════════════════════════════
     // #(16) | CaseNo(86) | Contact(62) | Subject(162) | Created(60) | Resolved(60) | Hrs(28)
     const resolvedCols = {
@@ -959,12 +974,12 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
         .text('No resolved tickets for this period.', ML, tblY + 9, { align: 'center', width: tableW });
     } else {
       data.resolvedCases.forEach((c) => {
-        const subjectText = c.subject || '—';
+        const subjectText = c.subject || '-';
 
         // ── Measure actual height ──
         doc.fontSize(7.5).font('Helvetica');
         const subjectH = doc.heightOfString(subjectText, { width: resolvedCols.subject.w });
-        const contactH = doc.heightOfString(c.contact || '—', { width: resolvedCols.contact.w });
+        const contactH = doc.heightOfString(c.contact || '-', { width: resolvedCols.contact.w });
         const maxTextH = Math.max(subjectH, contactH);
         const rowH = Math.max(MIN_ROW_H, Math.ceil(maxTextH) + CELL_PAD_V);
 
@@ -982,14 +997,14 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
         doc.fillColor(textGray).fontSize(7.5).font('Helvetica')
           .text(String(c.sno),              resolvedCols.sno.x,      midY, { width: resolvedCols.sno.w,      align: 'center', lineBreak: false });
         doc.fillColor('#1A202C').font('Helvetica-Bold')
-          .text(c.case_number || '—',       resolvedCols.caseNo.x,   midY, { width: resolvedCols.caseNo.w,   lineBreak: false });
+          .text(c.case_number || '-',       resolvedCols.caseNo.x,   midY, { width: resolvedCols.caseNo.w,   lineBreak: false });
         doc.fillColor(textGray).font('Helvetica')
-          .text(c.contact || '—',           resolvedCols.contact.x,  midY, { width: resolvedCols.contact.w,  lineBreak: false, ellipsis: true })
+          .text(c.contact || '-',           resolvedCols.contact.x,  midY, { width: resolvedCols.contact.w,  lineBreak: false, ellipsis: true })
           .text(formatDate(c.created_on),   resolvedCols.created.x,  midY, { width: resolvedCols.created.w,  align: 'center', lineBreak: false })
           .text(formatDate(c.resolved_on),  resolvedCols.resolved.x, midY, { width: resolvedCols.resolved.w, align: 'center', lineBreak: false })
           .text((c.hours || 0).toFixed(2),  resolvedCols.hrs.x,      midY, { width: resolvedCols.hrs.w,      align: 'center', lineBreak: false });
 
-        // Subject last — wraps cleanly within its column
+        // Subject last - wraps cleanly within its column
         doc.fillColor(ink).fontSize(7.5).font('Helvetica')
           .text(subjectText, resolvedCols.subject.x, tblY + CELL_PAD_V / 2,
                 { width: resolvedCols.subject.w, lineBreak: true });

@@ -1,6 +1,6 @@
 ================================================================================
            PRODUCT REQUIREMENT DOCUMENT (PRD)
-           Support Case Report Generator — v1.0
+           Support Case Report Generator - v1.0
 ================================================================================
 
 1. PRODUCT OVERVIEW
@@ -14,7 +14,7 @@ The Support Case Report Generator is a web application that automates the
 generation of monthly client support reports. Users upload a raw data sheet
 (Excel/CSV) containing all support cases, and the system processes the data,
 splits it by client (Customer Account), and produces downloadable Excel reports
-per client in a fixed branded template — each containing three sheets:
+per client in a fixed branded template - each containing three sheets:
 Overview, Open Case Report, and Resolved Case Report.
 
 2. PROBLEM STATEMENT
@@ -57,7 +57,7 @@ The uploaded Excel/CSV must contain the following columns:
 
 The generated Excel file for each client has 3 sheets:
 
-SHEET 1 — "Overview"
+SHEET 1 - "Overview"
   Section A: Account Details (Column A-B)
     Row 1 : Header "Account Details"
     Row 2 : Client Name                      → Populated from uploaded data
@@ -86,13 +86,13 @@ SHEET 1 — "Overview"
 
   Feedback link placeholder at bottom right area.
 
-SHEET 2 — "OPEN CASE REPORT"
+SHEET 2 - "OPEN CASE REPORT"
   Columns: S.No | Case Number | Contact | Subject | Created On | Hours |
            Consultant Ass. | Status
   Data   : All cases for this client where Status Reason ≠ "Resolved" in the
            selected month's data.
 
-SHEET 3 — "RESOLVED CASE REPORT"
+SHEET 3 - "RESOLVED CASE REPORT"
   Columns: S.No | Case Number | Contact | Subject | Created On | Resolved On |
            Consultant Ass. | Hours
   Data   : All cases for this client where Status Reason = "Resolved"
@@ -120,8 +120,8 @@ FR-04  Report Generation (Batch)
 
 FR-05  Report Listing Page
        A dedicated page lists all generated reports, filterable by:
-       — Month/Year
-       — Client Name
+       - Month/Year
+       - Client Name
        Each row shows: Client Name | Month | Generated On | Download button
 
 FR-06  Individual Download
@@ -133,23 +133,23 @@ FR-07  Bulk Download (optional)
 
 FR-08  Client Master Management
        Admin can add/edit client master records with:
-       — Client Name (must match the "Customer Name" in uploaded data)
-       — Account Manager
-       — Customer Success Manager
-       — Tool Version (ERP / CRM)
-       — Contract Start Date & End Date
-       — Total Contracted Hours
-       — Previous Balance Hours (or auto-calculated from prior month)
+       - Client Name (must match the "Customer Name" in uploaded data)
+       - Account Manager
+       - Customer Success Manager
+       - Tool Version (ERP / CRM)
+       - Contract Start Date & End Date
+       - Total Contracted Hours
+       - Previous Balance Hours (or auto-calculated from prior month)
 
 FR-09  Report History
        All generated reports are stored persistently and can be re-downloaded
        at any time from the Reports listing page.
 
 FR-10  Data Validation & Error Handling
-       — Missing columns → clear error with column names
-       — Empty rows → skipped with warning
-       — Invalid date formats → flagged per row
-       — Duplicate case numbers → flagged with warning
+       - Missing columns → clear error with column names
+       - Empty rows → skipped with warning
+       - Invalid date formats → flagged per row
+       - Duplicate case numbers → flagged with warning
 
 7. NON-FUNCTIONAL REQUIREMENTS
 --------------------------------------------------------------------------------

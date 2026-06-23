@@ -89,7 +89,7 @@ export async function getBalanceGrid() {
 /**
  * Returns a usage grid for a specific month/year.
  * If no month/year provided, defaults to the most recent month that has any reports.
- * Reads ALL reports (is_sync_report is irrelevant — the data comes from actual case uploads).
+ * Reads ALL reports (is_sync_report is irrelevant - the data comes from actual case uploads).
  */
 export async function getUsageGrid(month?: number, year?: number) {
   const clients = await Client.find({ is_active: true }).sort({ client_name: 1 });

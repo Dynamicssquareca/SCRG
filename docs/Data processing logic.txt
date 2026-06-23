@@ -1,6 +1,6 @@
 ================================================================================
                   DATA PROCESSING LOGIC DOCUMENT
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
 ================================================================================
 
 1. OVERVIEW

@@ -123,7 +123,7 @@ const DashboardPage: React.FC = () => {
   }, [centerData, longOpenSort]);
 
   const formatDate = (iso: string | null): string => {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return dayjs(iso).format('DD MMM YYYY, HH:mm');
   };
 
@@ -299,7 +299,7 @@ const DashboardPage: React.FC = () => {
         title: 'Client Name',
         dataIndex: ['client_id', 'client_name'],
         key: 'client_name',
-        render: (text: string) => <Text strong>{text || '—'}</Text>
+        render: (text: string) => <Text strong>{text || '-'}</Text>
       },
       {
         title: 'Ticket Number',
@@ -330,7 +330,7 @@ const DashboardPage: React.FC = () => {
         key: 'sent_by',
         render: (text: string, record: any) => (
           <div>
-            <div style={{ fontWeight: 500 }}>{text || '—'}</div>
+            <div style={{ fontWeight: 500 }}>{text || '-'}</div>
             <div style={{ fontSize: 11, color: '#9CA3AF' }}>{record.client_user_id?.email || ''}</div>
           </div>
         )
@@ -572,7 +572,7 @@ const DashboardPage: React.FC = () => {
 
       {/* ── Lower Section ─────────────────────── */}
       <Row gutter={[16, 16]}>
-        {/* Left column — Consultant Workload */}
+        {/* Left column - Consultant Workload */}
         <Col xs={24} lg={16}>
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32, duration: 0.4 }}>
             <Card
@@ -646,7 +646,7 @@ const DashboardPage: React.FC = () => {
           )}
         </Col>
 
-        {/* Right column — Notification Center */}
+        {/* Right column - Notification Center */}
         <Col xs={24} lg={8}>
           <motion.div
             initial={{ opacity: 0, x: 16 }}
@@ -934,7 +934,7 @@ const DashboardPage: React.FC = () => {
                                           <div style={{ marginTop: 2 }}>
                                             <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
                                               <span style={{ fontWeight: 600 }}>{item.customer_name}</span>
-                                              {item.case_title && ` — ${item.case_title}`}
+                                              {item.case_title && ` - ${item.case_title}`}
                                             </Text>
                                             {item.support_agent && (
                                               <Text type="secondary" style={{ fontSize: 11, marginTop: 2, display: 'block' }}>

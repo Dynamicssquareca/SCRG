@@ -1,6 +1,6 @@
 ================================================================================
                        API DESIGN DOCUMENT
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
               Base URL: /api/v1
 ================================================================================
 
@@ -30,8 +30,8 @@ POST /api/v1/auth/login
       }
     }
   Errors:
-    401 — Invalid credentials
-    422 — Validation error (missing email/password)
+    401 - Invalid credentials
+    422 - Validation error (missing email/password)
 
 POST /api/v1/auth/refresh
   Description : Refresh access token using refresh token
@@ -48,7 +48,7 @@ POST /api/v1/auth/refresh
       }
     }
   Errors:
-    401 — Invalid or expired refresh token
+    401 - Invalid or expired refresh token
 
 POST /api/v1/auth/logout
   Description : Invalidate refresh token
@@ -65,9 +65,9 @@ POST /api/v1/uploads
   Auth        : Bearer Token (admin, operator)
   Content-Type: multipart/form-data
   Form Fields :
-    file   — The Excel/CSV file (max 50MB)
-    month  — Target month (1-12)
-    year   — Target year (e.g. 2026)
+    file   - The Excel/CSV file (max 50MB)
+    month  - Target month (1-12)
+    year   - Target year (e.g. 2026)
   Success (201):
     {
       "success": true,
@@ -84,20 +84,20 @@ POST /api/v1/uploads
       }
     }
   Errors:
-    400 — Invalid file type / missing month/year
-    400 — Column schema mismatch (lists missing columns)
-    413 — File too large (>50MB)
-    500 — Processing error
+    400 - Invalid file type / missing month/year
+    400 - Column schema mismatch (lists missing columns)
+    413 - File too large (>50MB)
+    500 - Processing error
 
 GET /api/v1/uploads
   Description : List all uploads with pagination
   Auth        : Bearer Token
   Query Params:
-    page      — Page number (default: 1)
-    limit     — Items per page (default: 20)
-    month     — Filter by month
-    year      — Filter by year
-    status    — Filter by status (processing/completed/failed)
+    page      - Page number (default: 1)
+    limit     - Items per page (default: 20)
+    month     - Filter by month
+    year      - Filter by year
+    status    - Filter by status (processing/completed/failed)
   Success (200):
     {
       "success": true,
@@ -130,7 +130,7 @@ GET /api/v1/uploads/:id
       }
     }
   Errors:
-    404 — Upload not found
+    404 - Upload not found
 
 
 3. REPORT GENERATION APIs
@@ -169,22 +169,22 @@ POST /api/v1/reports/generate
       }
     }
   Errors:
-    400 — Invalid uploadId / month / year
-    404 — Upload not found
-    409 — Reports already generated for this month (use overwrite flag)
+    400 - Invalid uploadId / month / year
+    404 - Upload not found
+    409 - Reports already generated for this month (use overwrite flag)
 
 GET /api/v1/reports
   Description : List all generated reports with filters
   Auth        : Bearer Token
   Query Params:
-    month      — Filter by month (1-12)
-    year       — Filter by year
-    clientId   — Filter by specific client
-    clientName — Search by client name (partial match)
-    page       — Page number (default: 1)
-    limit      — Items per page (default: 20)
-    sortBy     — Sort field (default: generated_at)
-    sortOrder  — asc / desc (default: desc)
+    month      - Filter by month (1-12)
+    year       - Filter by year
+    clientId   - Filter by specific client
+    clientName - Search by client name (partial match)
+    page       - Page number (default: 1)
+    limit      - Items per page (default: 20)
+    sortBy     - Sort field (default: generated_at)
+    sortOrder  - asc / desc (default: desc)
   Success (200):
     {
       "success": true,
@@ -215,20 +215,20 @@ GET /api/v1/reports/:id/download
     Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
     Content-Disposition: attachment; filename="ClientA_Support_Report_Jan2026.xlsx"
   Errors:
-    404 — Report not found
+    404 - Report not found
 
 GET /api/v1/reports/download-all
   Description : Download all reports for a month as ZIP
   Auth        : Bearer Token
   Query Params:
-    month — Month (1-12)
-    year  — Year
+    month - Month (1-12)
+    year  - Year
   Response    : Binary file stream (.zip)
   Headers     :
     Content-Type: application/zip
     Content-Disposition: attachment; filename="Reports_Jan2026.zip"
   Errors:
-    404 — No reports found for this month
+    404 - No reports found for this month
 
 
 4. CLIENT MASTER APIs
@@ -238,10 +238,10 @@ GET /api/v1/clients
   Description : List all client master records
   Auth        : Bearer Token
   Query Params:
-    search    — Search by client name (partial)
-    isActive  — Filter active/inactive (default: true)
-    page      — Page number
-    limit     — Items per page
+    search    - Search by client name (partial)
+    isActive  - Filter active/inactive (default: true)
+    page      - Page number
+    limit     - Items per page
   Success (200):
     {
       "success": true,
@@ -282,8 +282,8 @@ POST /api/v1/clients
   Success (201):
     { "success": true, "data": { "id": 5, ... } }
   Errors:
-    409 — Client name already exists
-    422 — Validation error
+    409 - Client name already exists
+    422 - Validation error
 
 PUT /api/v1/clients/:id
   Description : Update a client master record
@@ -296,8 +296,8 @@ PUT /api/v1/clients/:id
   Success (200):
     { "success": true, "data": { ...updated client... } }
   Errors:
-    404 — Client not found
-    422 — Validation error
+    404 - Client not found
+    422 - Validation error
 
 GET /api/v1/clients/:id
   Description : Get single client details
@@ -319,8 +319,8 @@ GET /api/v1/dashboard/stats
   Description : Get summary stats for the dashboard
   Auth        : Bearer Token
   Query Params:
-    month — Month
-    year  — Year
+    month - Month
+    year  - Year
   Success (200):
     {
       "success": true,
@@ -350,13 +350,13 @@ All error responses follow this format:
   }
 
 Error Codes:
-  VALIDATION_ERROR       — 400/422
-  UNAUTHORIZED           — 401
-  FORBIDDEN              — 403
-  NOT_FOUND              — 404
-  CONFLICT               — 409
-  FILE_TOO_LARGE         — 413
-  INTERNAL_ERROR         — 500
+  VALIDATION_ERROR       - 400/422
+  UNAUTHORIZED           - 401
+  FORBIDDEN              - 403
+  NOT_FOUND              - 404
+  CONFLICT               - 409
+  FILE_TOO_LARGE         - 413
+  INTERNAL_ERROR         - 500
 
 
 7. RATE LIMITING

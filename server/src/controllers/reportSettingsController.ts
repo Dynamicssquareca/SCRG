@@ -7,7 +7,7 @@ import { User } from '../models/User';
 import { ReminderSetting } from '../models/ReminderSetting';
 import dayjs from 'dayjs';
 
-/** GET /dashboard/report/recipient-suggestions — Fetches previously used/registered email addresses */
+/** GET /dashboard/report/recipient-suggestions - Fetches previously used/registered email addresses */
 export async function getRecipientSuggestions(req: Request, res: Response, next: NextFunction) {
   try {
     const emailSet = new Set<string>();
@@ -56,7 +56,7 @@ export async function getRecipientSuggestions(req: Request, res: Response, next:
   }
 }
 
-/** POST /dashboard/report/recipient-suggestions/remove — Removes an email suggestion from all settings records */
+/** POST /dashboard/report/recipient-suggestions/remove - Removes an email suggestion from all settings records */
 export async function removeRecipientSuggestion(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body;
@@ -95,7 +95,7 @@ export async function removeRecipientSuggestion(req: Request, res: Response, nex
   }
 }
 
-/** GET /dashboard/report/settings — Fetch report scheduler settings for both monthly & bi-weekly */
+/** GET /dashboard/report/settings - Fetch report scheduler settings for both monthly & bi-weekly */
 export async function getReportSettings(req: Request, res: Response, next: NextFunction) {
   try {
     let monthly = await MonthlyReportSetting.findOne({ report_type: 'monthly' });
@@ -132,7 +132,7 @@ export async function getReportSettings(req: Request, res: Response, next: NextF
   }
 }
 
-/** POST /dashboard/report/settings — Save/update report scheduler settings */
+/** POST /dashboard/report/settings - Save/update report scheduler settings */
 export async function saveReportSettings(req: Request, res: Response, next: NextFunction) {
   try {
     const { report_type, is_enabled, recipient_emails, cc_emails, send_day, send_time, send_timezone } = req.body;
@@ -157,7 +157,7 @@ export async function saveReportSettings(req: Request, res: Response, next: Next
   }
 }
 
-/** GET /dashboard/report/preview — Generates and streams/downloads the PDF preview */
+/** GET /dashboard/report/preview - Generates and streams/downloads the PDF preview */
 export async function getReportPreview(req: Request, res: Response, next: NextFunction) {
   try {
     const now = new Date();
@@ -183,7 +183,7 @@ export async function getReportPreview(req: Request, res: Response, next: NextFu
   }
 }
 
-/** POST /dashboard/report/test-send — Generates the PDF for selected month and emails it immediately */
+/** POST /dashboard/report/test-send - Generates the PDF for selected month and emails it immediately */
 export async function testSendReport(req: Request, res: Response, next: NextFunction) {
   try {
     const { recipient_emails, cc_emails, month, year, report_type } = req.body;

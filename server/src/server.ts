@@ -19,7 +19,7 @@ async function start() {
     await connectDB();
     logger.info('Database connected successfully');
 
-    // Upsert admin user — always sync credentials from code to DB on startup
+    // Upsert admin user - always sync credentials from code to DB on startup
     // Must hash manually since findOneAndUpdate bypasses Mongoose pre-save hooks
     const ADMIN_PASSWORD = 'Admin-ds@2026';
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12);

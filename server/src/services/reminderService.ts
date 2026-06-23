@@ -125,7 +125,7 @@ export async function processReminders(dailyMode: boolean = false) {
         continue;
       }
 
-      // Calculate days remaining (UTC date diff — no timezone ambiguity)
+      // Calculate days remaining (UTC date diff - no timezone ambiguity)
       const endDateStr = client.contract_end_date.toISOString().substring(0, 10);
       const endDateUtc = dayjs.utc(endDateStr).startOf('day');
       const daysRemaining = endDateUtc.diff(todayUtc, 'days');

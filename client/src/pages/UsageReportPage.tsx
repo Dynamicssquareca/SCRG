@@ -52,7 +52,7 @@ const UsageReportPage: React.FC = () => {
     }
   }, []);
 
-  // On mount — fetch with defaults, but backend will return latest available if no data for current month
+  // On mount - fetch with defaults, but backend will return latest available if no data for current month
   useEffect(() => {
     fetchData(selectedMonth, selectedYear);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,7 +75,7 @@ const UsageReportPage: React.FC = () => {
 
   // Build the table column for the selected month
   const activeMonthKey = usageGrid.months?.[0];
-  const activeLabel    = activeMonthKey ? dayjs(activeMonthKey).format('MMMM YYYY') : '—';
+  const activeLabel    = activeMonthKey ? dayjs(activeMonthKey).format('MMMM YYYY') : '-';
 
   const totalHours   = usageGrid.gridData.reduce((acc: number, r: any) => acc + (r[activeMonthKey] || 0), 0);
   const activeClients = usageGrid.gridData.filter((r: any) => (r[activeMonthKey] || 0) > 0).length;
@@ -138,7 +138,7 @@ const UsageReportPage: React.FC = () => {
           Usage Report
         </h1>
         <Text type="secondary" style={{ fontSize: 13 }}>
-          Billable hours consumed per client — select a month to view
+          Billable hours consumed per client - select a month to view
         </Text>
       </motion.div>
 
@@ -214,10 +214,10 @@ const UsageReportPage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <Text style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.7px', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 8 }}>
-                    Total Hours — {activeLabel}
+                    Total Hours - {activeLabel}
                   </Text>
                   <div style={{ fontSize: 32, fontWeight: 800, color: '#0F1117', lineHeight: 1 }}>
-                    {loading ? '—' : totalHours.toFixed(2)}{' '}
+                    {loading ? '-' : totalHours.toFixed(2)}{' '}
                     <span style={{ fontSize: 14, fontWeight: 500, color: '#6B7280' }}>hrs</span>
                   </div>
                 </div>
@@ -242,7 +242,7 @@ const UsageReportPage: React.FC = () => {
                     Clients with Usage
                   </Text>
                   <div style={{ fontSize: 32, fontWeight: 800, color: '#0F1117', lineHeight: 1 }}>
-                    {loading ? '—' : activeClients}
+                    {loading ? '-' : activeClients}
                   </div>
                 </div>
                 <div style={{ width: 50, height: 50, borderRadius: 14, background: 'rgba(37,99,235,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#2563EB' }}>
@@ -264,7 +264,7 @@ const UsageReportPage: React.FC = () => {
           title={
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: '#E8363D' }} />
-              Hours Consumed — {activeLabel}
+              Hours Consumed - {activeLabel}
             </div>
           }
           styles={{ body: { padding: 0 } }}

@@ -165,7 +165,7 @@ export async function processFile(
   syncClientMaster: boolean = false
 ): Promise<{ rowCount: number; clientsDetected: string[]; warnings: string[] }> {
   const warnings: string[] = [];
-  // Read from buffer instead of disk — works on Vercel and locally
+  // Read from buffer instead of disk - works on Vercel and locally
   const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
 
   const clientMap: Record<string, string> = {}; // Name to ID

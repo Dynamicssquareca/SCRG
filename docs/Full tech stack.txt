@@ -1,6 +1,6 @@
 ================================================================================
                     FULL TECHNOLOGY STACK
-              Support Case Report Generator — v1.0
+              Support Case Report Generator - v1.0
 ================================================================================
 
 1. FRONTEND (Presentation Tier)
@@ -12,16 +12,16 @@ Framework           React.js            18.x      Single Page Application (SPA)
 Build Tool          Vite                5.x       Fast dev server & production build
 Language            TypeScript          5.x       Type safety & developer experience
 Routing             React Router        6.x       Client-side page navigation
-State Management    React Context +     —         Lightweight state (no Redux needed)
+State Management    React Context +     -         Lightweight state (no Redux needed)
                     useState/useReducer
 HTTP Client         Axios               1.x       API calls to backend
 UI Component Lib    Ant Design (antd)   5.x       Professional tables, forms, modals,
                                                    date pickers, upload components
 Icons               Ant Design Icons    5.x       Consistent icon set
-Notifications       Ant Design Message  —         Toast notifications for success/err
+Notifications       Ant Design Message  -         Toast notifications for success/err
 Date Handling       Day.js              1.x       Lightweight date parsing & format
 File Download       file-saver          2.x       Trigger browser file downloads
-Styling             CSS Modules or      —         Scoped component styles
+Styling             CSS Modules or      -         Scoped component styles
                     Styled Components
 
 
@@ -58,8 +58,8 @@ File Archiving      archiver            6.x       ZIP multiple reports for bulk 
 Category            Technology          Version   Purpose
 ------------------  ------------------  --------  ----------------------------------
 RDBMS               PostgreSQL          16.x      Primary relational database
-Migration Tool      Knex.js migrations  —         Schema versioning & migrations
-Seeding             Knex.js seeds       —         Initial data (admin user, etc.)
+Migration Tool      Knex.js migrations  -         Schema versioning & migrations
+Seeding             Knex.js seeds       -         Initial data (admin user, etc.)
 Connection Pool     pg + pg-pool        8.x       Efficient DB connection pooling
 
 Why PostgreSQL?
@@ -75,12 +75,12 @@ Why PostgreSQL?
 Category            Technology          Version   Purpose
 ------------------  ------------------  --------  ----------------------------------
 Version Control     Git                 2.x       Source code management
-Repository          GitHub / GitLab     —         Remote repo hosting
+Repository          GitHub / GitLab     -         Remote repo hosting
 Reverse Proxy       Nginx               1.24+     SSL termination, static serving
-SSL Certificate     Let's Encrypt       —         Free HTTPS certificates
-CI/CD (optional)    GitHub Actions      —         Automated build, test, deploy
+SSL Certificate     Let's Encrypt       -         Free HTTPS certificates
+CI/CD (optional)    GitHub Actions      -         Automated build, test, deploy
 Containerization    Docker (optional)   24.x      Reproducible deployments
-Hosting             VPS (DigitalOcean,  —         Single-server deployment for v1
+Hosting             VPS (DigitalOcean,  -         Single-server deployment for v1
                     AWS EC2, or Azure)
 
 
@@ -93,7 +93,7 @@ Unit Testing        Jest                29.x      Backend service unit tests
 API Testing         Supertest           6.x       HTTP endpoint integration tests
 Frontend Testing    React Testing Lib   14.x      Component unit tests
 E2E Testing         Playwright          1.x       End-to-end browser tests (optional)
-API Manual Testing  Postman             —         Manual API exploration & testing
+API Manual Testing  Postman             -         Manual API exploration & testing
 
 
 6. PROJECT STRUCTURE (Monorepo)
