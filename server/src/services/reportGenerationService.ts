@@ -411,7 +411,7 @@ export async function generateAllReports(uploadId: string, month: number, year: 
 
       // Create workbook
       const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'MPG Support Report Generator';
+      workbook.creator = 'Dynamics Square';
       workbook.created = new Date();
 
       // Build sheets
