@@ -81,8 +81,6 @@ interface ClientReportData {
     totalOpened: number;
     totalClosed: number;
     pending: number;
-    reopened: number;
-    highPriority: number;
   };
   hoursDetails: {
     totalContracted: number;
@@ -154,8 +152,6 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
   const totalOpened = casesCreatedThisMonth.length;
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
-  const reopened = relevantCases.filter((c: any) => String(c.status_reason).toLowerCase().trim() === 'reopened').length;
-  const highPriority = relevantCases.filter((c: any) => String(c.priority).toLowerCase().includes('high')).length;
 
   const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
   const hoursOnOpen = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
@@ -177,7 +173,7 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
     clientInfo,
     openCases,
     resolvedCases,
-    summary: { totalOpened, totalClosed, pending, reopened, highPriority },
+    summary: { totalOpened, totalClosed, pending },
     hoursDetails: { totalContracted, previousBalance, hoursConsumed, hoursOnOpen, currentBalance },
   };
 }
@@ -264,8 +260,6 @@ function buildOverviewSheet(workbook: ExcelJS.Workbook, data: ClientReportData) 
     ['Total Tickets Opened', data.summary.totalOpened],
     ['Total Tickets Closed', data.summary.totalClosed],
     ['Tickets Pending', data.summary.pending],
-    ['Reopened Tickets', data.summary.reopened],
-    ['High Priority Tickets', data.summary.highPriority],
   ];
 
   summaryLabels.forEach(([label, value], i) => {
