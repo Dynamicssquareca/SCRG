@@ -415,7 +415,7 @@ column widths, borders) to match the provided template pixel-perfectly.
 
         // 4. Create workbook
         const workbook = new ExcelJS.Workbook();
-        workbook.creator = 'MPG Support Report Generator';
+        workbook.creator = 'Dynamics Square';
         workbook.created = new Date();
 
         // 5. Build all 3 sheets

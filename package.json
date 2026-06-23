@@ -1,7 +1,7 @@
 {
   "name": "support-case-report-generator",
   "version": "1.0.0",
-  "description": "Support Case Report Generator - MPG Business Information Systems",
+  "description": "Support Case Report Generator - Dynamics Square",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",

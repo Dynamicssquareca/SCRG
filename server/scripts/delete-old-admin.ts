@@ -12,7 +12,7 @@ async function deleteOldAdmin() {
   console.log('Connected to MongoDB');
 
   const result = await mongoose.connection.collection('users').deleteMany({
-    email: { $in: ['admin@mpg.in'] },
+    email: { $in: ['admin@dynamicssquare.in'] },
   });
 
   console.log(`Deleted ${result.deletedCount} old admin user(s)`);

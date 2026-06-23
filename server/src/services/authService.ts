@@ -51,10 +51,10 @@ export async function verifyTOTPSetup(userId: string, code: string) {
   if (!isValid) throw new UnauthorizedError('Invalid verification code');
 
   const recoveryCode = crypto.randomBytes(10).toString('hex');
-  
-  await User.findByIdAndUpdate(userId, { 
-    totp_enabled: true, 
-    totp_recovery_code: recoveryCode 
+
+  await User.findByIdAndUpdate(userId, {
+    totp_enabled: true,
+    totp_recovery_code: recoveryCode
   });
 
   return { recoveryCode };
@@ -123,7 +123,7 @@ export async function revealQRWithPasscode(email: string, passcode: string) {
 export async function getUserQRCode(userId: string) {
   const user = await User.findById(userId);
   if (!user) throw new UnauthorizedError('User not found');
-  
+
   if (!user.totp_enabled || !user.totp_secret) {
     throw new ValidationError('2FA is not enabled for this user');
   }

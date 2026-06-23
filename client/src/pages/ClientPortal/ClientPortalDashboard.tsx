@@ -64,6 +64,12 @@ const ClientPortalDashboard: React.FC = () => {
   const [successAgent, setSuccessAgent] = useState('');
   const [successCaseNumber, setSuccessCaseNumber] = useState('');
 
+  // Details Modal state
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [detailsModalTitle, setDetailsModalTitle] = useState('');
+  const [detailsModalData, setDetailsModalData] = useState<any[]>([]);
+  const [detailsModalColumns, setDetailsModalColumns] = useState<any[]>([]);
+
   const allCaseOptions = useMemo(() => {
     if (!data) return [];
     const optionsMap = new Map();
@@ -215,15 +221,15 @@ const ClientPortalDashboard: React.FC = () => {
 
   // Open tickets table columns
   const openColumns = [
-    { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 60, align: 'center' as const },
-    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 160 },
-    { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 140 },
-    { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 380 },
-    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 120, render: formatDate },
-    { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 80, align: 'center' as const, render: (v: number) => v.toFixed(2) },
-    { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 160 },
+    { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
+    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+    { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
+    { title: 'Subject', dataIndex: 'subject', key: 'subject' },
+    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+    { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) },
+    { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
     {
-      title: 'Status', dataIndex: 'status', key: 'status', width: 140,
+      title: 'Status', dataIndex: 'status', key: 'status', width: 110,
       render: (s: string) => (
         <span className="cp-status-badge in-progress">
           <span className="cp-status-dot" />
@@ -235,15 +241,102 @@ const ClientPortalDashboard: React.FC = () => {
 
   // Resolved tickets table columns
   const resolvedColumns = [
-    { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 60, align: 'center' as const },
-    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 160 },
-    { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 140 },
-    { title: 'Subject', dataIndex: 'subject', key: 'subject', width: 380 },
-    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 120, render: formatDate },
-    { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 120, render: formatDate },
-    { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 160 },
-    { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 80, align: 'center' as const, render: (v: number) => v.toFixed(2) }
+    { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
+    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+    { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
+    { title: 'Subject', dataIndex: 'subject', key: 'subject' },
+    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+    { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 100, render: formatDate },
+    { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
+    { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) }
   ];
+
+  const handleSummaryCardClick = (type: 'opened' | 'closed' | 'pending') => {
+    if (!data) return;
+
+    if (type === 'opened') {
+      const openedThisMonth = [...data.openCases, ...data.resolvedCases]
+        .filter((c: any) => {
+          if (!c.created_on) return false;
+          const created = dayjs(c.created_on);
+          return created.month() === selectedMonth.month() && created.year() === selectedMonth.year();
+        })
+        .map((c, i) => ({ ...c, sno: i + 1 }));
+
+      const cols = [
+        { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
+        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+        { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
+        { title: 'Subject', dataIndex: 'subject', key: 'subject' },
+        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+        { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) },
+        { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
+        {
+          title: 'Status', dataIndex: 'status', key: 'status', width: 110,
+          render: (s: string, record: any) => {
+            const isClosed = record.resolved_on || (s && (s.toLowerCase().includes('resolved') || s.toLowerCase().includes('closed') || s.toLowerCase().includes('problem solved')));
+            return (
+              <span className={`cp-status-badge ${isClosed ? 'resolved' : 'in-progress'}`}>
+                <span className="cp-status-dot" />
+                {isClosed ? (s || 'Resolved') : (s || 'In Progress')}
+              </span>
+            );
+          },
+        }
+      ];
+
+      setDetailsModalTitle(`Tickets Open This Month (${openedThisMonth.length})`);
+      setDetailsModalColumns(cols);
+      setDetailsModalData(openedThisMonth);
+      setDetailsModalOpen(true);
+
+    } else if (type === 'closed') {
+      const closedThisMonth = data.resolvedCases.map((c, i) => ({ ...c, sno: i + 1 }));
+
+      const cols = [
+        { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
+        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+        { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
+        { title: 'Subject', dataIndex: 'subject', key: 'subject' },
+        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+        { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 100, render: formatDate },
+        { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
+        { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) }
+      ];
+
+      setDetailsModalTitle(`Tickets Closed This Month (${closedThisMonth.length})`);
+      setDetailsModalColumns(cols);
+      setDetailsModalData(closedThisMonth);
+      setDetailsModalOpen(true);
+
+    } else if (type === 'pending') {
+      const pendingCases = data.openCases.map((c, i) => ({ ...c, sno: i + 1 }));
+
+      const cols = [
+        { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
+        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+        { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
+        { title: 'Subject', dataIndex: 'subject', key: 'subject' },
+        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+        { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) },
+        { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
+        {
+          title: 'Status', dataIndex: 'status', key: 'status', width: 110,
+          render: (s: string) => (
+            <span className="cp-status-badge in-progress">
+              <span className="cp-status-dot" />
+              {s || 'In Progress'}
+            </span>
+          ),
+        }
+      ];
+
+      setDetailsModalTitle(`All Pending Tickets (${pendingCases.length})`);
+      setDetailsModalColumns(cols);
+      setDetailsModalData(pendingCases);
+      setDetailsModalOpen(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -279,8 +372,8 @@ const ClientPortalDashboard: React.FC = () => {
                        C 275 190 255 135 220 135 
                        L 85 135 
                        L 10 135 
-                       Z" 
-                    fill="white" />
+                       Z"
+                fill="white" />
               <rect x="390" y="340" width="100" height="100" fill="#E8363D" />
             </svg>
           </div>
@@ -315,8 +408,47 @@ const ClientPortalDashboard: React.FC = () => {
           </p>
         </div>
 
+        {/* Ticket Summary */}
+        <div className="cp-summary-grid cp-fade-in cp-fade-in-delay-1">
+          <div
+            className="cp-summary-card opened cp-summary-card-clickable"
+            onClick={() => handleSummaryCardClick('opened')}
+            title="Click to view details"
+          >
+            <div className="cp-summary-number">{ticketSummary.totalOpened}</div>
+            <div className="cp-summary-label">Tickets Open This Month</div>
+            <div className="cp-summary-card-hint">Click to view ↗</div>
+          </div>
+          <div
+            className="cp-summary-card closed cp-summary-card-clickable"
+            onClick={() => handleSummaryCardClick('closed')}
+            title="Click to view details"
+          >
+            <div className="cp-summary-number">{ticketSummary.totalClosed}</div>
+            <div className="cp-summary-label">Tickets Closed This Month</div>
+            <div className="cp-summary-card-hint">Click to view ↗</div>
+          </div>
+          <div
+            className="cp-summary-card pending cp-summary-card-clickable"
+            onClick={() => handleSummaryCardClick('pending')}
+            title="Click to view details"
+          >
+            <div className="cp-summary-number">{ticketSummary.pending}</div>
+            <div className="cp-summary-label">All Pending Tickets</div>
+            <div className="cp-summary-card-hint">Click to view ↗</div>
+          </div>
+          <div className="cp-summary-card reopened">
+            <div className="cp-summary-number">{ticketSummary.reopened}</div>
+            <div className="cp-summary-label">Reopened</div>
+          </div>
+          <div className="cp-summary-card high">
+            <div className="cp-summary-number">{ticketSummary.highPriority}</div>
+            <div className="cp-summary-label">High Priority</div>
+          </div>
+        </div>
+
         {/* Account Details + Hours Details + Support Reachout */}
-        <div className="cp-info-grid three-cols cp-fade-in cp-fade-in-delay-1">
+        <div className="cp-info-grid three-cols cp-fade-in cp-fade-in-delay-2">
           {/* Account Details */}
           <div className="cp-glass-card">
             <div className="cp-info-card-header">
@@ -325,12 +457,7 @@ const ClientPortalDashboard: React.FC = () => {
               </div>
               <div className="cp-info-card-title">Account Details</div>
             </div>
-            {clientInfo.client_name && (
-              <div className="cp-info-row">
-                <span className="cp-info-label highlight">Client Name</span>
-                <span className="cp-info-value">{clientInfo.client_name}</span>
-              </div>
-            )}
+
             {clientInfo.account_manager && (
               <div className="cp-info-row">
                 <span className="cp-info-label">Account Manager</span>
@@ -443,30 +570,6 @@ const ClientPortalDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Ticket Summary */}
-        <div className="cp-summary-grid cp-fade-in cp-fade-in-delay-2">
-          <div className="cp-summary-card opened">
-            <div className="cp-summary-number">{ticketSummary.totalOpened}</div>
-            <div className="cp-summary-label">Tickets Open This Month</div>
-          </div>
-          <div className="cp-summary-card closed">
-            <div className="cp-summary-number">{ticketSummary.totalClosed}</div>
-            <div className="cp-summary-label">Tickets Closed This Month</div>
-          </div>
-          <div className="cp-summary-card pending">
-            <div className="cp-summary-number">{ticketSummary.pending}</div>
-            <div className="cp-summary-label">All Pending Tickets</div>
-          </div>
-          <div className="cp-summary-card reopened">
-            <div className="cp-summary-number">{ticketSummary.reopened}</div>
-            <div className="cp-summary-label">Reopened</div>
-          </div>
-          <div className="cp-summary-card high">
-            <div className="cp-summary-number">{ticketSummary.highPriority}</div>
-            <div className="cp-summary-label">High Priority</div>
-          </div>
-        </div>
-
         {/* Open Tickets Report */}
         <div className="cp-table-section cp-fade-in cp-fade-in-delay-3">
           <div className="cp-table-header">
@@ -512,7 +615,6 @@ const ClientPortalDashboard: React.FC = () => {
               dataSource={openCases}
               rowKey="case_number"
               pagination={false}
-              scroll={{ x: 'max-content' }}
               size="small"
               locale={{ emptyText: 'No open tickets for this period' }}
             />
@@ -533,7 +635,6 @@ const ClientPortalDashboard: React.FC = () => {
               dataSource={resolvedCases}
               rowKey="case_number"
               pagination={false}
-              scroll={{ x: 'max-content' }}
               size="small"
               locale={{ emptyText: <span style={{ color: 'rgba(241,245,249,0.35)' }}>No resolved tickets for this period</span> }}
               style={{ background: 'transparent' }}
@@ -636,6 +737,31 @@ const ClientPortalDashboard: React.FC = () => {
           >
             Got it, thanks!
           </button>
+        </div>
+      </Modal>
+
+      {/* ── Ticket Details Modal ── */}
+      <Modal
+        open={detailsModalOpen}
+        title={<span className="cp-modal-title">{detailsModalTitle}</span>}
+        onCancel={() => setDetailsModalOpen(false)}
+        centered
+        className="cp-modal-dark cp-details-modal"
+        footer={null}
+        width={1300}
+      >
+        <div className="cp-dark-table" style={{ marginTop: 16 }}>
+          <Table
+            columns={detailsModalColumns}
+            dataSource={detailsModalData}
+            rowKey="case_number"
+            pagination={{
+              pageSize: 5,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+            }}
+            size="small"
+          />
         </div>
       </Modal>
     </div>
