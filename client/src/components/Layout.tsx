@@ -35,12 +35,24 @@ const DynamicsSquareLogo = () => (
 );
 
 const DSIcon = () => (
-  <div className="ds-logo-icon">
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <rect x="1" y="1" width="7" height="7" rx="1.5" fill="white"/>
-      <rect x="10" y="1" width="7" height="7" rx="1.5" fill="rgba(255,255,255,0.5)"/>
-      <rect x="1" y="10" width="7" height="7" rx="1.5" fill="rgba(255,255,255,0.5)"/>
-      <rect x="10" y="10" width="7" height="7" rx="1.5" fill="white"/>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, width: 34, height: 34 }}>
+    <svg width="24" height="24" viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M 35 60 
+               L 260 60 
+               C 320 60 350 130 350 250 
+               C 350 370 320 440 260 440 
+               L 10 440 
+               L 10 190 
+               L 85 165 
+               L 85 365 
+               L 220 365 
+               C 255 365 275 310 275 250 
+               C 275 190 255 135 220 135 
+               L 85 135 
+               L 10 135 
+               Z" 
+            fill="white" />
+      <rect x="390" y="340" width="100" height="100" fill="#E8363D" />
     </svg>
   </div>
 );
