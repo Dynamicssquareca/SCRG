@@ -35,8 +35,6 @@ interface DashboardData {
     totalOpened: number;
     totalClosed: number;
     pending: number;
-    reopened: number;
-    highPriority: number;
   };
   openCases: any[];
   resolvedCases: any[];
@@ -436,14 +434,6 @@ const ClientPortalDashboard: React.FC = () => {
             <div className="cp-summary-number">{ticketSummary.pending}</div>
             <div className="cp-summary-label">All Pending Tickets</div>
             <div className="cp-summary-card-hint">Click to view ↗</div>
-          </div>
-          <div className="cp-summary-card reopened">
-            <div className="cp-summary-number">{ticketSummary.reopened}</div>
-            <div className="cp-summary-label">Reopened</div>
-          </div>
-          <div className="cp-summary-card high">
-            <div className="cp-summary-number">{ticketSummary.highPriority}</div>
-            <div className="cp-summary-label">High Priority</div>
           </div>
         </div>
 

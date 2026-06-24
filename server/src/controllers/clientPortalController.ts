@@ -75,8 +75,6 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const totalOpened = casesCreatedThisMonth.length;
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
-  const reopened = relevantCases.filter((c: any) => String(c.status_reason).toLowerCase().trim() === 'reopened').length;
-  const highPriority = relevantCases.filter((c: any) => String(c.priority).toLowerCase().includes('high')).length;
 
   const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
   const hoursOnOpen = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
@@ -115,8 +113,6 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
       totalOpened,
       totalClosed,
       pending,
-      reopened,
-      highPriority,
     },
     openCases: openCases.map((c: any, i: number) => ({
       sno: i + 1,

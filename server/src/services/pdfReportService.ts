@@ -626,8 +626,6 @@ export interface ClientPortalPdfData {
     totalOpened: number;
     totalClosed: number;
     pending: number;
-    reopened: number;
-    highPriority: number;
   };
   openCases: Array<{
     sno: number;
@@ -835,16 +833,14 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
       { label: 'Tickets\nOpened', val: data.ticketSummary.totalOpened, color: '#3182CE', bg: '#EBF8FF' },
       { label: 'Tickets\nClosed',  val: data.ticketSummary.totalClosed,  color: green,     bg: '#ECFDF5' },
       { label: 'Pending\nTickets', val: data.ticketSummary.pending,      color: '#DD6B20', bg: '#FFFAF0' },
-      { label: 'Reopened',         val: data.ticketSummary.reopened,     color: '#805AD5', bg: '#FAF5FF' },
-      { label: 'High\nPriority',   val: data.ticketSummary.highPriority, color: red,       bg: '#FEF2F2' },
     ];
-    const cW = 95; const cH = 64;
+    const cW = 160; const cH = 64;
     summaryCards.forEach((c, idx) => {
-      const cx = ML + idx * (cW + 9);
+      const cx = ML + idx * (cW + 17);
       doc.rect(cx, y, cW, cH).fill(c.bg);
       doc.rect(cx, y, cW, 4).fill(c.color);
-      doc.fillColor(textGray).fontSize(7.5).font('Helvetica-Bold').text(c.label, cx + 8, y + 10, { width: cW - 16 });
-      doc.fillColor('#1A202C').fontSize(20).font('Helvetica-Bold').text(String(c.val), cx + 8, y + 34, { width: cW - 16 });
+      doc.fillColor(textGray).fontSize(8.5).font('Helvetica-Bold').text(c.label, cx + 8, y + 10, { width: cW - 16 });
+      doc.fillColor('#1A202C').fontSize(22).font('Helvetica-Bold').text(String(c.val), cx + 8, y + 34, { width: cW - 16 });
     });
 
     drawFooter();
