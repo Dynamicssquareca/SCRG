@@ -220,10 +220,10 @@ const ClientPortalDashboard: React.FC = () => {
   // Open tickets table columns
   const openColumns = [
     { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
-    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 140, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
     { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
     { title: 'Subject', dataIndex: 'subject', key: 'subject' },
-    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
     { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) },
     { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
     {
@@ -240,11 +240,11 @@ const ClientPortalDashboard: React.FC = () => {
   // Resolved tickets table columns
   const resolvedColumns = [
     { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
-    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+    { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 140, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
     { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
     { title: 'Subject', dataIndex: 'subject', key: 'subject' },
-    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
-    { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 100, render: formatDate },
+    { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
+    { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
     { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
     { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) }
   ];
@@ -263,10 +263,10 @@ const ClientPortalDashboard: React.FC = () => {
 
       const cols = [
         { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
-        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 140, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
         { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
         { title: 'Subject', dataIndex: 'subject', key: 'subject' },
-        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
         { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) },
         { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
         {
@@ -293,11 +293,11 @@ const ClientPortalDashboard: React.FC = () => {
 
       const cols = [
         { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
-        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 140, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
         { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
         { title: 'Subject', dataIndex: 'subject', key: 'subject' },
-        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
-        { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 100, render: formatDate },
+        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
+        { title: 'Resolved On', dataIndex: 'resolved_on', key: 'resolved_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
         { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
         { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) }
       ];
@@ -312,10 +312,10 @@ const ClientPortalDashboard: React.FC = () => {
 
       const cols = [
         { title: 'S.No.', dataIndex: 'sno', key: 'sno', width: 50, align: 'center' as const },
-        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 120 },
+        { title: 'Case Number', dataIndex: 'case_number', key: 'case_number', width: 140, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
         { title: 'Contact', dataIndex: 'contact', key: 'contact', width: 120 },
         { title: 'Subject', dataIndex: 'subject', key: 'subject' },
-        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 100, render: formatDate },
+        { title: 'Created On', dataIndex: 'created_on', key: 'created_on', width: 110, render: (v: string) => <span style={{ whiteSpace: 'nowrap' }}>{formatDate(v)}</span> },
         { title: 'Hours', dataIndex: 'hours', key: 'hours', width: 70, align: 'center' as const, render: (v: number) => v.toFixed(2) },
         { title: 'Consultant Ass.', dataIndex: 'consultant', key: 'consultant', width: 130 },
         {
