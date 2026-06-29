@@ -532,12 +532,34 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     const drawBacklogTableHeader = (y: number) => {
       doc.rect(40, y, 515, 20).fill(tealColor);
       doc.fillColor('#FFFFFF').fontSize(8).font('Helvetica-Bold');
-      doc.text('Case #', 46, y + 6, { width: 60 });
-      doc.text('Client', 110, y + 6, { width: 90 });
-      doc.text('Subject / Title', 205, y + 6, { width: 170 });
-      doc.text('Created On', 380, y + 6, { width: 65, align: 'center' });
-      doc.text('Age (Days)', 450, y + 6, { width: 50, align: 'center' });
-      doc.text('Status', 505, y + 6, { width: 45, align: 'center' });
+      doc.text('Case #', 46, y + 6, { width: 60, lineBreak: false });
+      doc.text('Client', 110, y + 6, { width: 90, lineBreak: false });
+      doc.text('Subject / Title', 205, y + 6, { width: 170, lineBreak: false });
+      doc.text('Created On', 380, y + 6, { width: 65, align: 'center', lineBreak: false });
+      doc.text('Age (Days)', 450, y + 6, { width: 50, align: 'center', lineBreak: false });
+      doc.text('Status', 505, y + 6, { width: 45, align: 'center', lineBreak: false });
+    };
+
+    /**
+     * Manually clamp text to fit within maxWidth using doc.widthOfString().
+     * PDFKit's ellipsis option only truncates when text wraps to a new line,
+     * NOT when a single long line overflows horizontally. This helper does it correctly.
+     */
+    const clampText = (text: string, maxWidth: number, fontName: string, fontSize: number): string => {
+      doc.fontSize(fontSize).font(fontName);
+      if (doc.widthOfString(text) <= maxWidth) return text;
+      const ellipsis = '\u2026'; // …
+      let lo = 0;
+      let hi = text.length;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (doc.widthOfString(text.slice(0, mid) + ellipsis) <= maxWidth) {
+          lo = mid;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      return text.slice(0, lo) + ellipsis;
     };
 
     drawBacklogTableHeader(backlogTableY);
@@ -550,7 +572,7 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
       doc.fillColor(textGray).fontSize(8).font('Helvetica').text('No open backlog cases found! Outstanding job.', 50, blY + 10, { align: 'center', width: 495 });
     } else {
       data.backlog.forEach((c) => {
-        // Check if we need to add a new page (limit of ~28 items per page)
+        // Check if we need to add a new page
         if (blY > 730) {
           doc.addPage();
           drawPageHeader('Current Opened Tickets (Cont.)');
@@ -563,21 +585,22 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
         }
         doc.rect(40, blY, 515, 20).strokeColor(borderGray).lineWidth(0.5).stroke();
 
+        // Render each cell with manually clamped text so nothing ever wraps into the next row
         doc.fillColor('#1A202C').fontSize(8).font('Helvetica-Bold');
-        doc.text(c.caseNumber, 46, blY + 6, { width: 60 });
+        doc.text(clampText(c.caseNumber, 58, 'Helvetica-Bold', 8), 46, blY + 6, { lineBreak: false });
 
         doc.font('Helvetica').fillColor(textGray);
-        doc.text(c.clientName, 110, blY + 6, { width: 90, ellipsis: true });
-        doc.text(c.subject, 205, blY + 6, { width: 170, ellipsis: true });
-        doc.text(c.createdOn, 380, blY + 6, { width: 65, align: 'center' });
+        doc.text(clampText(c.clientName, 88, 'Helvetica', 8), 110, blY + 6, { lineBreak: false });
+        doc.text(clampText(c.subject, 168, 'Helvetica', 8), 205, blY + 6, { lineBreak: false });
+        doc.text(c.createdOn, 380, blY + 6, { width: 65, align: 'center', lineBreak: false });
 
         // Highlight age: dark red if > 30 days
         const isOld = c.ageDays > 30;
         doc.fillColor(isOld ? '#DC2626' : textGray).font(isOld ? 'Helvetica-Bold' : 'Helvetica');
-        doc.text(String(c.ageDays), 450, blY + 6, { width: 50, align: 'center' });
+        doc.text(String(c.ageDays), 450, blY + 6, { width: 50, align: 'center', lineBreak: false });
 
         doc.fillColor(textGray).font('Helvetica');
-        doc.text(c.status, 505, blY + 6, { width: 45, align: 'center', ellipsis: true });
+        doc.text(clampText(c.status, 43, 'Helvetica', 8), 505, blY + 6, { width: 45, align: 'center', lineBreak: false });
 
         blY += 20;
         blZebra = !blZebra;
