@@ -187,7 +187,8 @@ export async function processFile(
       });
 
       for (const row of balanceData) {
-        const name = String(row['Account Name'] || row['Client Name'] || '').trim();
+        // Normalize: trim trailing punctuation to avoid duplicate clients (e.g. "MMIS Inc." → "MMIS Inc")
+        const name = String(row['Account Name'] || row['Client Name'] || '').trim().replace(/[.,;:!?]+$/, '');
         if (!name) continue;
 
         let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
@@ -230,7 +231,8 @@ export async function processFile(
       const headers = usageData.length > 0 ? Object.keys(usageData[0]) : [];
 
       for (const row of usageData) {
-        const name = String(row['Account Name'] || row['Client Name'] || '').trim();
+        // Normalize: trim trailing punctuation to avoid duplicate clients
+        const name = String(row['Account Name'] || row['Client Name'] || '').trim().replace(/[.,;:!?]+$/, '');
         if (!name) continue;
 
         // Fuzzy lookup for clientId in clientMap or DB
@@ -300,7 +302,8 @@ export async function processFile(
     const caseNumber = String(raw[columnMap['Case Number']] || '').trim().toUpperCase();
     if (!caseNumber) continue;
 
-    const customerName = String(raw[columnMap['Customer Name (Customer) (Account)']] || '').trim();
+    // Normalize: trim trailing punctuation (e.g. "MMIS Inc." → "MMIS Inc") to avoid duplicate clients
+    const customerName = String(raw[columnMap['Customer Name (Customer) (Account)']] || '').trim().replace(/[.,;:!?]+$/, '');
     if (!customerName) continue;
 
     const updatedOn = parseDate(raw[columnMap['Updated On']]);
