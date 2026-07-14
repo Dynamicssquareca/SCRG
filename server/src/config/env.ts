@@ -1,5 +1,12 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import dns from 'dns';
+
+// Force Node.js to resolve DNS queries using IPv4 first and use Google's public DNS
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+dns.setServers(['8.8.8.8']);
 
 // Always force-load .env during development to ensure settings like SMTP aren't missed
 const envPath = path.resolve(__dirname, '../../../.env');

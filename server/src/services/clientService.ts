@@ -94,11 +94,18 @@ export async function getClientById(id: string) {
 }
 
 export async function createClient(data: any) {
-  const existing = await Client.findOne({ client_name: data.clientName });
+  // Normalize: strip trailing punctuation and extra whitespace to prevent
+  // duplicates like "MMIS Inc" vs "MMIS Inc." or "Q4 Services Inc" vs "Q4 Services Inc."
+  const normalizedName = (data.clientName || '').trim().replace(/[.,;:!?]+$/, '');
+  if (!normalizedName) throw new Error('Client name is required');
+
+  // Case-insensitive + trailing-punctuation-tolerant duplicate check
+  const escapedName = normalizedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const existing = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedName}[.,;:!?]*$`, 'i') } });
   if (existing) throw new ConflictError('Client name already exists');
 
   const client = await Client.create({
-    client_name: data.clientName,
+    client_name: normalizedName,
     account_manager: data.accountManager || null,
     customer_success_mgr: data.customerSuccessMgr || null,
     tool_version: data.toolVersion || null,

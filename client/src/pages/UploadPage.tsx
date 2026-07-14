@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { Card, Typography, Upload, Button, Form, Select, message, Tabs, Alert, Space, Table, Collapse, Checkbox } from 'antd';
-import { InboxOutlined, UploadOutlined, FileExcelOutlined, WarningOutlined } from '@ant-design/icons';
+import React, { useState, useRef } from 'react';
+import { Card, Typography, Upload, Button, Form, Select, message, Tabs, Alert, Table, Collapse, Checkbox, Space } from 'antd';
+import { UploadOutlined, FileExcelOutlined, FolderOpenOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const { Dragger } = Upload;
 const { Option } = Select;
 
 const UploadPage: React.FC = () => {
@@ -13,9 +12,11 @@ const UploadPage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [form] = Form.useForm();
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [uploadResult, setUploadResult] = useState<any>(null);
   const [generateResult, setGenerateResult] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('1');
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
@@ -29,12 +30,29 @@ const UploadPage: React.FC = () => {
     { value: 11, label: 'November' }, { value: 12, label: 'December' },
   ];
 
+  // Native file input change handler
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+
+    const validExt = selected.name.endsWith('.xlsx') || selected.name.endsWith('.xls') || selected.name.endsWith('.csv');
+    if (!validExt) {
+      message.error('Only .xlsx, .xls, or .csv files are supported');
+      return;
+    }
+    setFile(selected);
+    // Reset input so same file can be re-selected after removal
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleUpload = async () => {
+    if (!file) {
+      message.warning('Please choose your Excel file first using the "Browse File" button');
+      return;
+    }
+
     try {
       const values = await form.validateFields();
-      if (!file) {
-        return message.error('Please select an Excel file first');
-      }
 
       setUploading(true);
       setUploadResult(null);
@@ -52,7 +70,8 @@ const UploadPage: React.FC = () => {
 
       setUploadResult(data.data);
       message.success(`Successfully processed ${data.data.rowCount} rows`);
-      setFile(null); // Reset file after successful upload
+      setFile(null);
+      setActiveTab('2');
 
     } catch (err: any) {
       message.error(err.response?.data?.error?.message || 'Upload failed');
@@ -63,7 +82,7 @@ const UploadPage: React.FC = () => {
 
   const handleGenerate = async () => {
     if (!uploadResult?.uploadId) return;
-    
+
     setGenerating(true);
     try {
       const values = await form.validateFields();
@@ -97,42 +116,24 @@ const UploadPage: React.FC = () => {
     }
   };
 
-  const uploadProps = {
-    onRemove: () => { setFile(null); },
-    beforeUpload: (f: File) => {
-      const isExcelOrCsv = f.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-                           f.type === 'application/vnd.ms-excel' || 
-                           f.type === 'text/csv' || 
-                           f.name.endsWith('.xlsx') || f.name.endsWith('.xls') || f.name.endsWith('.csv');
-      
-      if (!isExcelOrCsv) {
-        message.error('You can only upload Excel or CSV files!');
-        return Upload.LIST_IGNORE;
-      }
-      setFile(f);
-      return false;
-    },
-    fileList: file ? [file as any] : [],
-    maxCount: 1,
-  };
-
   const items = [
     {
       key: '1',
       label: '1. Upload Data',
       children: (
         <Card>
-          <Form 
-            form={form} 
-            layout="inline" 
+          {/* Month / Year / Sync toggle */}
+          <Form
+            form={form}
+            layout="inline"
             style={{ marginBottom: 24 }}
-            initialValues={{ 
-              month: dayjs().month() + 1, 
-              year: dayjs().year() 
+            initialValues={{
+              month: dayjs().month() + 1,
+              year: dayjs().year()
             }}
           >
             <Form.Item name="month" label="Reporting Month" rules={[{ required: true }]}>
-              <Select style={{ width: 120 }} options={months} />
+              <Select style={{ width: 130 }} options={months} />
             </Form.Item>
             <Form.Item name="year" label="Year" rules={[{ required: true }]}>
               <Select style={{ width: 100 }}>
@@ -142,33 +143,97 @@ const UploadPage: React.FC = () => {
             <Form.Item name="syncClientMaster" valuePropName="checked">
               <Space direction="vertical" style={{ marginLeft: 16 }}>
                 <Checkbox style={{ color: '#1B3A5C', fontWeight: 'bold' }}>
-                  Update Client Master & Balances
+                  Update Client Master &amp; Balances
                 </Checkbox>
-                <Typography.Text type="secondary" style={{ display: 'block', maxWidth: 200, fontSize: '11px', marginTop: -8 }}>
+                <Text type="secondary" style={{ display: 'block', maxWidth: 220, fontSize: '11px', marginTop: -6 }}>
                   (Keep off to use existing master data)
-                </Typography.Text>
+                </Text>
               </Space>
             </Form.Item>
           </Form>
 
-          <Dragger {...uploadProps} disabled={uploading || generating} style={{ padding: '32px 0' }}>
-            <p className="ant-upload-drag-icon">
-              <InboxOutlined style={{ color: '#1B3A5C' }} />
-            </p>
-            <p className="ant-upload-text">Click or drag file to this area to upload</p>
-            <p className="ant-upload-hint">Support for a single .xlsx or .csv upload. Max size 50MB.</p>
-          </Dragger>
+          {/* Hidden native file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            style={{ display: 'none' }}
+            onChange={handleFileInputChange}
+          />
 
-          <Button 
-            type="primary" 
-            icon={<UploadOutlined />} 
-            onClick={handleUpload} 
+          {/* File selection area */}
+          <div
+            style={{
+              border: '2px dashed #d9d9d9',
+              borderRadius: 8,
+              padding: '32px 24px',
+              textAlign: 'center',
+              background: '#fafafa',
+              marginBottom: 16,
+            }}
+          >
+            {file ? (
+              // File selected — show name + remove button
+              <div>
+                <FileExcelOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 12 }} />
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#237804', marginBottom: 8 }}>
+                  ✅ File Selected
+                </div>
+                <div style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>
+                  {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                </div>
+                <Button
+                  danger
+                  icon={<DeleteOutlined />}
+                  size="small"
+                  onClick={() => setFile(null)}
+                >
+                  Remove &amp; choose different file
+                </Button>
+              </div>
+            ) : (
+              // No file yet — show browse button
+              <div>
+                <FileExcelOutlined style={{ fontSize: 40, color: '#bfbfbf', marginBottom: 12 }} />
+                <div style={{ fontSize: 15, color: '#555', marginBottom: 16 }}>
+                  Click the button below to select your Excel file
+                </div>
+                <Button
+                  type="primary"
+                  icon={<FolderOpenOutlined />}
+                  size="large"
+                  style={{ background: '#1B3A5C', borderColor: '#1B3A5C' }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Browse File (.xlsx / .csv)
+                </Button>
+                <div style={{ marginTop: 10, color: '#999', fontSize: 12 }}>
+                  Max size: 50MB
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Upload button — only enabled after file is selected */}
+          <Button
+            type="primary"
+            icon={<UploadOutlined />}
+            onClick={handleUpload}
             loading={uploading}
             disabled={!file || uploading || generating}
-            style={{ marginTop: 24, background: '#1B3A5C' }}
+            size="large"
+            style={{
+              background: file ? '#1B3A5C' : undefined,
+              borderColor: file ? '#1B3A5C' : undefined,
+            }}
           >
             Upload and Process Data
           </Button>
+          {!file && (
+            <Text type="secondary" style={{ marginLeft: 12, fontSize: 13 }}>
+              ← Select a file first using "Browse File" above
+            </Text>
+          )}
         </Card>
       ),
     },
@@ -192,12 +257,12 @@ const UploadPage: React.FC = () => {
             <Alert
               message={`Warnings detected (${uploadResult.warnings.length})`}
               description={
-                <Collapse 
-                  ghost 
+                <Collapse
+                  ghost
                   size="small"
                   items={[{
                     key: '1',
-                    label: <Text type="warning">Click to expand and see row-specific warnings</Text>,
+                    label: <Text type="warning">Click to see warnings</Text>,
                     children: (
                       <ul style={{ paddingLeft: 20, margin: 0 }}>
                         {uploadResult.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
@@ -217,7 +282,8 @@ const UploadPage: React.FC = () => {
             icon={<FileExcelOutlined />}
             onClick={handleGenerate}
             loading={generating}
-            style={{ background: '#006B7B' }}
+            size="large"
+            style={{ background: '#006B7B', borderColor: '#006B7B' }}
           >
             Generate Per-Client Reports
           </Button>
@@ -225,19 +291,21 @@ const UploadPage: React.FC = () => {
           {generateResult && (
             <div style={{ marginTop: 32 }}>
               <Title level={5}>Generated Reports ({generateResult.reports.length})</Title>
-              <Table 
-                dataSource={generateResult.reports} 
+              <Table
+                dataSource={generateResult.reports}
                 rowKey="reportId"
                 pagination={false}
                 size="small"
               >
                 <Table.Column title="Client" dataIndex="clientName" />
                 <Table.Column title="File" dataIndex="fileName" />
-                <Table.Column 
-                  title="Action" 
+                <Table.Column
+                  title="Action"
                   render={(record: any) => (
-                    <Button type="link" onClick={() => downloadReport(record.reportId, record.fileName)}>Download</Button>
-                  )} 
+                    <Button type="link" onClick={() => downloadReport(record.reportId, record.fileName)}>
+                      Download
+                    </Button>
+                  )}
                 />
               </Table>
             </div>
@@ -249,8 +317,12 @@ const UploadPage: React.FC = () => {
 
   return (
     <div>
-      <Title level={4} style={{ marginTop: 0 }}>Upload & Generate Reports</Title>
-      <Tabs defaultActiveKey="1" items={items} activeKey={uploadResult ? (generateResult ? '2' : '2') : '1'} />
+      <Title level={4} style={{ marginTop: 0 }}>Upload &amp; Generate Reports</Title>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={items}
+      />
     </div>
   );
 };

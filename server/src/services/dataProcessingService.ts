@@ -191,7 +191,10 @@ export async function processFile(
         const name = String(row['Account Name'] || row['Client Name'] || '').trim().replace(/[.,;:!?]+$/, '');
         if (!name) continue;
 
-        let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
+        // Escape regex special chars, then allow optional trailing punctuation so
+        // "MMIS Inc" matches both "MMIS Inc" and "MMIS Inc." stored in the DB.
+        const escapedNameBal = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedNameBal}[.,;:!?]*$`, 'i') } });
         const firstMonthHeader = Object.keys(balanceMonths)[0];
         const startBal = firstMonthHeader ? parseDuration(row[firstMonthHeader]) : 0;
 
@@ -238,7 +241,8 @@ export async function processFile(
         // Fuzzy lookup for clientId in clientMap or DB
         let clientId = clientMap[name];
         if (!clientId) {
-          const found = await Client.findOne({ client_name: { $regex: new RegExp(`^${name}$`, 'i') } });
+          const escapedNameUsage = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const found = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedNameUsage}[.,;:!?]*$`, 'i') } });
           if (found) clientId = found._id.toString();
         }
         if (!clientId) continue;
@@ -327,7 +331,9 @@ export async function processFile(
 
     // Ensure client exists if not already in map
     if (!clientMap[customerName]) {
-      let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${customerName}$`, 'i') } });
+      // Match the normalised name against DB entries that may have trailing punctuation
+      const escapedCustName = customerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedCustName}[.,;:!?]*$`, 'i') } });
       if (!client) {
         client = await Client.create({ client_name: customerName, total_contracted_hours: 0, previous_balance_hours: 0 });
         warnings.push(`Auto-created missing client: ${customerName}`);
