@@ -36,7 +36,7 @@ export async function setupTOTP(userId: string, email: string) {
     await User.findByIdAndUpdate(userId, { totp_secret: secret });
   }
 
-  const otpauth = authenticator.keyuri(email, 'SCRG', secret);
+  const otpauth = authenticator.keyuri(email, 'Dynamics Square - Support Portal', secret);
   const qrCodeUrl = await qrcode.toDataURL(otpauth);
 
   return { secret, qrCodeUrl };
@@ -100,21 +100,22 @@ export function refreshAccessToken(refreshToken: string) {
   }
 }
 
-export async function revealQRWithPasscode(email: string, passcode: string) {
-  if (passcode !== env.STATIC_AUTH_PASSCODE) {
-    throw new UnauthorizedError('Invalid passcode');
-  }
-
+export async function revealQRWithPasscode(email: string, password: string) {
   const user = await User.findOne({ email, is_active: true });
   if (!user) {
-    throw new UnauthorizedError('User not found or inactive');
+    throw new UnauthorizedError('Invalid credentials');
+  }
+
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  if (!isValid) {
+    throw new UnauthorizedError('Invalid credentials');
   }
 
   if (!user.totp_enabled || !user.totp_secret) {
     throw new ValidationError('2FA is not currently enabled for this user. Please log in normally to set it up.');
   }
 
-  const otpauth = authenticator.keyuri(email, 'SCRG', user.totp_secret);
+  const otpauth = authenticator.keyuri(email, 'Dynamics Square - Support Portal', user.totp_secret);
   const qrCodeUrl = await qrcode.toDataURL(otpauth);
 
   return { qrCodeUrl };
@@ -128,7 +129,7 @@ export async function getUserQRCode(userId: string) {
     throw new ValidationError('2FA is not enabled for this user');
   }
 
-  const otpauth = authenticator.keyuri(user.email, 'SCRG', user.totp_secret);
+  const otpauth = authenticator.keyuri(user.email, 'Dynamics Square - Support Portal', user.totp_secret);
   const qrCodeUrl = await qrcode.toDataURL(otpauth);
 
   return { qrCodeUrl };
