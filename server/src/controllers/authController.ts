@@ -55,10 +55,10 @@ export async function logout(_req: Request, res: Response) {
 
 export async function revealQr(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, passcode } = req.body;
-    if (!email || !passcode) throw new ValidationError('Email and passcode are required');
+    const { email, password } = req.body;
+    if (!email || !password) throw new ValidationError('Email and password are required');
     
-    const result = await authService.revealQRWithPasscode(email, passcode);
+    const result = await authService.revealQRWithPasscode(email, password);
     successResponse(res, result);
   } catch (err) { next(err); }
 }

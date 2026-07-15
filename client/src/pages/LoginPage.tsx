@@ -327,9 +327,9 @@ const LoginPage: React.FC = () => {
               <Input size="large" prefix={<UserOutlined style={{ color: '#9CA3AF' }} />} placeholder="admin@dynamicssquare.com" style={{ borderRadius: 8 }} />
             </Form.Item>
             <Form.Item
-              name="passcode"
-              label={<span style={{ fontWeight: 600, fontSize: 13 }}>Static Security Passcode</span>}
-              rules={[{ required: true, message: 'Please enter the static passcode' }]}
+              name="password"
+              label={<span style={{ fontWeight: 600, fontSize: 13 }}>Password</span>}
+              rules={[{ required: true, message: 'Please enter your password' }]}
             >
               <Input.Password size="large" prefix={<LockOutlined style={{ color: '#9CA3AF' }} />} placeholder="••••••••" style={{ borderRadius: 8 }} />
             </Form.Item>

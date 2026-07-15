@@ -100,14 +100,15 @@ export function refreshAccessToken(refreshToken: string) {
   }
 }
 
-export async function revealQRWithPasscode(email: string, passcode: string) {
-  if (passcode !== env.STATIC_AUTH_PASSCODE) {
-    throw new UnauthorizedError('Invalid passcode');
-  }
-
+export async function revealQRWithPasscode(email: string, password: string) {
   const user = await User.findOne({ email, is_active: true });
   if (!user) {
-    throw new UnauthorizedError('User not found or inactive');
+    throw new UnauthorizedError('Invalid credentials');
+  }
+
+  const isValid = await bcrypt.compare(password, user.password_hash);
+  if (!isValid) {
+    throw new UnauthorizedError('Invalid credentials');
   }
 
   if (!user.totp_enabled || !user.totp_secret) {
