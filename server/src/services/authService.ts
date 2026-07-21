@@ -92,7 +92,7 @@ export async function verifyTOTP(userId: string, code: string) {
 export function refreshAccessToken(refreshToken: string) {
   try {
     const decoded = jwt.verify(refreshToken, env.REFRESH_TOKEN_SECRET) as any;
-    const tokenPayload = { id: decoded.id, email: decoded.email, role: decoded.role };
+    const tokenPayload = { id: decoded.id, email: decoded.email, role: decoded.role, client_id: decoded.client_id || null };
     const accessToken = jwt.sign(tokenPayload, env.ACCESS_TOKEN_SECRET, { expiresIn: env.ACCESS_TOKEN_EXPIRY as any });
     return { accessToken };
   } catch {
