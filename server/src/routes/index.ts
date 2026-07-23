@@ -12,6 +12,7 @@ import clientPortalRoutes from './clientPortalRoutes';
 import clientAccessRoutes from './clientAccessRoutes';
 import cronRoutes from './cronRoutes';
 import userManagementRoutes from './userManagementRoutes';
+import searchRoutes from './searchRoutes';
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.use('/client-portal', clientPortalRoutes);
 router.use('/client-access', clientAccessRoutes);
 router.use('/cron', cronRoutes);
 router.use('/users', userManagementRoutes);
+router.use('/search', searchRoutes);
 
 export default router;
 

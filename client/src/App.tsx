@@ -14,6 +14,7 @@ import ClientCredentialsPage from './pages/ClientCredentialsPage';
 import ClientPortalDashboard from './pages/ClientPortal/ClientPortalDashboard';
 import AuthDevicesPage from './pages/AuthDevicesPage';
 import ReportSchedulerPage from './pages/ReportSchedulerPage';
+import SearchResultsPage from './pages/SearchResultsPage';
 import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const ProtectedRoute = ({ children, requireAdmin }: { children: React.ReactNode, requireAdmin?: boolean }) => {
@@ -47,6 +48,7 @@ const AppRoutes = () => {
       {/* Internal Admin/Operator routes */}
       <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
+        <Route path="search" element={<SearchResultsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="usage" element={<UsageReportPage />} />
