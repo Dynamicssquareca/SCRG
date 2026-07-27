@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select, Tabs, InputNumber, Tooltip } from 'antd';
+import { Card, Col, Row, Typography, Table, Tag, Button, message, Popconfirm, DatePicker, List, Modal, Select, Tabs, InputNumber, Tooltip, Input, Space } from 'antd';
 import {
   UserOutlined, WarningOutlined,
   CheckCircleOutlined, ExclamationCircleOutlined,
   InfoCircleOutlined, BellOutlined,
   ClockCircleOutlined, CalendarOutlined, FileProtectOutlined,
   TeamOutlined, BarChartOutlined, SyncOutlined,
-  MessageOutlined,
+  MessageOutlined, SearchOutlined, FilterOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import api from '../services/api';
@@ -131,6 +131,47 @@ const DashboardPage: React.FC = () => {
   const [casesData, setCasesData] = useState<any[]>([]);
   const [casesLoading, setCasesLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<'open' | 'closed'>('open');
+
+  // Cases Modal filter state
+  const [caseSearchText, setCaseSearchText] = useState('');
+  const [caseFilterCustomer, setCaseFilterCustomer] = useState<string | null>(null);
+  const [caseFilterAgent, setCaseFilterAgent] = useState<string | null>(null);
+  const [caseFilterPriority, setCaseFilterPriority] = useState<string | null>(null);
+
+  const filteredCasesData = useMemo(() => {
+    let data = casesData;
+    if (caseSearchText.trim()) {
+      const q = caseSearchText.toLowerCase();
+      data = data.filter(r =>
+        r.case_number?.toLowerCase().includes(q) ||
+        r.case_title?.toLowerCase().includes(q)
+      );
+    }
+    if (caseFilterCustomer) data = data.filter(r => r.customer_name === caseFilterCustomer);
+    if (caseFilterAgent)    data = data.filter(r => r.support_agent === caseFilterAgent);
+    if (caseFilterPriority) data = data.filter(r => r.priority === caseFilterPriority);
+    return data;
+  }, [casesData, caseSearchText, caseFilterCustomer, caseFilterAgent, caseFilterPriority]);
+
+  const caseCustomerOptions = useMemo(() =>
+    [...new Set(casesData.map(r => r.customer_name).filter(Boolean))].sort().map(v => ({ label: v, value: v })),
+    [casesData]
+  );
+  const caseAgentOptions = useMemo(() =>
+    [...new Set(casesData.map(r => r.support_agent).filter(Boolean))].sort().map(v => ({ label: v, value: v })),
+    [casesData]
+  );
+  const casePriorityOptions = useMemo(() =>
+    [...new Set(casesData.map(r => r.priority).filter(Boolean))].sort().map(v => ({ label: v, value: v })),
+    [casesData]
+  );
+
+  const resetCaseFilters = () => {
+    setCaseSearchText('');
+    setCaseFilterCustomer(null);
+    setCaseFilterAgent(null);
+    setCaseFilterPriority(null);
+  };
 
   const fetchCenterData = async () => {
     try {
@@ -1022,19 +1063,94 @@ const DashboardPage: React.FC = () => {
 
       {/* Cases Modal */}
       <Modal
-        title={selectedStatus === 'open' ? `Open Tickets${mLabel}` : `Closed Tickets${mLabel}`}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FilterOutlined style={{ color: selectedStatus === 'open' ? '#F59E0B' : '#16A34A' }} />
+            <span>{selectedStatus === 'open' ? `Open Tickets${mLabel}` : `Closed Tickets${mLabel}`}</span>
+            {filteredCasesData.length !== casesData.length && (
+              <span style={{
+                fontSize: 12, fontWeight: 600, color: '#fff',
+                background: '#6366F1', borderRadius: 99, padding: '1px 8px', marginLeft: 4,
+              }}>
+                {filteredCasesData.length} / {casesData.length}
+              </span>
+            )}
+          </div>
+        }
         open={casesModalVisible}
-        onCancel={() => setCasesModalVisible(false)}
+        onCancel={() => { setCasesModalVisible(false); resetCaseFilters(); }}
         footer={null}
-        width={1100}
+        width={1200}
       >
+        {/* Filter bar */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 10,
+          marginBottom: 16, padding: '14px 16px',
+          background: 'linear-gradient(135deg, #F8FAFF 0%, #EEF2FF 100%)',
+          borderRadius: 12, border: '1px solid #E0E7FF',
+        }}>
+          <Input
+            allowClear
+            prefix={<SearchOutlined style={{ color: '#6366F1' }} />}
+            placeholder="Search by Case # or Title…"
+            value={caseSearchText}
+            onChange={e => setCaseSearchText(e.target.value)}
+            style={{ width: 230, borderRadius: 8 }}
+          />
+          <Select
+            allowClear
+            showSearch
+            placeholder="Customer"
+            value={caseFilterCustomer}
+            onChange={v => setCaseFilterCustomer(v ?? null)}
+            options={caseCustomerOptions}
+            style={{ width: 200, borderRadius: 8 }}
+            filterOption={(input, opt) =>
+              (opt?.label as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+          />
+          <Select
+            allowClear
+            showSearch
+            placeholder="Support Agent"
+            value={caseFilterAgent}
+            onChange={v => setCaseFilterAgent(v ?? null)}
+            options={caseAgentOptions}
+            style={{ width: 200, borderRadius: 8 }}
+            filterOption={(input, opt) =>
+              (opt?.label as string)?.toLowerCase().includes(input.toLowerCase())
+            }
+          />
+          <Select
+            allowClear
+            placeholder="Priority"
+            value={caseFilterPriority}
+            onChange={v => setCaseFilterPriority(v ?? null)}
+            options={casePriorityOptions}
+            style={{ width: 140, borderRadius: 8 }}
+          />
+          {(caseSearchText || caseFilterCustomer || caseFilterAgent || caseFilterPriority) && (
+            <Button
+              size="middle"
+              onClick={resetCaseFilters}
+              style={{
+                borderRadius: 8, color: '#6366F1',
+                borderColor: '#6366F1', fontWeight: 600,
+              }}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+
         <Table
-          dataSource={casesData}
+          dataSource={filteredCasesData}
           columns={caseColumns}
           rowKey="_id"
           loading={casesLoading}
           scroll={{ x: 'max-content' }}
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `${total} tickets` }}
+          locale={{ emptyText: 'No tickets match the current filters.' }}
         />
       </Modal>
     </div>
