@@ -11,6 +11,19 @@ import logger from '../utils/logger';
 
 dayjs.extend(customParseFormat);
 
+/**
+ * Normalize a client name for consistent DB lookups.
+ * - Replaces curly/smart apostrophes (\u2019, \u201B, \u02BC) with a straight apostrophe (\u0027).
+ * - Trims surrounding whitespace.
+ * - Strips trailing punctuation that may appear inconsistently (e.g. "MMIS Inc." → "MMIS Inc").
+ */
+function normalizeClientName(name: string): string {
+  return name
+    .trim()
+    .replace(/[\u2019\u2018\u201B\u02BC]/g, "'")
+    .replace(/[.,;:!?]+$/, '');
+}
+
 const REQUIRED_COLUMNS = [
   'Case Number',
   'Customer Name (Customer) (Account)',
@@ -188,12 +201,12 @@ export async function processFile(
 
       for (const row of balanceData) {
         // Normalize: trim trailing punctuation to avoid duplicate clients (e.g. "MMIS Inc." → "MMIS Inc")
-        const name = String(row['Account Name'] || row['Client Name'] || '').trim().replace(/[.,;:!?]+$/, '');
+        const name = normalizeClientName(String(row['Account Name'] || row['Client Name'] || ''));
         if (!name) continue;
 
         // Escape regex special chars, then allow optional trailing punctuation so
         // "MMIS Inc" matches both "MMIS Inc" and "MMIS Inc." stored in the DB.
-        const escapedNameBal = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedNameBal = name.replace(/[.*+?^${}()|'[\]\\]/g, '\\$&');
         let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedNameBal}[.,;:!?]*$`, 'i') } });
         const firstMonthHeader = Object.keys(balanceMonths)[0];
         const startBal = firstMonthHeader ? parseDuration(row[firstMonthHeader]) : 0;
@@ -235,13 +248,13 @@ export async function processFile(
 
       for (const row of usageData) {
         // Normalize: trim trailing punctuation to avoid duplicate clients
-        const name = String(row['Account Name'] || row['Client Name'] || '').trim().replace(/[.,;:!?]+$/, '');
+        const name = normalizeClientName(String(row['Account Name'] || row['Client Name'] || ''));
         if (!name) continue;
 
         // Fuzzy lookup for clientId in clientMap or DB
         let clientId = clientMap[name];
         if (!clientId) {
-          const escapedNameUsage = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapedNameUsage = name.replace(/[.*+?^${}()|'[\]\\]/g, '\\$&');
           const found = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedNameUsage}[.,;:!?]*$`, 'i') } });
           if (found) clientId = found._id.toString();
         }
@@ -306,8 +319,8 @@ export async function processFile(
     const caseNumber = String(raw[columnMap['Case Number']] || '').trim().toUpperCase();
     if (!caseNumber) continue;
 
-    // Normalize: trim trailing punctuation (e.g. "MMIS Inc." → "MMIS Inc") to avoid duplicate clients
-    const customerName = String(raw[columnMap['Customer Name (Customer) (Account)']] || '').trim().replace(/[.,;:!?]+$/, '');
+    // Normalize: trim trailing punctuation & apostrophe variants (e.g. "Bahai\u2019s Canada" → "Bahai's Canada") to avoid duplicate clients
+    const customerName = normalizeClientName(String(raw[columnMap['Customer Name (Customer) (Account)']] || ''));
     if (!customerName) continue;
 
     const updatedOn = parseDate(raw[columnMap['Updated On']]);
@@ -332,7 +345,7 @@ export async function processFile(
     // Ensure client exists if not already in map
     if (!clientMap[customerName]) {
       // Match the normalised name against DB entries that may have trailing punctuation
-      const escapedCustName = customerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedCustName = customerName.replace(/[.*+?^${}()|'[\]\\]/g, '\\$&');
       let client = await Client.findOne({ client_name: { $regex: new RegExp(`^${escapedCustName}[.,;:!?]*$`, 'i') } });
       if (!client) {
         client = await Client.create({ client_name: customerName, total_contracted_hours: 0, previous_balance_hours: 0 });
