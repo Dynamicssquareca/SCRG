@@ -94,8 +94,8 @@ interface ClientReportData {
 async function getClientReportData(clientId: string, uploadId: string, month: number, year: number): Promise<ClientReportData> {
   const clientInfo = await Client.findById(clientId);
 
-  // Get all cases for this client in this upload context
-  const allCases = await Case.find({ client_id: clientId, upload_id: uploadId });
+  // Get all cases for this client across all uploads (so clients not in this upload still get reports)
+  const allCases = await Case.find({ client_id: clientId });
 
   // Filter cases relevant to this month
   const relevantCases = allCases.filter((c: any) => {
@@ -384,8 +384,11 @@ function buildResolvedCaseSheet(workbook: ExcelJS.Workbook, resolvedCases: any[]
 }
 
 export async function generateAllReports(uploadId: string, month: number, year: number, userId: string) {
-  // Get unique clients from this upload using distinct
-  const clientIds = await Case.distinct('client_id', { upload_id: uploadId, client_id: { $ne: null } });
+  // Generate reports for ALL active clients, not just those in this upload
+  const activeClients = await Client.find({ is_active: true }).select('_id').lean();
+  const clientIds = activeClients.map((c: any) => c._id.toString());
+
+  logger.info(`Generating reports for ${clientIds.length} active clients (month: ${month}/${year})`);
 
   const results: any[] = [];
   const errors: any[] = [];
@@ -398,10 +401,9 @@ export async function generateAllReports(uploadId: string, month: number, year: 
     try {
       const reportData = await getClientReportData(client_id, uploadId, month, year);
 
-      // Skip if no relevant cases
+      // Log clients with no activity this month — but still generate the report (shows 0 tickets + balance)
       if (reportData.openCases.length === 0 && reportData.resolvedCases.length === 0) {
-        logger.warn(`Skipped report for ${reportData.clientInfo?.client_name || client_id}: no open or resolved cases found for ${month}/${year} (uploadId: ${uploadId}). This may indicate a client name mismatch between the sheet and the DB.`);
-        continue;
+        logger.info(`No ticket activity in ${month}/${year} for "${reportData.clientInfo?.client_name || client_id}" — generating empty report with balance info.`);
       }
 
       // Create workbook
