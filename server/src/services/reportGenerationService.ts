@@ -400,6 +400,7 @@ export async function generateAllReports(uploadId: string, month: number, year: 
 
       // Skip if no relevant cases
       if (reportData.openCases.length === 0 && reportData.resolvedCases.length === 0) {
+        logger.warn(`Skipped report for ${reportData.clientInfo?.client_name || client_id}: no open or resolved cases found for ${month}/${year} (uploadId: ${uploadId}). This may indicate a client name mismatch between the sheet and the DB.`);
         continue;
       }
 
