@@ -158,6 +158,23 @@ export async function getClientDashboard(req: Request, res: Response, next: Next
 }
 
 /**
+ * GET /admin/client-dashboard-preview?clientId=X&month=M&year=Y
+ * Admin-only: returns the full dashboard data for any client, for preview purposes.
+ */
+export async function getClientDashboardPreview(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { clientId, month, year } = req.query;
+    if (!clientId) throw new ForbiddenError('clientId query parameter is required');
+
+    const m = month ? Number(month) : dayjs().month() + 1;
+    const y = year ? Number(year) : dayjs().year();
+
+    const data = await getClientDashboardDataHelper(String(clientId), m, y);
+    successResponse(res, data);
+  } catch (err) { next(err); }
+}
+
+/**
  * GET /client-portal/report/download?month=X&year=Y
  * Downloads the generated Excel report or dynamically generated PDF report for the authenticated client.
  */

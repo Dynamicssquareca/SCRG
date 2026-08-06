@@ -45,7 +45,7 @@ async function diagnoseClients() {
   inUpload.forEach(n => console.log(`  + ${n}`));
 
   console.log(`\nClients NOT in the latest upload (${notInUpload.length}):`);
-  console.log('(These have no rows in the uploaded sheet — their tickets are missing from the Excel file)');
+  console.log('(These have no rows in the uploaded sheet - their tickets are missing from the Excel file)');
   notInUpload.forEach(n => console.log(`  - ${n}`));
 
   // Also check if any customer_names in cases don't match any active client
