@@ -401,9 +401,9 @@ export async function generateAllReports(uploadId: string, month: number, year: 
     try {
       const reportData = await getClientReportData(client_id, uploadId, month, year);
 
-      // Log clients with no activity this month — but still generate the report (shows 0 tickets + balance)
+      // Log clients with no activity this month - but still generate the report (shows 0 tickets + balance)
       if (reportData.openCases.length === 0 && reportData.resolvedCases.length === 0) {
-        logger.info(`No ticket activity in ${month}/${year} for "${reportData.clientInfo?.client_name || client_id}" — generating empty report with balance info.`);
+        logger.info(`No ticket activity in ${month}/${year} for "${reportData.clientInfo?.client_name || client_id}" - generating empty report with balance info.`);
       }
 
       // Create workbook

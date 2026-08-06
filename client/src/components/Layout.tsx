@@ -14,6 +14,7 @@ import {
   KeyOutlined,
   MailOutlined,
   SearchOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -27,7 +28,7 @@ const { Text } = Typography;
 const pageVariants = {
   initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] } },
-  exit:    { opacity: 0, y: -8,  transition: { duration: 0.18 } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.18 } },
 };
 
 const DynamicsSquareLogo = () => (
@@ -53,24 +54,25 @@ const DSIcon = () => (
                C 275 190 255 135 220 135 
                L 85 135 
                L 10 135 
-               Z" 
-            fill="white" />
+               Z"
+        fill="white" />
       <rect x="390" y="340" width="100" height="100" fill="#E8363D" />
     </svg>
   </div>
 );
 
 const PAGE_LABELS: Record<string, string> = {
-  '/':                    'Dashboard',
-  '/search':              'Search Results',
-  '/upload':              'Upload & Generate',
-  '/reports':             'Reports',
-  '/usage':               'Usage Report',
-  '/clients':             'Client Master',
-  '/reminders':           'Automated Reminders',
-  '/report-scheduler':    'Report Scheduler',
-  '/credentials':         'Client Credentials',
-  '/auth-devices':        'Auth & Devices',
+  '/': 'Dashboard',
+  '/search': 'Search Results',
+  '/upload': 'Upload & Generate',
+  '/reports': 'Reports',
+  '/usage': 'Usage Report',
+  '/clients': 'Client Master',
+  '/reminders': 'Automated Reminders',
+  '/report-scheduler': 'Report Scheduler',
+  '/credentials': 'Client Credentials',
+  '/auth-devices': 'Auth & Devices',
+  '/client-preview': 'Client Dashboard Preview',
 };
 
 // ── Universal Search ─────────────────────────────────────────────
@@ -85,23 +87,24 @@ interface NavItem {
 
 interface ApiResults {
   clients: Array<{ _id: string; client_name: string; account_manager: string | null; is_active: boolean }>;
-  cases:   Array<{ _id: string; case_number: string; customer_name: string; case_title: string | null; support_agent: string | null; contact: string | null; status_reason: string | null; client_id: { client_name: string } | null }>;
+  cases: Array<{ _id: string; case_number: string; customer_name: string; case_title: string | null; support_agent: string | null; contact: string | null; status_reason: string | null; client_id: { client_name: string } | null }>;
   reports: Array<{ _id: string; month: number; year: number; status: string; file_name: string | null; client_id: { client_name: string } | null }>;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: '/',                 label: 'Dashboard',           description: 'View KPIs, charts & support metrics',    icon: <DashboardOutlined /> },
-  { key: '/upload',           label: 'Upload & Generate',   description: 'Upload Excel data & generate reports',    icon: <UploadOutlined /> },
-  { key: '/reports',          label: 'Reports',             description: 'Browse & download generated reports',     icon: <FileExcelOutlined /> },
-  { key: '/usage',            label: 'Usage Report',        description: 'Track consultant usage & activity',       icon: <BarChartOutlined /> },
-  { key: '/clients',          label: 'Client Master',       description: 'Manage client accounts & details',        icon: <TeamOutlined />,              adminOnly: true },
-  { key: '/reminders',        label: 'Automated Reminders', description: 'Configure automated email reminders',     icon: <BellOutlined />,              adminOnly: true },
-  { key: '/report-scheduler', label: 'Report Scheduler',    description: 'Schedule automatic report delivery',      icon: <MailOutlined />,              adminOnly: true },
-  { key: '/credentials',      label: 'Client Credentials',  description: 'Manage client login credentials',         icon: <SafetyCertificateOutlined />, adminOnly: true },
-  { key: '/auth-devices',     label: 'Auth & Devices',      description: 'Manage authentication & trusted devices', icon: <KeyOutlined />,               adminOnly: true },
+  { key: '/', label: 'Dashboard', description: 'View KPIs, charts & support metrics', icon: <DashboardOutlined /> },
+  { key: '/upload', label: 'Upload & Generate', description: 'Upload Excel data & generate reports', icon: <UploadOutlined /> },
+  { key: '/reports', label: 'Reports', description: 'Browse & download generated reports', icon: <FileExcelOutlined /> },
+  { key: '/usage', label: 'Usage Report', description: 'Track consultant usage & activity', icon: <BarChartOutlined /> },
+  { key: '/clients', label: 'Client Master', description: 'Manage client accounts & details', icon: <TeamOutlined />, adminOnly: true },
+  { key: '/reminders', label: 'Automated Reminders', description: 'Configure automated email reminders', icon: <BellOutlined />, adminOnly: true },
+  { key: '/report-scheduler', label: 'Report Scheduler', description: 'Schedule automatic report delivery', icon: <MailOutlined />, adminOnly: true },
+  { key: '/credentials', label: 'Client Credentials', description: 'Manage client login credentials', icon: <SafetyCertificateOutlined />, adminOnly: true },
+  { key: '/auth-devices', label: 'Auth & Devices', description: 'Manage authentication & trusted devices', icon: <KeyOutlined />, adminOnly: true },
+  { key: '/client-preview', label: 'Client Dashboard Preview', description: 'Preview any client portal dashboard', icon: <EyeOutlined />, adminOnly: true },
 ];
 
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function highlight(text: string, query: string): React.ReactNode {
   if (!query || !text) return text;
@@ -174,16 +177,16 @@ function ResultRow({
 
 
 const UniversalSearch: React.FC = () => {
-  const [open, setOpen]         = useState(false);
-  const [query, setQuery]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [apiData, setApiData]   = useState<ApiResults>({ clients: [], cases: [], reports: [] });
-  const [active, setActive]     = useState(0);
-  const inputRef                = useRef<HTMLInputElement>(null);
-  const wrapRef                 = useRef<HTMLDivElement>(null);
-  const debounceRef             = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { user }                = useAuth();
-  const navigate                = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [apiData, setApiData] = useState<ApiResults>({ clients: [], cases: [], reports: [] });
+  const [active, setActive] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Filtered nav items (always visible)
   const navItems = NAV_ITEMS.filter(item => {
@@ -205,7 +208,7 @@ const UniversalSearch: React.FC = () => {
   const handleRowAction = useCallback((row: FlatRow) => {
     if (row.type === 'nav') { navigate(row.navKey); closeSearch(); }
     else if (row.type === 'client') { navigate('/clients'); closeSearch(); }
-    else if (row.type === 'case')   { navigate('/'); closeSearch(); }
+    else if (row.type === 'case') { navigate('/'); closeSearch(); }
     else if (row.type === 'report') { navigate('/reports'); closeSearch(); }
   }, [navigate]); // eslint-disable-line
 
@@ -270,7 +273,7 @@ const UniversalSearch: React.FC = () => {
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, flatRows.length - 1)); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, 0)); }
     if (e.key === 'Enter') {
       e.preventDefault();
       if (query.trim()) {
@@ -403,7 +406,7 @@ const UniversalSearch: React.FC = () => {
                       <ResultRow
                         key={c._id}
                         icon={<span style={{ fontSize: 11, fontWeight: 800 }}>#</span>}
-                        primary={<><span style={{ color: '#E8363D', fontWeight: 700 }}>{highlight(c.case_number, query)}</span>{c.case_title ? <> — {highlight(c.case_title, query)}</> : null}</>}
+                        primary={<><span style={{ color: '#E8363D', fontWeight: 700 }}>{highlight(c.case_number, query)}</span>{c.case_title ? <> - {highlight(c.case_title, query)}</> : null}</>}
                         secondary={sub ? highlight(sub, query) : undefined}
                         isActive={active === ri}
                         onHover={() => setActive(ri)}
@@ -427,7 +430,7 @@ const UniversalSearch: React.FC = () => {
                       <ResultRow
                         key={r._id}
                         icon={<FileExcelOutlined />}
-                        primary={<>{highlight(clientName, query)} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>— {monthLabel}</span></>}
+                        primary={<>{highlight(clientName, query)} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>- {monthLabel}</span></>}
                         secondary={r.status === 'published' ? '✓ Published' : 'Draft'}
                         isActive={active === ri}
                         onHover={() => setActive(ri)}
@@ -490,22 +493,23 @@ const UniversalSearch: React.FC = () => {
 const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
-  const navigate    = useNavigate();
-  const location    = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
-    { key: '/',        icon: <DashboardOutlined />, label: 'Dashboard'     },
-    { key: '/upload',  icon: <UploadOutlined />,    label: 'Upload Data'   },
-    { key: '/reports', icon: <FileExcelOutlined />, label: 'Reports'       },
-    { key: '/usage',   icon: <BarChartOutlined />,  label: 'Usage Report'  },
+    { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/upload', icon: <UploadOutlined />, label: 'Upload Data' },
+    { key: '/reports', icon: <FileExcelOutlined />, label: 'Reports' },
+    { key: '/usage', icon: <BarChartOutlined />, label: 'Usage Report' },
     ...(user?.role === 'admin'
       ? [
-          { key: '/clients',          icon: <TeamOutlined />,               label: 'Client Master'       },
-          { key: '/reminders',        icon: <BellOutlined />,               label: 'Reminders'           },
-          { key: '/report-scheduler', icon: <MailOutlined />,               label: 'Report Scheduler'    },
-          { key: '/credentials',      icon: <SafetyCertificateOutlined />,  label: 'Client Credentials'  },
-          { key: '/auth-devices',     icon: <KeyOutlined />,                label: 'Auth & Devices'      },
-        ]
+        { key: '/clients', icon: <TeamOutlined />, label: 'Client Master' },
+        { key: '/reminders', icon: <BellOutlined />, label: 'Reminders' },
+        { key: '/report-scheduler', icon: <MailOutlined />, label: 'Report Scheduler' },
+        { key: '/credentials', icon: <SafetyCertificateOutlined />, label: 'Client Credentials' },
+        { key: '/auth-devices', icon: <KeyOutlined />, label: 'Auth & Devices' },
+        { key: '/client-preview', icon: <EyeOutlined />, label: 'Client Dashboard Preview' },
+      ]
       : []),
   ];
 

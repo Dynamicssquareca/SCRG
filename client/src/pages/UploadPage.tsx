@@ -173,7 +173,7 @@ const UploadPage: React.FC = () => {
             }}
           >
             {file ? (
-              // File selected — show name + remove button
+              // File selected - show name + remove button
               <div>
                 <FileExcelOutlined style={{ fontSize: 40, color: '#52c41a', marginBottom: 12 }} />
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#237804', marginBottom: 8 }}>
@@ -192,7 +192,7 @@ const UploadPage: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              // No file yet — show browse button
+              // No file yet - show browse button
               <div>
                 <FileExcelOutlined style={{ fontSize: 40, color: '#bfbfbf', marginBottom: 12 }} />
                 <div style={{ fontSize: 15, color: '#555', marginBottom: 16 }}>
@@ -214,7 +214,7 @@ const UploadPage: React.FC = () => {
             )}
           </div>
 
-          {/* Upload button — only enabled after file is selected */}
+          {/* Upload button - only enabled after file is selected */}
           <Button
             type="primary"
             icon={<UploadOutlined />}
