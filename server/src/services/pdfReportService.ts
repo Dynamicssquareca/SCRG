@@ -126,6 +126,41 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
   const clients = await Client.find({ is_active: true }).sort({ client_name: 1 });
   const clientBreakdown = [];
 
+  // Fetch previous month's reports for starting balances (batch query)
+  const allClientIds = clients.map(c => c._id);
+  const prevReports = await Report.find({
+    client_id: { $in: allClientIds },
+    month: prevMonthNum,
+    year: prevYearNum,
+  }).select('client_id remaining_balance');
+  const prevBalanceMap: Record<string, number> = {};
+  for (const r of prevReports) {
+    prevBalanceMap[r.client_id.toString()] = r.remaining_balance ?? 0;
+  }
+
+  // Compute open-ticket hours per client via live aggregate
+  const openHoursAgg = await Case.aggregate([
+    {
+      $match: {
+        client_id: { $in: allClientIds },
+        $or: [
+          { status_reason: { $not: closedStatusRegex } },
+          { status_reason: null },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: '$client_id',
+        hoursOnOpen: { $sum: '$billable_duration' },
+      },
+    },
+  ]);
+  const openHoursMap: Record<string, number> = {};
+  for (const row of openHoursAgg) {
+    if (row._id) openHoursMap[row._id.toString()] = row.hoursOnOpen ?? 0;
+  }
+
   for (const client of clients) {
     // Only fetch from Report collection for full month, not bi-weekly
     const reportDoc = !isBiWeekly ? await Report.findOne({ client_id: client._id, month, year }) : null;
@@ -133,13 +168,17 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
     let created = 0;
     let resolved = 0;
     let consumed = 0;
-    let balance = client.previous_balance_hours;
+
+    const clientIdStr = client._id.toString();
+    const prevBalance = clientIdStr in prevBalanceMap
+      ? prevBalanceMap[clientIdStr]
+      : (client.previous_balance_hours ?? 0);
+    const hoursOnOpen = openHoursMap[clientIdStr] ?? 0;
 
     if (reportDoc) {
       created = reportDoc.tickets_opened;
       resolved = reportDoc.tickets_closed;
       consumed = reportDoc.hours_consumed;
-      balance = reportDoc.remaining_balance;
     } else {
       // Calculate dynamically if report is not pre-generated
       created = await Case.countDocuments({
@@ -153,8 +192,10 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
       });
       resolved = resolvedCases.length;
       consumed = resolvedCases.reduce((sum, c) => sum + (Number(c.billable_duration) || 0), 0);
-      balance = client.previous_balance_hours - consumed;
     }
+
+    // Balance = Previous Balance - Hours Consumed (resolved) - Hours On Open Tickets
+    const balance = prevBalance - consumed - hoursOnOpen;
 
     clientBreakdown.push({
       clientName: client.client_name,
