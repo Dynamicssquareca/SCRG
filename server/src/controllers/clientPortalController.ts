@@ -88,7 +88,7 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
 
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo.previous_balance_hours) || 0);
-  const currentBalance = previousBalance - hoursConsumed;
+  const currentBalance = previousBalance - hoursConsumed - hoursOnOpen;
 
   // Check if a generated report file exists for download
   const report = await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
