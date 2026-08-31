@@ -166,8 +166,8 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo?.previous_balance_hours) || 0);
 
-  // According to standard user request: Current Balance = Previous Balance - Hours Consumed
-  const currentBalance = previousBalance - hoursConsumed;
+  // Current Balance = Previous Balance - Hours Consumed (resolved) - Hours On Open Tickets
+  const currentBalance = previousBalance - hoursConsumed - hoursOnOpen;
 
   return {
     clientInfo,
