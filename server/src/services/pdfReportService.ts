@@ -378,7 +378,7 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
       { label: 'Active Clients', val: String(data.stats.activeClients), color: '#3182CE', bg: '#EBF8FF' },
       { label: 'Tickets Created', val: String(data.stats.totalCreated), color: '#319795', bg: '#E6FFFA' },
       { label: 'Tickets Resolved', val: String(data.stats.totalResolved), color: '#DD6B20', bg: '#FFFAF0' },
-      { label: 'Hours Consumed', val: `${data.stats.totalHoursConsumed.toFixed(1)}h`, color: '#805AD5', bg: '#FAF5FF' },
+      { label: 'Hours Consumed', val: `${data.stats.totalHoursConsumed.toFixed(2)}h`, color: '#805AD5', bg: '#FAF5FF' },
       { label: 'Current Opened Tickets', val: String(data.stats.totalOpenCases ?? 0), color: '#E53E3E', bg: '#FEF2F2' },
     ];
 
@@ -468,7 +468,7 @@ export async function generateMonthlyPdfReport(data: MonthlyReportData, isBiWeek
     // Custom highlights text
     const activeText = `Active Clients: There are currently ${data.stats.activeClients} active accounts tracked in the portal system.`;
     const resolutionText = `Performance Ratio: During ${data.monthName}, ${data.stats.totalCreated} new tickets were logged, while ${data.stats.totalResolved} tickets were fully resolved and closed (including backlog cases).`;
-    const workloadText = `Labor Utilization: Support consultants completed ${data.stats.totalHoursConsumed.toFixed(1)} billable support hours in total during the month of ${data.monthName} ${data.year}.`;
+    const workloadText = `Labor Utilization: Support consultants completed ${data.stats.totalHoursConsumed.toFixed(2)} billable support hours in total during the month of ${data.monthName} ${data.year}.`;
 
     doc.fillColor(textGray).fontSize(9).font('Helvetica')
       .text(`•  ${activeText}`, 60, insY + 38, { width: 475, lineGap: 3 })
