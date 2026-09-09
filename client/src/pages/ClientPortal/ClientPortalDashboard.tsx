@@ -45,6 +45,7 @@ interface DashboardData {
 const ClientPortalDashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
+  const [allTime, setAllTime] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
@@ -122,10 +123,15 @@ const ClientPortalDashboard: React.FC = () => {
   const fetchDashboard = async () => {
     setLoading(true);
     try {
-      const month = selectedMonth.month() + 1;
-      const year = selectedMonth.year();
-      const res = await api.get(`/client-portal/dashboard?month=${month}&year=${year}`);
-      setData(res.data.data);
+      if (allTime) {
+        const res = await api.get(`/client-portal/dashboard?allTime=true`);
+        setData(res.data.data);
+      } else {
+        const month = selectedMonth.month() + 1;
+        const year = selectedMonth.year();
+        const res = await api.get(`/client-portal/dashboard?month=${month}&year=${year}`);
+        setData(res.data.data);
+      }
     } catch (err: any) {
       message.error(err.response?.data?.error?.message || 'Failed to load dashboard');
     } finally {
@@ -135,9 +141,13 @@ const ClientPortalDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboard();
-  }, [selectedMonth]);
+  }, [selectedMonth, allTime]);
 
   const handleDownload = async () => {
+    if (allTime) {
+      message.info('All-time Excel export is not available. Use PDF instead.');
+      return;
+    }
     setDownloading(true);
     try {
       const month = selectedMonth.month() + 1;
@@ -168,23 +178,22 @@ const ClientPortalDashboard: React.FC = () => {
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);
     try {
-      const month = selectedMonth.month() + 1;
-      const year = selectedMonth.year();
-      const res = await api.get(`/client-portal/report/download?month=${month}&year=${year}&format=pdf`, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const url = allTime
+        ? `/client-portal/report/download?format=pdf&allTime=true`
+        : `/client-portal/report/download?month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}&format=pdf`;
+      const res = await api.get(url, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       const disposition = res.headers['content-disposition'];
       const filename = disposition
         ? disposition.split('filename=')[1]?.replace(/"/g, '')
-        : `Support_Report_${month}_${year}.pdf`;
+        : allTime ? `Support_Report_All_Time.pdf` : `Support_Report_${selectedMonth.month() + 1}_${selectedMonth.year()}.pdf`;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       message.success('PDF Report downloaded successfully!');
     } catch {
       message.error('PDF Report not available for this period.');
@@ -196,11 +205,10 @@ const ClientPortalDashboard: React.FC = () => {
   const handlePreviewPdf = async () => {
     setPreviewingPdf(true);
     try {
-      const month = selectedMonth.month() + 1;
-      const year = selectedMonth.year();
-      const res = await api.get(`/client-portal/report/download?month=${month}&year=${year}&format=pdf`, {
-        responseType: 'blob',
-      });
+      const url = allTime
+        ? `/client-portal/report/download?format=pdf&allTime=true`
+        : `/client-portal/report/download?month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}&format=pdf`;
+      const res = await api.get(url, { responseType: 'blob' });
       const file = new Blob([res.data], { type: 'application/pdf' });
       const fileURL = URL.createObjectURL(file);
       window.open(fileURL, '_blank');
@@ -381,7 +389,24 @@ const ClientPortalDashboard: React.FC = () => {
           </div>
         </div>
         <div className="cp-header-right">
-          <div className="cp-month-picker">
+          {/* All Time / Month toggle */}
+          <div className="cp-view-toggle">
+            <button
+              className={`cp-toggle-btn${!allTime ? ' active' : ''}`}
+              onClick={() => setAllTime(false)}
+              title="Filter by selected month"
+            >
+              Monthly
+            </button>
+            <button
+              className={`cp-toggle-btn${allTime ? ' active' : ''}`}
+              onClick={() => setAllTime(true)}
+              title="Show all-time data"
+            >
+              All Time
+            </button>
+          </div>
+          <div className="cp-month-picker" style={{ opacity: allTime ? 0.4 : 1, pointerEvents: allTime ? 'none' : 'auto' }}>
             <DatePicker
               picker="month"
               value={selectedMonth}
@@ -414,7 +439,7 @@ const ClientPortalDashboard: React.FC = () => {
             title="Click to view details"
           >
             <div className="cp-summary-number">{ticketSummary.totalOpened}</div>
-            <div className="cp-summary-label">Tickets Open This Month</div>
+            <div className="cp-summary-label">{allTime ? 'Total Tickets All Time' : 'Tickets Open This Month'}</div>
             <div className="cp-summary-card-hint">Click to view ↗</div>
           </div>
           <div
@@ -423,7 +448,7 @@ const ClientPortalDashboard: React.FC = () => {
             title="Click to view details"
           >
             <div className="cp-summary-number">{ticketSummary.totalClosed}</div>
-            <div className="cp-summary-label">Tickets Closed This Month</div>
+            <div className="cp-summary-label">{allTime ? 'Total Tickets Resolved' : 'Tickets Closed This Month'}</div>
             <div className="cp-summary-card-hint">Click to view ↗</div>
           </div>
           <div
@@ -493,11 +518,11 @@ const ClientPortalDashboard: React.FC = () => {
               <span className="cp-info-value number">{hoursDetails.totalContracted}</span>
             </div>
             <div className="cp-info-row">
-              <span className="cp-info-label">Previous Balance Hours</span>
+              <span className="cp-info-label">{allTime ? 'Starting Balance Hours' : 'Previous Balance Hours'}</span>
               <span className="cp-info-value number">{hoursDetails.previousBalance}</span>
             </div>
             <div className="cp-info-row">
-              <span className="cp-info-label">Hours Consumed This Month</span>
+              <span className="cp-info-label">{allTime ? 'Hours Consumed (All Time)' : 'Hours Consumed This Month'}</span>
               <span className="cp-info-value number">{hoursDetails.hoursConsumed}</span>
             </div>
             <div className="cp-info-row">
@@ -565,39 +590,65 @@ const ClientPortalDashboard: React.FC = () => {
           <div className="cp-table-header">
             <div className="cp-table-title">
               <span className="cp-table-title-dot open" />
-              <span className="cp-table-title-text">Open Tickets Report</span>
+              <span className="cp-table-title-text">{allTime ? 'All Open Tickets' : 'Open Tickets Report'}</span>
             </div>
-            {data.hasReport && (
-              <div className="cp-btn-group">
-                <button
-                  className="cp-dl-btn cp-dl-excel"
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  title="Download Excel Report"
-                >
-                  <DownloadOutlined />
-                  {downloading ? 'Downloading…' : 'Excel'}
-                </button>
-                <button
-                  className="cp-dl-btn cp-dl-pdf"
-                  onClick={handleDownloadPdf}
-                  disabled={downloadingPdf}
-                  title="Download PDF Report"
-                >
-                  <DownloadOutlined />
-                  {downloadingPdf ? 'Downloading…' : 'PDF'}
-                </button>
-                <button
-                  className="cp-dl-btn cp-dl-preview"
-                  onClick={handlePreviewPdf}
-                  disabled={previewingPdf}
-                  title="Preview PDF in new tab"
-                >
-                  <EyeOutlined />
-                  {previewingPdf ? 'Loading…' : 'Preview'}
-                </button>
-              </div>
-            )}
+            <div className="cp-btn-group">
+              {/* All-time PDF download — always shown */}
+              {allTime && (
+                <>
+                  <button
+                    className="cp-dl-btn cp-dl-pdf"
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    title="Download All Time PDF Report"
+                  >
+                    <DownloadOutlined />
+                    {downloadingPdf ? 'Downloading…' : 'All Time PDF'}
+                  </button>
+                  <button
+                    className="cp-dl-btn cp-dl-preview"
+                    onClick={handlePreviewPdf}
+                    disabled={previewingPdf}
+                    title="Preview All Time PDF in new tab"
+                  >
+                    <EyeOutlined />
+                    {previewingPdf ? 'Loading…' : 'Preview'}
+                  </button>
+                </>
+              )}
+              {/* Month-specific downloads — shown only when hasReport and not all-time */}
+              {!allTime && data.hasReport && (
+                <>
+                  <button
+                    className="cp-dl-btn cp-dl-excel"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    title="Download Excel Report"
+                  >
+                    <DownloadOutlined />
+                    {downloading ? 'Downloading…' : 'Excel'}
+                  </button>
+                  <button
+                    className="cp-dl-btn cp-dl-pdf"
+                    onClick={handleDownloadPdf}
+                    disabled={downloadingPdf}
+                    title="Download PDF Report"
+                  >
+                    <DownloadOutlined />
+                    {downloadingPdf ? 'Downloading…' : 'PDF'}
+                  </button>
+                  <button
+                    className="cp-dl-btn cp-dl-preview"
+                    onClick={handlePreviewPdf}
+                    disabled={previewingPdf}
+                    title="Preview PDF in new tab"
+                  >
+                    <EyeOutlined />
+                    {previewingPdf ? 'Loading…' : 'Preview'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="cp-dark-table">
             <Table
@@ -616,7 +667,7 @@ const ClientPortalDashboard: React.FC = () => {
           <div className="cp-table-header">
             <div className="cp-table-title">
               <span className="cp-table-title-dot resolved" />
-              <span className="cp-table-title-text">Resolved Tickets Report</span>
+              <span className="cp-table-title-text">{allTime ? 'All Resolved Tickets' : 'Resolved Tickets Report'}</span>
             </div>
           </div>
           <div className="cp-dark-table resolved-table">

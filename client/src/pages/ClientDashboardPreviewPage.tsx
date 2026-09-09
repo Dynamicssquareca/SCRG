@@ -182,6 +182,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
     const [clientsLoading, setClientsLoading] = useState(true);
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
     const [selectedMonth, setSelectedMonth] = useState<Dayjs>(dayjs());
+    const [allTime, setAllTime] = useState(false);
     const [data, setData] = useState<DashboardData | null>(null);
     const [dataLoading, setDataLoading] = useState(false);
 
@@ -209,9 +210,10 @@ const ClientDashboardPreviewPage: React.FC = () => {
             try {
                 const m = selectedMonth.month() + 1;
                 const y = selectedMonth.year();
-                const res = await api.get(
-                    `/admin/client-dashboard-preview?clientId=${selectedClientId}&month=${m}&year=${y}`
-                );
+                const url = allTime
+                    ? `/admin/client-dashboard-preview?clientId=${selectedClientId}&allTime=true`
+                    : `/admin/client-dashboard-preview?clientId=${selectedClientId}&month=${m}&year=${y}`;
+                const res = await api.get(url);
                 if (!cancelled) setData(res.data.data);
             } catch {
                 if (!cancelled) setData(null);
@@ -220,7 +222,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
             }
         })();
         return () => { cancelled = true; };
-    }, [selectedClientId, selectedMonth]);
+    }, [selectedClientId, selectedMonth, allTime]);
 
     const selectedClientName = useMemo(
         () => clients.find(c => c._id === selectedClientId)?.client_name ?? '',
@@ -313,6 +315,42 @@ const ClientDashboardPreviewPage: React.FC = () => {
                             allowClear
                             size="large"
                         />
+                        {/* Monthly / All Time toggle */}
+                        <div style={{
+                            display: 'flex', alignItems: 'center',
+                            background: '#F3F4F6', border: '1.5px solid #E5E7EB',
+                            borderRadius: 10, padding: 3, gap: 2,
+                        }}>
+                            <button
+                                onClick={() => setAllTime(false)}
+                                style={{
+                                    height: 32, padding: '0 14px', border: 'none', borderRadius: 7,
+                                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    background: !allTime ? 'linear-gradient(135deg,#6366F1,#818CF8)' : 'transparent',
+                                    color: !allTime ? '#fff' : '#6B7280',
+                                    boxShadow: !allTime ? '0 2px 8px rgba(99,102,241,0.3)' : 'none',
+                                }}
+                                title="Filter by selected month"
+                            >
+                                Monthly
+                            </button>
+                            <button
+                                onClick={() => setAllTime(true)}
+                                style={{
+                                    height: 32, padding: '0 14px', border: 'none', borderRadius: 7,
+                                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    background: allTime ? 'linear-gradient(135deg,#6366F1,#818CF8)' : 'transparent',
+                                    color: allTime ? '#fff' : '#6B7280',
+                                    boxShadow: allTime ? '0 2px 8px rgba(99,102,241,0.3)' : 'none',
+                                }}
+                                title="Show all-time data"
+                            >
+                                All Time
+                            </button>
+                        </div>
+                        <div style={{ opacity: allTime ? 0.4 : 1, pointerEvents: allTime ? 'none' : 'auto' }}>
                         <DatePicker.MonthPicker
                             value={selectedMonth}
                             onChange={(d) => d && setSelectedMonth(d)}
@@ -320,6 +358,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
                             format="MMMM YYYY"
                             size="large"
                         />
+                        </div>
                     </div>
                 </div>
             </motion.div>
@@ -381,8 +420,11 @@ const ClientDashboardPreviewPage: React.FC = () => {
                             <span style={{ fontSize: 13, color: '#6B7280' }}>
                                 - Viewing dashboard as{' '}
                                 <strong style={{ color: '#0F1117' }}>{data.clientInfo.client_name}</strong>
-                                {' '}for{' '}
-                                <strong style={{ color: '#0F1117' }}>{selectedMonth.format('MMMM YYYY')}</strong>
+                                {allTime ? (
+                                    <> &mdash; <strong style={{ color: '#6366F1' }}>All Time Data</strong></>
+                                ) : (
+                                    <> for{' '}<strong style={{ color: '#0F1117' }}>{selectedMonth.format('MMMM YYYY')}</strong></>
+                                )}
                             </span>
                         </div>
 
@@ -390,7 +432,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
                         <div style={{ display: 'flex', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
                             <SummaryCard
                                 number={data.ticketSummary.totalOpened}
-                                label="Tickets Open This Month"
+                                label={allTime ? 'Total Tickets All Time' : 'Tickets Open This Month'}
                                 color="#2563EB"
                                 bg="rgba(37,99,235,0.05)"
                                 border="rgba(37,99,235,0.14)"
@@ -398,7 +440,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
                             />
                             <SummaryCard
                                 number={data.ticketSummary.totalClosed}
-                                label="Tickets Closed This Month"
+                                label={allTime ? 'Total Tickets Resolved' : 'Tickets Closed This Month'}
                                 color="#16A34A"
                                 bg="rgba(22,163,74,0.05)"
                                 border="rgba(22,163,74,0.14)"
@@ -448,8 +490,8 @@ const ClientDashboardPreviewPage: React.FC = () => {
                                 delay={0.16}
                             >
                                 <InfoRow label="Total Contracted Hours" value={data.hoursDetails.totalContracted} />
-                                <InfoRow label="Previous Balance Hours" value={data.hoursDetails.previousBalance} />
-                                <InfoRow label="Hours Consumed This Month" value={data.hoursDetails.hoursConsumed} />
+                                <InfoRow label={allTime ? 'Starting Balance Hours' : 'Previous Balance Hours'} value={data.hoursDetails.previousBalance} />
+                                <InfoRow label={allTime ? 'Hours Consumed (All Time)' : 'Hours Consumed This Month'} value={data.hoursDetails.hoursConsumed} />
                                 <InfoRow label="Hours on Open Tickets" value={data.hoursDetails.hoursOnOpen} />
                                 <InfoRow
                                     label="Current Balance Hours"
@@ -466,7 +508,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
                         {/* ── Open Tickets Table ── */}
                         <TableSection
                             dotColor="#F59E0B"
-                            title="Open Tickets Report"
+                            title={allTime ? 'All Open Tickets' : 'Open Tickets Report'}
                             count={data.openCases.length}
                             countBg="rgba(245,158,11,0.10)"
                             countColor="#B45309"
@@ -486,7 +528,7 @@ const ClientDashboardPreviewPage: React.FC = () => {
                         {/* ── Resolved Tickets Table ── */}
                         <TableSection
                             dotColor="#16A34A"
-                            title="Resolved Tickets Report"
+                            title={allTime ? 'All Resolved Tickets' : 'Resolved Tickets Report'}
                             count={data.resolvedCases.length}
                             countBg="rgba(22,163,74,0.09)"
                             countColor="#15803D"
