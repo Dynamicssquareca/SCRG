@@ -22,57 +22,65 @@ function isResolved(status: string): boolean {
 /**
  * Shared helper to compute all dashboard / report details for a client.
  */
-export async function getClientDashboardDataHelper(clientId: string, m: number, y: number) {
+export async function getClientDashboardDataHelper(clientId: string, m: number, y: number, allTime = false) {
   const clientInfo = await Client.findById(clientId);
   if (!clientInfo) throw new NotFoundError('Client not found');
-
-  // Find the latest upload that has cases for this client
-  const latestCase = await Case.findOne({ client_id: clientId }).sort({ createdAt: -1 });
-  const uploadId = latestCase?.upload_id;
 
   // Get all cases for this client
   const allCases = await Case.find({ client_id: clientId });
 
-  // Filter cases relevant to this month (reuses report generation logic)
-  const relevantCases = allCases.filter((c: any) => {
-    const createdD = c.created_on ? dayjs(c.created_on) : null;
-    const updatedD = c.updated_on ? dayjs(c.updated_on) : null;
-    const createdInMonth = createdD && createdD.month() + 1 === m && createdD.year() === y;
-    const updatedInMonth = updatedD && updatedD.month() + 1 === m && updatedD.year() === y;
+  let openCases: any[];
+  let resolvedCases: any[];
+  let totalOpened: number;
 
-    let createdBeforeOrDuring = false;
-    if (createdD) {
-      if (createdD.year() < y || (createdD.year() === y && createdD.month() + 1 <= m)) {
-        createdBeforeOrDuring = true;
+  if (allTime) {
+    // All-time mode: no month filtering
+    openCases = allCases.filter((c: any) => !isResolved(c.status_reason || ''));
+    resolvedCases = allCases.filter((c: any) => isResolved(c.status_reason || ''));
+    totalOpened = allCases.length;
+  } else {
+    // Filter cases relevant to this month (reuses report generation logic)
+    const relevantCases = allCases.filter((c: any) => {
+      const createdD = c.created_on ? dayjs(c.created_on) : null;
+      const updatedD = c.updated_on ? dayjs(c.updated_on) : null;
+      const createdInMonth = createdD && createdD.month() + 1 === m && createdD.year() === y;
+      const updatedInMonth = updatedD && updatedD.month() + 1 === m && updatedD.year() === y;
+
+      let createdBeforeOrDuring = false;
+      if (createdD) {
+        if (createdD.year() < y || (createdD.year() === y && createdD.month() + 1 <= m)) {
+          createdBeforeOrDuring = true;
+        }
       }
-    }
-    let resolvedBefore = false;
-    if (isResolved(c.status_reason || '') && updatedD) {
-      if (updatedD.year() < y || (updatedD.year() === y && updatedD.month() + 1 < m)) {
-        resolvedBefore = true;
+      let resolvedBefore = false;
+      if (isResolved(c.status_reason || '') && updatedD) {
+        if (updatedD.year() < y || (updatedD.year() === y && updatedD.month() + 1 < m)) {
+          resolvedBefore = true;
+        }
       }
-    }
-    const isOpenDuringMonth = createdBeforeOrDuring && !resolvedBefore;
-    return createdInMonth || updatedInMonth || isOpenDuringMonth;
-  });
+      const isOpenDuringMonth = createdBeforeOrDuring && !resolvedBefore;
+      return createdInMonth || updatedInMonth || isOpenDuringMonth;
+    });
 
-  // Open cases: not resolved/closed
-  const openCases = relevantCases.filter((c: any) => !isResolved(c.status_reason || ''));
+    // Open cases: not resolved/closed
+    openCases = relevantCases.filter((c: any) => !isResolved(c.status_reason || ''));
 
-  // Resolved cases: resolved/closed during selected month
-  const resolvedCases = relevantCases.filter((c: any) => {
-    if (!isResolved(c.status_reason || '')) return false;
-    const updatedD = c.updated_on ? dayjs(c.updated_on) : null;
-    return updatedD && updatedD.month() + 1 === m && updatedD.year() === y;
-  });
+    // Resolved cases: resolved/closed during selected month
+    resolvedCases = relevantCases.filter((c: any) => {
+      if (!isResolved(c.status_reason || '')) return false;
+      const updatedD = c.updated_on ? dayjs(c.updated_on) : null;
+      return updatedD && updatedD.month() + 1 === m && updatedD.year() === y;
+    });
 
-  // Ticket counts for cases created this month
-  const casesCreatedThisMonth = relevantCases.filter((c: any) => {
-    const createdD = c.created_on ? dayjs(c.created_on) : null;
-    return createdD && createdD.month() + 1 === m && createdD.year() === y;
-  });
+    // Ticket counts for cases created this month
+    const casesCreatedThisMonth = relevantCases.filter((c: any) => {
+      const createdD = c.created_on ? dayjs(c.created_on) : null;
+      return createdD && createdD.month() + 1 === m && createdD.year() === y;
+    });
 
-  const totalOpened = casesCreatedThisMonth.length;
+    totalOpened = casesCreatedThisMonth.length;
+  }
+
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
 
@@ -88,10 +96,15 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
 
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo.previous_balance_hours) || 0);
-  const currentBalance = previousBalance - hoursConsumed - hoursOnOpen;
 
-  // Check if a generated report file exists for download
-  const report = await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
+  // All-time: start from totalContracted (previous balance already bakes in historical consumption)
+  // Monthly:  start from previousBalance (end of last month)
+  const currentBalance = allTime
+    ? totalContracted - hoursConsumed - hoursOnOpen
+    : previousBalance - hoursConsumed - hoursOnOpen;
+
+  // Check if a generated report file exists for download (month-specific only)
+  const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
 
   return {
     clientInfo: {
@@ -104,7 +117,8 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
     },
     hoursDetails: {
       totalContracted,
-      previousBalance,
+      // In All-Time mode, base balance on totalContracted; previousBalance not meaningful cross-period
+      previousBalance: allTime ? totalContracted : previousBalance,
       hoursConsumed,
       hoursOnOpen,
       currentBalance,
@@ -136,6 +150,7 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
     })),
     hasReport: !!report,
     reportId: report?._id?.toString() || null,
+    allTime,
   };
 }
 
@@ -148,11 +163,12 @@ export async function getClientDashboard(req: Request, res: Response, next: Next
     const clientId = (req.user as any).client_id;
     if (!clientId) throw new ForbiddenError('No client linked to this account');
 
-    const { month, year } = req.query;
+    const { month, year, allTime } = req.query;
+    const isAllTime = allTime === 'true';
     const m = month ? Number(month) : dayjs().month() + 1;
     const y = year ? Number(year) : dayjs().year();
 
-    const data = await getClientDashboardDataHelper(clientId, m, y);
+    const data = await getClientDashboardDataHelper(clientId, m, y, isAllTime);
     successResponse(res, data);
   } catch (err) { next(err); }
 }
@@ -163,13 +179,14 @@ export async function getClientDashboard(req: Request, res: Response, next: Next
  */
 export async function getClientDashboardPreview(req: Request, res: Response, next: NextFunction) {
   try {
-    const { clientId, month, year } = req.query;
+    const { clientId, month, year, allTime } = req.query;
     if (!clientId) throw new ForbiddenError('clientId query parameter is required');
 
+    const isAllTime = allTime === 'true';
     const m = month ? Number(month) : dayjs().month() + 1;
     const y = year ? Number(year) : dayjs().year();
 
-    const data = await getClientDashboardDataHelper(String(clientId), m, y);
+    const data = await getClientDashboardDataHelper(String(clientId), m, y, isAllTime);
     successResponse(res, data);
   } catch (err) { next(err); }
 }
@@ -183,19 +200,20 @@ export async function downloadClientReport(req: Request, res: Response, next: Ne
     const clientId = (req.user as any).client_id;
     if (!clientId) throw new ForbiddenError('No client linked to this account');
 
-    const { month, year, format } = req.query;
+    const { month, year, format, allTime } = req.query;
+    const isAllTime = allTime === 'true';
     const m = month ? Number(month) : dayjs().month() + 1;
     const y = year ? Number(year) : dayjs().year();
 
     if (format === 'pdf') {
-      const data = await getClientDashboardDataHelper(clientId, m, y);
+      const data = await getClientDashboardDataHelper(clientId, m, y, isAllTime);
       const monthStart = new Date(y, m - 1, 1);
-      const monthName = dayjs(monthStart).format('MMMM');
+      const monthName = isAllTime ? 'All_Time' : dayjs(monthStart).format('MMMM');
 
       const pdfData: ClientPortalPdfData = {
-        month: m,
+        month: isAllTime ? 0 : m,
         year: y,
-        monthName,
+        monthName: isAllTime ? 'All Time' : monthName,
         clientInfo: data.clientInfo,
         hoursDetails: data.hoursDetails,
         ticketSummary: data.ticketSummary,
@@ -206,7 +224,9 @@ export async function downloadClientReport(req: Request, res: Response, next: Ne
       const pdfBuffer = await generateClientPortalPdf(pdfData);
 
       const cleanClientName = data.clientInfo.client_name.replace(/[^a-zA-Z0-9]/g, '_');
-      const filename = `Support_Report_${cleanClientName}_${monthName.substring(0, 3)}_${y}.pdf`;
+      const filename = isAllTime
+        ? `Support_Report_${cleanClientName}_All_Time.pdf`
+        : `Support_Report_${cleanClientName}_${monthName.substring(0, 3)}_${y}.pdf`;
 
       res.set({
         'Content-Type': 'application/pdf',
@@ -215,6 +235,9 @@ export async function downloadClientReport(req: Request, res: Response, next: Ne
       });
       return res.send(pdfBuffer);
     }
+
+    // For Excel: only month-specific reports are stored as files
+    if (isAllTime) throw new NotFoundError('All-time Excel export is not available. Use PDF format instead.');
 
     const report = await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
     if (!report || !report.file_data) throw new NotFoundError('Report not yet generated for this period');

@@ -868,12 +868,13 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     doc.rect(ML, y, tableW, 22).fill(teal);
     doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold').text('HOURS DETAILS', ML + 10, y + 7);
     y += 22;
+    const isAllTimePdf = data.monthName === 'All Time';
     const hoursRows: [string, number, boolean][] = [
-      ['Total Contracted Hours',         data.hoursDetails.totalContracted,  false],
-      ['Previous Balance Hours',         data.hoursDetails.previousBalance,  false],
-      ['Hours Consumed This Month',      data.hoursDetails.hoursConsumed,    false],
-      ['Hours Allotted to Open Tickets', data.hoursDetails.hoursOnOpen,      false],
-      ['Current Balance Hours',          data.hoursDetails.currentBalance,   true],
+      ['Total Contracted Hours',                                                   data.hoursDetails.totalContracted,  false],
+      [isAllTimePdf ? 'Starting Balance Hours' : 'Previous Balance Hours',        data.hoursDetails.previousBalance,  false],
+      [isAllTimePdf ? 'Hours Consumed (All Time)' : 'Hours Consumed This Month',  data.hoursDetails.hoursConsumed,    false],
+      ['Hours Allotted to Open Tickets',                                           data.hoursDetails.hoursOnOpen,      false],
+      ['Current Balance Hours',                                                    data.hoursDetails.currentBalance,   true],
     ];
     zebra = false;
     hoursRows.forEach(([label, value, isBalance]) => {
