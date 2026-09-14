@@ -225,7 +225,7 @@ const DashboardPage: React.FC = () => {
 
   const fetchClientList = async () => {
     try {
-      const res = await api.get('/clients?limit=1000');
+      const res = await api.get('/clients?limit=1000&isActive=true');
       const clients = res.data.data.clients || [];
       setClientsList(clients);
       if (clients.length > 0 && !selectedClient) {
