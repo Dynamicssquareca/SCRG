@@ -144,32 +144,31 @@ const ClientPortalDashboard: React.FC = () => {
   }, [selectedMonth, allTime]);
 
   const handleDownload = async () => {
-    if (allTime) {
-      message.info('All-time Excel export is not available. Use PDF instead.');
-      return;
-    }
     setDownloading(true);
     try {
-      const month = selectedMonth.month() + 1;
-      const year = selectedMonth.year();
-      const res = await api.get(`/client-portal/report/download?month=${month}&year=${year}`, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = allTime
+        ? `/client-portal/report/download?allTime=true`
+        : `/client-portal/report/download?month=${selectedMonth.month() + 1}&year=${selectedMonth.year()}`;
+      const res = await api.get(url, { responseType: 'blob' });
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      );
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       const disposition = res.headers['content-disposition'];
       const filename = disposition
         ? disposition.split('filename=')[1]?.replace(/"/g, '')
-        : `Report_${month}_${year}.xlsx`;
+        : allTime
+          ? `Support_Report_All_Time.xlsx`
+          : `Report_${selectedMonth.month() + 1}_${selectedMonth.year()}.xlsx`;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
-      message.success('Report downloaded successfully!');
+      window.URL.revokeObjectURL(blobUrl);
+      message.success('Excel report downloaded successfully!');
     } catch {
-      message.error('Report not available for this period yet.');
+      message.error(allTime ? 'Failed to generate All-Time Excel report.' : 'Report not available for this period yet.');
     } finally {
       setDownloading(false);
     }
@@ -593,9 +592,18 @@ const ClientPortalDashboard: React.FC = () => {
               <span className="cp-table-title-text">{allTime ? 'All Open Tickets' : 'Open Tickets Report'}</span>
             </div>
             <div className="cp-btn-group">
-              {/* All-time PDF download — always shown */}
+              {/* All-time downloads */}
               {allTime && (
                 <>
+                  <button
+                    className="cp-dl-btn cp-dl-excel"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    title="Download All Time Excel Report"
+                  >
+                    <DownloadOutlined />
+                    {downloading ? 'Downloading…' : 'Excel'}
+                  </button>
                   <button
                     className="cp-dl-btn cp-dl-pdf"
                     onClick={handleDownloadPdf}

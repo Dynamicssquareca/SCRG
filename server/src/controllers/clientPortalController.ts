@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import { Client } from '../models/Client';
 import { Case } from '../models/Case';
 import { Report } from '../models/Report';
@@ -84,8 +85,18 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
 
-  const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  const hoursOnOpen = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+  // In All-Time mode:
+  //   hoursConsumed = total billable hours across ALL cases (open + resolved)
+  //   hoursOnOpen   = open cases subset (for display only — already included in hoursConsumed)
+  //   currentBalance does NOT subtract hoursOnOpen again to avoid double-counting
+  // In Monthly mode:
+  //   hoursConsumed = resolved cases hours only
+  //   hoursOnOpen   = open cases hours (separately subtracted from balance)
+  const openCasesHours = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+  const hoursConsumed = allTime
+    ? allCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0)
+    : resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+  const hoursOnOpen = openCasesHours;
 
   const totalContracted = Number(clientInfo.total_contracted_hours) || 0;
 
@@ -97,10 +108,10 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo.previous_balance_hours) || 0);
 
-  // All-time: start from totalContracted (previous balance already bakes in historical consumption)
-  // Monthly:  start from previousBalance (end of last month)
+  // All-time: balance = totalContracted - hoursConsumed (hoursOnOpen is already included in hoursConsumed)
+  // Monthly:  balance = previousBalance - resolved hours - open hours
   const currentBalance = allTime
-    ? totalContracted - hoursConsumed - hoursOnOpen
+    ? totalContracted - hoursConsumed
     : previousBalance - hoursConsumed - hoursOnOpen;
 
   // Check if a generated report file exists for download (month-specific only)
@@ -236,9 +247,74 @@ export async function downloadClientReport(req: Request, res: Response, next: Ne
       return res.send(pdfBuffer);
     }
 
-    // For Excel: only month-specific reports are stored as files
-    if (isAllTime) throw new NotFoundError('All-time Excel export is not available. Use PDF format instead.');
+    // For All-Time Excel: dynamically generate from dashboard data
+    if (isAllTime) {
+      const data = await getClientDashboardDataHelper(clientId, m, y, true);
+      const cleanClientName = data.clientInfo.client_name.replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Support_Report_${cleanClientName}_All_Time.xlsx`;
 
+      // Build workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Hours Summary
+      const summaryData = [
+        ['Client', data.clientInfo.client_name],
+        ['Account Manager', data.clientInfo.account_manager],
+        ['Customer Success Manager', data.clientInfo.customer_success_mgr],
+        ['Solution', data.clientInfo.tool_version],
+        [],
+        ['Hours Summary', ''],
+        ['Total Contracted Hours', data.hoursDetails.totalContracted],
+        ['Hours Consumed (All Time)', data.hoursDetails.hoursConsumed],
+        ['Current Balance Hours', data.hoursDetails.currentBalance],
+        [],
+        ['Ticket Summary', ''],
+        ['Total Tickets', data.ticketSummary.totalOpened],
+        ['Total Resolved', data.ticketSummary.totalClosed],
+        ['Pending', data.ticketSummary.pending],
+      ];
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+      // Sheet 2: Open Tickets
+      const openRows = data.openCases.map((c: any) => ({
+        'S.No.': c.sno,
+        'Case Number': c.case_number,
+        'Contact': c.contact,
+        'Subject': c.subject,
+        'Created On': c.created_on ? dayjs(c.created_on).format('DD-MM-YYYY') : '',
+        'Hours': c.hours,
+        'Consultant': c.consultant,
+        'Status': c.status,
+      }));
+      const wsOpen = XLSX.utils.json_to_sheet(openRows.length > 0 ? openRows : [{ 'Case Number': 'No open tickets' }]);
+      XLSX.utils.book_append_sheet(wb, wsOpen, 'Open Tickets');
+
+      // Sheet 3: Resolved Tickets
+      const resolvedRows = data.resolvedCases.map((c: any) => ({
+        'S.No.': c.sno,
+        'Case Number': c.case_number,
+        'Contact': c.contact,
+        'Subject': c.subject,
+        'Created On': c.created_on ? dayjs(c.created_on).format('DD-MM-YYYY') : '',
+        'Resolved On': c.resolved_on ? dayjs(c.resolved_on).format('DD-MM-YYYY') : '',
+        'Hours': c.hours,
+        'Consultant': c.consultant,
+      }));
+      const wsResolved = XLSX.utils.json_to_sheet(resolvedRows.length > 0 ? resolvedRows : [{ 'Case Number': 'No resolved tickets' }]);
+      XLSX.utils.book_append_sheet(wb, wsResolved, 'Resolved Tickets');
+
+      const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': String(excelBuffer.length),
+      });
+      return res.send(excelBuffer);
+    }
+
+    // For month-specific Excel: use stored report file
     const report = await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
     if (!report || !report.file_data) throw new NotFoundError('Report not yet generated for this period');
 
