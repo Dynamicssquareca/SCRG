@@ -78,24 +78,24 @@ const MetricCard: React.FC<MetricProps> = ({ label, value, icon, iconBg, iconCol
 /* ── Dashboard ───────────────────────────────── */
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats]               = useState<any>({});
+  const [stats, setStats] = useState<any>({});
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [centerData, setCenterData]     = useState<any>(null);
-  const [loading, setLoading]           = useState(true);
+  const [centerData, setCenterData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<Dayjs | null>(null);
   const [lastUploadAt, setLastUploadAt] = useState<string | null>(null);
-  const [workload, setWorkload]         = useState<{agent:string;openCount:number}[]>([]);
+  const [workload, setWorkload] = useState<{ agent: string; openCount: number }[]>([]);
 
   // Reachouts states
   const [reachouts, setReachouts] = useState<any[]>([]);
   const [reachoutsLoading, setReachoutsLoading] = useState(false);
-  
+
   const [compMonth1, setCompMonth1] = useState<Dayjs>(dayjs());
   const [compMonth2, setCompMonth2] = useState<Dayjs>(dayjs().subtract(1, 'month'));
   const [customChartData, setCustomChartData] = useState<any>(null);
 
-  const [clientsList, setClientsList] = useState<{_id: string, client_name: string}[]>([]);
+  const [clientsList, setClientsList] = useState<{ _id: string, client_name: string }[]>([]);
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [clientMonth, setClientMonth] = useState<Dayjs | null>(null);
   const [clientBreakdown, setClientBreakdown] = useState<any>(null);
@@ -148,7 +148,7 @@ const DashboardPage: React.FC = () => {
       );
     }
     if (caseFilterCustomer) data = data.filter(r => r.customer_name === caseFilterCustomer);
-    if (caseFilterAgent)    data = data.filter(r => r.support_agent === caseFilterAgent);
+    if (caseFilterAgent) data = data.filter(r => r.support_agent === caseFilterAgent);
     if (caseFilterPriority) data = data.filter(r => r.priority === caseFilterPriority);
     return data;
   }, [casesData, caseSearchText, caseFilterCustomer, caseFilterAgent, caseFilterPriority]);
@@ -231,7 +231,7 @@ const DashboardPage: React.FC = () => {
       if (clients.length > 0 && !selectedClient) {
         setSelectedClient(clients[0]._id);
       }
-    } catch { /* silent */ }
+    } catch { /*silent*/ }
   };
 
   const fetchClientBreakdown = async () => {
@@ -311,9 +311,9 @@ const DashboardPage: React.FC = () => {
   const mLabel = selectedMonth ? ` (${selectedMonth.format('MMM YYYY')})` : '';
 
   const metrics: MetricProps[] = [
-    { label: 'Active Clients',          value: stats.totalClients,    icon: <UserOutlined />,        iconBg: 'rgba(232,54,61,0.08)', iconColor: '#E8363D', accentColor: '#E8363D', index: 0, loading },
-    { label: `Open Tickets${mLabel}`,   value: stats.totalOpenCases,  icon: <WarningOutlined />,     iconBg: 'rgba(234,179,8,0.10)', iconColor: '#B45309', accentColor: '#F59E0B', index: 1, loading, onClick: () => fetchCases('open') },
-    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases,icon: <CheckCircleOutlined />, iconBg: 'rgba(22,163,74,0.09)', iconColor: '#16A34A', accentColor: '#16A34A', index: 2, loading, onClick: () => fetchCases('closed') },
+    { label: 'Active Clients', value: stats.totalClients, icon: <UserOutlined />, iconBg: 'rgba(232,54,61,0.08)', iconColor: '#E8363D', accentColor: '#E8363D', index: 0, loading },
+    { label: `Open Tickets${mLabel}`, value: stats.totalOpenCases, icon: <WarningOutlined />, iconBg: 'rgba(234,179,8,0.10)', iconColor: '#B45309', accentColor: '#F59E0B', index: 1, loading, onClick: () => fetchCases('open') },
+    { label: `Closed Tickets${mLabel}`, value: stats.totalClosedCases, icon: <CheckCircleOutlined />, iconBg: 'rgba(22,163,74,0.09)', iconColor: '#16A34A', accentColor: '#16A34A', index: 2, loading, onClick: () => fetchCases('closed') },
   ];
 
   const caseColumns = [
@@ -507,7 +507,7 @@ const DashboardPage: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8ECF4" />
                         <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#4B5568', fontWeight: 500 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                        <RechartsTooltip 
+                        <RechartsTooltip
                           cursor={{ fill: 'rgba(0,0,0,0.03)' }}
                           contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                           itemStyle={{ fontSize: 13, fontWeight: 600 }}
@@ -566,7 +566,7 @@ const DashboardPage: React.FC = () => {
                   { name: 'Open', value: clientBreakdown.open },
                   { name: 'Closed', value: clientBreakdown.closed }
                 ].filter(d => d.value > 0);
-                
+
                 const COLORS = ['#F59E0B', '#16A34A'];
 
                 if (data.length === 0) {
@@ -592,7 +592,7 @@ const DashboardPage: React.FC = () => {
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
-                        <RechartsTooltip 
+                        <RechartsTooltip
                           contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                           itemStyle={{ fontSize: 14, fontWeight: 700 }}
                         />
@@ -638,7 +638,7 @@ const DashboardPage: React.FC = () => {
                     {workload.map((w, i) => {
                       const pct = (w.openCount / maxCount) * 100;
                       const color = pct > 70 ? '#EF4444' : pct > 40 ? '#F59E0B' : '#16A34A';
-                      const bg   = pct > 70 ? '#FEF2F2' : pct > 40 ? '#FFFBEB' : '#F0FDF4';
+                      const bg = pct > 70 ? '#FEF2F2' : pct > 40 ? '#FFFBEB' : '#F0FDF4';
                       return (
                         <motion.div key={i} className="workload-row"
                           initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
@@ -761,8 +761,8 @@ const DashboardPage: React.FC = () => {
                                       item.level === 'critical'
                                         ? <ExclamationCircleOutlined style={{ color: '#DC2626', fontSize: 18, marginTop: 2 }} />
                                         : item.level === 'warning'
-                                        ? <WarningOutlined style={{ color: '#D97706', fontSize: 18, marginTop: 2 }} />
-                                        : <InfoCircleOutlined style={{ color: '#2563EB', fontSize: 18, marginTop: 2 }} />
+                                          ? <WarningOutlined style={{ color: '#D97706', fontSize: 18, marginTop: 2 }} />
+                                          : <InfoCircleOutlined style={{ color: '#2563EB', fontSize: 18, marginTop: 2 }} />
                                     }
                                     title={<Text strong style={{ fontSize: 12 }}>{item.clientName}</Text>}
                                     description={
@@ -818,13 +818,13 @@ const DashboardPage: React.FC = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, background: '#f9fafb', padding: '6px 8px', borderRadius: 6 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}>Show {'<'} </Text>
-                                <InputNumber 
-                                  size="small" 
-                                  min={0} 
-                                  max={100} 
-                                  value={maxBalanceFilter} 
-                                  onChange={(val) => setMaxBalanceFilter(val || 0)} 
-                                  style={{ width: 60 }} 
+                                <InputNumber
+                                  size="small"
+                                  min={0}
+                                  max={100}
+                                  value={maxBalanceFilter}
+                                  onChange={(val) => setMaxBalanceFilter(val || 0)}
+                                  style={{ width: 60 }}
                                 />
                                 <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}> hrs</Text>
                               </div>
@@ -918,13 +918,13 @@ const DashboardPage: React.FC = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, background: '#f9fafb', padding: '6px 8px', borderRadius: 6 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}>Show {'>'} </Text>
-                                <InputNumber 
-                                  size="small" 
-                                  min={0} 
-                                  max={365} 
-                                  value={minDaysFilter} 
-                                  onChange={(val) => setMinDaysFilter(val || 0)} 
-                                  style={{ width: 60 }} 
+                                <InputNumber
+                                  size="small"
+                                  min={0}
+                                  max={365}
+                                  value={minDaysFilter}
+                                  onChange={(val) => setMinDaysFilter(val || 0)}
+                                  style={{ width: 60 }}
                                 />
                                 <Text style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}> days</Text>
                               </div>
