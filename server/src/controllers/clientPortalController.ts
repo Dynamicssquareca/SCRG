@@ -87,8 +87,13 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const pending = openCases.length;
 
   // hoursConsumed = billable hours on CLOSED/RESOLVED tickets only (actual billed hours)
-  // hoursOnOpen   = billable hours on OPEN/PENDING tickets (allocated but not yet finalized)
-  // currentBalance = Contracted − Consumed − Allotted  (clean, no double-counting)
+  // hoursOnOpen   = billable hours on OPEN/PENDING tickets (informational — shown for visibility)
+  // currentBalance:
+  //   All-time:  Contracted − Consumed (closed) − Allotted (open)
+  //              Uses full contracted hours as the starting point, so both must be deducted.
+  //   Monthly:   Previous Balance − Consumed THIS MONTH only
+  //              Previous balance already accounts for open ticket hours from prior months.
+  //              Subtracting open hours again would double-count them → balance goes to 0 wrongly.
   const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
   const hoursOnOpen   = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
 
@@ -102,11 +107,9 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo.previous_balance_hours) || 0);
 
-  // All-time:  Balance = Total Contracted − Consumed (closed) − Allotted (open)
-  // Monthly:   Balance = Previous Balance − Consumed (closed this month) − Allotted (open)
   const currentBalance = allTime
-    ? totalContracted - hoursConsumed - hoursOnOpen
-    : previousBalance - hoursConsumed - hoursOnOpen;
+    ? totalContracted - hoursConsumed - hoursOnOpen   // all-time: start fresh from contracted
+    : previousBalance - hoursConsumed;                // monthly: prev balance already nets open hrs
 
   // Check if a generated report file exists for download (month-specific only)
   const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
