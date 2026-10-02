@@ -521,7 +521,7 @@ const ClientPortalDashboard: React.FC = () => {
               <span className="cp-info-value number">{hoursDetails.previousBalance}</span>
             </div>
             <div className="cp-info-row">
-              <span className="cp-info-label">{allTime ? 'Hours Consumed (All Time)' : 'Hours Consumed This Month'}</span>
+              <span className="cp-info-label">{allTime ? 'Hours Consumed (Closed Tickets)' : 'Hours Consumed This Month'}</span>
               <span className="cp-info-value number">{hoursDetails.hoursConsumed}</span>
             </div>
             <div className="cp-info-row">
