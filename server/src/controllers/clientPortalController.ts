@@ -86,30 +86,40 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
 
-  // hoursConsumed = billable hours on CLOSED/RESOLVED tickets only (actual billed hours)
-  // hoursOnOpen   = billable hours on OPEN/PENDING tickets (informational — shown for visibility)
-  // currentBalance:
-  //   All-time:  Contracted − Consumed (closed) − Allotted (open)
-  //              Uses full contracted hours as the starting point, so both must be deducted.
-  //   Monthly:   Previous Balance − Consumed THIS MONTH only
-  //              Previous balance already accounts for open ticket hours from prior months.
-  //              Subtracting open hours again would double-count them → balance goes to 0 wrongly.
+  // hoursConsumed     = billable hours on cases CLOSED during the selected month
+  // hoursOnOpen       = billable hours on all currently OPEN tickets (informational)
+  // previousBalance   = dynamically computed: Contracted − hours consumed on cases closed BEFORE this month
+  //                     (does NOT rely on stored Report documents which may have stale/buggy values)
+  // currentBalance    = previousBalance − hoursConsumed (this month only)
+  //                     Open ticket hours shown informational — NOT deducted from monthly balance.
+  // All-time balance  = Contracted − consumed (all closed) − allotted (all open)
+
   const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
   const hoursOnOpen   = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
 
   const totalContracted = Number(clientInfo.total_contracted_hours) || 0;
 
-  // Get previous month's report for starting balance
-  const prevMonthIdx = m - 2;
-  const prevMonthNum = prevMonthIdx < 0 ? 12 : prevMonthIdx + 1;
-  const prevYearNum = prevMonthIdx < 0 ? y - 1 : y;
-
-  const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
-  const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo.previous_balance_hours) || 0);
+  // Dynamic previous balance: Contracted − hours consumed on ALL cases closed BEFORE this month's start.
+  // This is always correct even if stored Report documents have wrong/stale remaining_balance values.
+  let previousBalance: number;
+  if (allTime) {
+    // All-time mode: "starting balance" = total contracted (the baseline)
+    previousBalance = totalContracted;
+  } else {
+    const monthStart = new Date(y, m - 1, 1); // 1st day of selected month
+    const hoursConsumedBeforeThisMonth = allCases
+      .filter((c: any) => {
+        if (!isResolved(c.status_reason || '')) return false;
+        const updatedD = c.updated_on ? new Date(c.updated_on) : null;
+        return updatedD && updatedD < monthStart;
+      })
+      .reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+    previousBalance = totalContracted - hoursConsumedBeforeThisMonth;
+  }
 
   const currentBalance = allTime
-    ? totalContracted - hoursConsumed - hoursOnOpen   // all-time: start fresh from contracted
-    : previousBalance - hoursConsumed;                // monthly: prev balance already nets open hrs
+    ? totalContracted - hoursConsumed - hoursOnOpen   // all-time: contracted − closed − open
+    : previousBalance - hoursConsumed;                // monthly:  prev balance − this month's closed
 
   // Check if a generated report file exists for download (month-specific only)
   const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
