@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Client } from '../models/Client';
 import { Case } from '../models/Case';
 import { Report } from '../models/Report';
@@ -85,18 +86,11 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
 
-  // In All-Time mode:
-  //   hoursConsumed = total billable hours across ALL cases (open + resolved)
-  //   hoursOnOpen   = open cases subset (for display only — already included in hoursConsumed)
-  //   currentBalance does NOT subtract hoursOnOpen again to avoid double-counting
-  // In Monthly mode:
-  //   hoursConsumed = resolved cases hours only
-  //   hoursOnOpen   = open cases hours (separately subtracted from balance)
-  const openCasesHours = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  const hoursConsumed = allTime
-    ? allCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0)
-    : resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  const hoursOnOpen = openCasesHours;
+  // hoursConsumed = billable hours on CLOSED/RESOLVED tickets only (actual billed hours)
+  // hoursOnOpen   = billable hours on OPEN/PENDING tickets (allocated but not yet finalized)
+  // currentBalance = Contracted − Consumed − Allotted  (clean, no double-counting)
+  const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+  const hoursOnOpen   = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
 
   const totalContracted = Number(clientInfo.total_contracted_hours) || 0;
 
@@ -108,10 +102,10 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
   const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo.previous_balance_hours) || 0);
 
-  // All-time: balance = totalContracted - hoursConsumed (hoursOnOpen is already included in hoursConsumed)
-  // Monthly:  balance = previousBalance - resolved hours - open hours
+  // All-time:  Balance = Total Contracted − Consumed (closed) − Allotted (open)
+  // Monthly:   Balance = Previous Balance − Consumed (closed this month) − Allotted (open)
   const currentBalance = allTime
-    ? totalContracted - hoursConsumed
+    ? totalContracted - hoursConsumed - hoursOnOpen
     : previousBalance - hoursConsumed - hoursOnOpen;
 
   // Check if a generated report file exists for download (month-specific only)
@@ -247,71 +241,317 @@ export async function downloadClientReport(req: Request, res: Response, next: Ne
       return res.send(pdfBuffer);
     }
 
-    // For All-Time Excel: dynamically generate from dashboard data
+    // For All-Time Excel: dynamically generate a styled workbook with ExcelJS
     if (isAllTime) {
       const data = await getClientDashboardDataHelper(clientId, m, y, true);
       const cleanClientName = data.clientInfo.client_name.replace(/[^a-zA-Z0-9]/g, '_');
       const filename = `Support_Report_${cleanClientName}_All_Time.xlsx`;
 
-      // Build workbook
-      const wb = XLSX.utils.book_new();
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Dynamics Square Support Portal';
+      wb.created = new Date();
 
-      // Sheet 1: Hours Summary
-      const summaryData = [
-        ['Client', data.clientInfo.client_name],
-        ['Account Manager', data.clientInfo.account_manager],
-        ['Customer Success Manager', data.clientInfo.customer_success_mgr],
-        ['Solution', data.clientInfo.tool_version],
-        [],
-        ['Hours Summary', ''],
-        ['Total Contracted Hours', data.hoursDetails.totalContracted],
-        ['Hours Consumed (All Time)', data.hoursDetails.hoursConsumed],
-        ['Current Balance Hours', data.hoursDetails.currentBalance],
-        [],
-        ['Ticket Summary', ''],
-        ['Total Tickets', data.ticketSummary.totalOpened],
-        ['Total Resolved', data.ticketSummary.totalClosed],
-        ['Pending', data.ticketSummary.pending],
+      // ── Shared style helpers ─────────────────────────────────────────────
+      const COLORS = {
+        // section header backgrounds
+        acctHeader:     '1B6B3A',   // deep green  – Account Details
+        hoursHeader:    '1B4F8A',   // deep blue   – Hours Summary
+        ticketHeader:   '7B3F00',   // dark brown  – Ticket Summary
+        openHeader:     '1B4F8A',   // blue        – Open Tickets sheet header
+        resolvedHeader: '1B6B3A',   // green       – Resolved Tickets sheet header
+        // data rows
+        labelFill:      'F2F2F2',   // light gray for label cells
+        zebraFill:      'EAF4FB',   // very light blue alternate row
+        balancePos:     'E8F5E9',   // light green – positive balance
+        balanceNeg:     'FFEBEE',   // light red   – negative balance
+        balancePosFont: '1B6B3A',
+        balanceNegFont: 'C62828',
+        white:          'FFFFFF',
+        black:          '1A1A1A',
+      };
+
+      const thinBorder: Partial<ExcelJS.Borders> = {
+        top:    { style: 'thin', color: { argb: 'FFD0D0D0' } },
+        left:   { style: 'thin', color: { argb: 'FFD0D0D0' } },
+        bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+        right:  { style: 'thin', color: { argb: 'FFD0D0D0' } },
+      };
+
+      const sectionHeaderStyle = (bgHex: string): Partial<ExcelJS.Style> => ({
+        font:      { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
+        fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${bgHex}` } },
+        alignment: { horizontal: 'center', vertical: 'middle' },
+        border:    thinBorder,
+      });
+
+      const labelStyle = (zebra = false): Partial<ExcelJS.Style> => ({
+        font:      { bold: true, color: { argb: `FF${COLORS.black}` }, size: 9 },
+        fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? `FF${COLORS.zebraFill}` : `FF${COLORS.white}` } },
+        alignment: { horizontal: 'left', vertical: 'middle' },
+        border:    thinBorder,
+      });
+
+      const valueStyle = (zebra = false): Partial<ExcelJS.Style> => ({
+        font:      { color: { argb: `FF${COLORS.black}` }, size: 9 },
+        fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? `FF${COLORS.zebraFill}` : `FF${COLORS.white}` } },
+        alignment: { horizontal: 'right', vertical: 'middle' },
+        border:    thinBorder,
+      });
+
+      // ── SHEET 1: SUMMARY ────────────────────────────────────────────────
+      // Layout: cols A-B = Account Details | D-E = Hours Summary | G-H = Ticket Summary
+      const ws = wb.addWorksheet('Summary');
+
+      // Column widths
+      ws.columns = [
+        { key: 'A', width: 28 },  // A – Account labels
+        { key: 'B', width: 22 },  // B – Account values
+        { key: 'C', width: 3  },  // C – spacer
+        { key: 'D', width: 30 },  // D – Hours labels
+        { key: 'E', width: 14 },  // E – Hours values
+        { key: 'F', width: 3  },  // F – spacer
+        { key: 'G', width: 20 },  // G – Ticket labels
+        { key: 'H', width: 14 },  // H – Ticket values
       ];
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-      // Sheet 2: Open Tickets
-      const openRows = data.openCases.map((c: any) => ({
-        'S.No.': c.sno,
-        'Case Number': c.case_number,
-        'Contact': c.contact,
-        'Subject': c.subject,
-        'Created On': c.created_on ? dayjs(c.created_on).format('DD-MM-YYYY') : '',
-        'Hours': c.hours,
-        'Consultant': c.consultant,
-        'Status': c.status,
-      }));
-      const wsOpen = XLSX.utils.json_to_sheet(openRows.length > 0 ? openRows : [{ 'Case Number': 'No open tickets' }]);
-      XLSX.utils.book_append_sheet(wb, wsOpen, 'Open Tickets');
+      // Row 1 – section header row
+      const headerRow = ws.getRow(1);
+      headerRow.height = 22;
 
-      // Sheet 3: Resolved Tickets
-      const resolvedRows = data.resolvedCases.map((c: any) => ({
-        'S.No.': c.sno,
-        'Case Number': c.case_number,
-        'Contact': c.contact,
-        'Subject': c.subject,
-        'Created On': c.created_on ? dayjs(c.created_on).format('DD-MM-YYYY') : '',
-        'Resolved On': c.resolved_on ? dayjs(c.resolved_on).format('DD-MM-YYYY') : '',
-        'Hours': c.hours,
-        'Consultant': c.consultant,
-      }));
-      const wsResolved = XLSX.utils.json_to_sheet(resolvedRows.length > 0 ? resolvedRows : [{ 'Case Number': 'No resolved tickets' }]);
-      XLSX.utils.book_append_sheet(wb, wsResolved, 'Resolved Tickets');
+      const acctHeaderCell  = ws.getCell('A1');
+      const hoursHeaderCell = ws.getCell('D1');
+      const ticketHeaderCell = ws.getCell('G1');
 
-      const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      acctHeaderCell.value  = 'Account Details';
+      hoursHeaderCell.value = 'Hours Summary';
+      ticketHeaderCell.value = 'Ticket Summary';
+
+      Object.assign(acctHeaderCell,  { style: sectionHeaderStyle(COLORS.acctHeader)  });
+      Object.assign(hoursHeaderCell, { style: sectionHeaderStyle(COLORS.hoursHeader) });
+      Object.assign(ticketHeaderCell, { style: sectionHeaderStyle(COLORS.ticketHeader) });
+
+      // Merge header cells across the two data columns in each panel
+      ws.mergeCells('A1:B1');
+      ws.mergeCells('D1:E1');
+      ws.mergeCells('G1:H1');
+
+      // ── Account Details rows (A-B, rows 2..5) ─────────────────────────
+      const accountData: [string, string][] = [
+        ['Client',                   data.clientInfo.client_name          || '-'],
+        ['Account Manager',          data.clientInfo.account_manager      || '-'],
+        ['Customer Success Manager', data.clientInfo.customer_success_mgr || '-'],
+        ['Solution',                 data.clientInfo.tool_version         || '-'],
+      ];
+      accountData.forEach(([label, value], i) => {
+        const row = i + 2;
+        const zebra = i % 2 === 1;
+        const lCell = ws.getCell(`A${row}`);
+        const vCell = ws.getCell(`B${row}`);
+        lCell.value = label;  Object.assign(lCell, { style: labelStyle(zebra) });
+        vCell.value = value;  Object.assign(vCell, { style: { ...valueStyle(zebra), alignment: { horizontal: 'left', vertical: 'middle' } } });
+        ws.getRow(row).height = 18;
+      });
+
+      // ── Hours Summary rows (D-E, rows 2..6) ───────────────────────────
+      const hoursData: [string, number | string][] = [
+        ['Total Contracted Hours',           data.hoursDetails.totalContracted],
+        ['Hours Consumed (Closed Tickets)',   data.hoursDetails.hoursConsumed],
+        ['Hours Allotted to Open Tickets',   data.hoursDetails.hoursOnOpen],
+        ['Current Balance Hours',            data.hoursDetails.currentBalance],
+      ];
+      hoursData.forEach(([label, value], i) => {
+        const row = i + 2;
+        const zebra = i % 2 === 1;
+        const isBalance = label === 'Current Balance Hours';
+        const isNeg = isBalance && Number(value) < 0;
+        const lCell = ws.getCell(`D${row}`);
+        const vCell = ws.getCell(`E${row}`);
+
+        const bgArgb = isBalance
+          ? (isNeg ? `FF${COLORS.balanceNeg}` : `FF${COLORS.balancePos}`)
+          : (zebra ? `FF${COLORS.zebraFill}` : `FF${COLORS.white}`);
+        const fontArgb = isBalance
+          ? (isNeg ? `FF${COLORS.balanceNegFont}` : `FF${COLORS.balancePosFont}`)
+          : `FF${COLORS.black}`;
+
+        lCell.value = label;
+        Object.assign(lCell, {
+          style: {
+            font:      { bold: isBalance, color: { argb: fontArgb }, size: 9 },
+            fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } },
+            alignment: { horizontal: 'left', vertical: 'middle' },
+            border:    thinBorder,
+          },
+        });
+
+        vCell.value = Number(value);
+        vCell.numFmt = '0.00';
+        Object.assign(vCell, {
+          style: {
+            font:      { bold: isBalance, color: { argb: fontArgb }, size: 9 },
+            fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: bgArgb } },
+            alignment: { horizontal: 'right', vertical: 'middle' },
+            border:    thinBorder,
+          },
+        });
+        ws.getRow(row).height = 18;
+      });
+
+      // ── Ticket Summary rows (G-H, rows 2..4) ──────────────────────────
+      const ticketData: [string, number][] = [
+        ['Total Tickets',   data.ticketSummary.totalOpened],
+        ['Total Resolved',  data.ticketSummary.totalClosed],
+        ['Pending',         data.ticketSummary.pending],
+      ];
+      ticketData.forEach(([label, value], i) => {
+        const row = i + 2;
+        const zebra = i % 2 === 1;
+        const lCell = ws.getCell(`G${row}`);
+        const vCell = ws.getCell(`H${row}`);
+        lCell.value = label;  Object.assign(lCell, { style: labelStyle(zebra) });
+        vCell.value = value;  Object.assign(vCell, { style: valueStyle(zebra) });
+        ws.getRow(row).height = 18;
+      });
+
+      // ── SHEET 2: OPEN TICKETS ────────────────────────────────────────
+      const wsOpen = wb.addWorksheet('Open Tickets');
+      const openHeaders = ['S.No.', 'Case Number', 'Contact', 'Subject', 'Created On', 'Hours', 'Consultant', 'Status'];
+      wsOpen.columns = [
+        { key: 'sno',       width: 7  },
+        { key: 'caseNo',    width: 18 },
+        { key: 'contact',   width: 22 },
+        { key: 'subject',   width: 38 },
+        { key: 'createdOn', width: 14 },
+        { key: 'hours',     width: 10 },
+        { key: 'consultant',width: 22 },
+        { key: 'status',    width: 18 },
+      ];
+
+      const openHeaderRow = wsOpen.addRow(openHeaders);
+      openHeaderRow.height = 20;
+      openHeaderRow.eachCell((cell) => {
+        Object.assign(cell, { style: sectionHeaderStyle(COLORS.openHeader) });
+      });
+
+      if (data.openCases.length === 0) {
+        wsOpen.addRow(['No open tickets']);
+      } else {
+        data.openCases.forEach((c: any, i: number) => {
+          const zebra = i % 2 === 1;
+          const row = wsOpen.addRow([
+            c.sno,
+            c.case_number,
+            c.contact,
+            c.subject,
+            c.created_on ? dayjs(c.created_on).format('DD-MM-YYYY') : '-',
+            c.hours,
+            c.consultant,
+            c.status,
+          ]);
+          row.height = 17;
+          row.eachCell((cell, col) => {
+            const isNum = col === 1 || col === 6;
+            Object.assign(cell, {
+              style: {
+                font:      { size: 9, color: { argb: `FF${COLORS.black}` } },
+                fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? `FF${COLORS.zebraFill}` : `FF${COLORS.white}` } },
+                alignment: { horizontal: isNum ? 'center' : 'left', vertical: 'middle', wrapText: col === 4 },
+                border:    thinBorder,
+              },
+            });
+          });
+        });
+
+        // Totals row
+        const totalHrsOpen = data.openCases.reduce((s: number, c: any) => s + c.hours, 0);
+        const totRowOpen = wsOpen.addRow(['', 'TOTAL', '', '', '', totalHrsOpen, '', '']);
+        totRowOpen.height = 18;
+        totRowOpen.eachCell((cell, col) => {
+          Object.assign(cell, {
+            style: {
+              font:      { bold: true, size: 9, color: { argb: 'FFFFFFFF' } },
+              fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${COLORS.openHeader}` } },
+              alignment: { horizontal: col === 6 ? 'center' : 'left', vertical: 'middle' },
+              border:    thinBorder,
+            },
+          });
+        });
+      }
+
+      // ── SHEET 3: RESOLVED TICKETS ────────────────────────────────────
+      const wsResolved = wb.addWorksheet('Resolved Tickets');
+      const resolvedHeaders = ['S.No.', 'Case Number', 'Contact', 'Subject', 'Created On', 'Resolved On', 'Hours', 'Consultant'];
+      wsResolved.columns = [
+        { key: 'sno',        width: 7  },
+        { key: 'caseNo',     width: 18 },
+        { key: 'contact',    width: 22 },
+        { key: 'subject',    width: 38 },
+        { key: 'createdOn',  width: 14 },
+        { key: 'resolvedOn', width: 14 },
+        { key: 'hours',      width: 10 },
+        { key: 'consultant', width: 22 },
+      ];
+
+      const resolvedHeaderRow = wsResolved.addRow(resolvedHeaders);
+      resolvedHeaderRow.height = 20;
+      resolvedHeaderRow.eachCell((cell) => {
+        Object.assign(cell, { style: sectionHeaderStyle(COLORS.resolvedHeader) });
+      });
+
+      if (data.resolvedCases.length === 0) {
+        wsResolved.addRow(['No resolved tickets']);
+      } else {
+        data.resolvedCases.forEach((c: any, i: number) => {
+          const zebra = i % 2 === 1;
+          const row = wsResolved.addRow([
+            c.sno,
+            c.case_number,
+            c.contact,
+            c.subject,
+            c.created_on  ? dayjs(c.created_on).format('DD-MM-YYYY')  : '-',
+            c.resolved_on ? dayjs(c.resolved_on).format('DD-MM-YYYY') : '-',
+            c.hours,
+            c.consultant,
+          ]);
+          row.height = 17;
+          row.eachCell((cell, col) => {
+            const isNum = col === 1 || col === 7;
+            Object.assign(cell, {
+              style: {
+                font:      { size: 9, color: { argb: `FF${COLORS.black}` } },
+                fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra ? `FF${COLORS.zebraFill}` : `FF${COLORS.white}` } },
+                alignment: { horizontal: isNum ? 'center' : 'left', vertical: 'middle', wrapText: col === 4 },
+                border:    thinBorder,
+              },
+            });
+          });
+        });
+
+        // Totals row
+        const totalHrsResolved = data.resolvedCases.reduce((s: number, c: any) => s + c.hours, 0);
+        const totRowRes = wsResolved.addRow(['', 'TOTAL', '', '', '', '', totalHrsResolved, '']);
+        totRowRes.height = 18;
+        totRowRes.eachCell((cell, col) => {
+          Object.assign(cell, {
+            style: {
+              font:      { bold: true, size: 9, color: { argb: 'FFFFFFFF' } },
+              fill:      { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${COLORS.resolvedHeader}` } },
+              alignment: { horizontal: col === 7 ? 'center' : 'left', vertical: 'middle' },
+              border:    thinBorder,
+            },
+          });
+        });
+      }
+
+      // ── Stream workbook to buffer and send ───────────────────────────
+      const excelBuffer = await wb.xlsx.writeBuffer();
 
       res.set({
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': String(excelBuffer.length),
+        'Content-Length': String(excelBuffer.byteLength),
       });
-      return res.send(excelBuffer);
+      return res.send(Buffer.from(excelBuffer));
     }
 
     // For month-specific Excel: use stored report file
