@@ -87,11 +87,10 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   const pending = openCases.length;
 
   // hoursConsumed     = billable hours on cases CLOSED during the selected month
-  // hoursOnOpen       = billable hours on all currently OPEN tickets (informational)
+  // hoursOnOpen       = billable hours on all currently OPEN tickets
   // previousBalance   = dynamically computed: Contracted − hours consumed on cases closed BEFORE this month
   //                     (does NOT rely on stored Report documents which may have stale/buggy values)
-  // currentBalance    = previousBalance − hoursConsumed (this month only)
-  //                     Open ticket hours shown informational — NOT deducted from monthly balance.
+  // currentBalance    = previousBalance − hoursConsumed (this month) − hoursOnOpen (open tickets)
   // All-time balance  = Contracted − consumed (all closed) − allotted (all open)
 
   const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
@@ -118,8 +117,8 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   }
 
   const currentBalance = allTime
-    ? totalContracted - hoursConsumed - hoursOnOpen   // all-time: contracted − closed − open
-    : previousBalance - hoursConsumed - hoursOnOpen;  // monthly:  prev balance − consumed − open
+    ? totalContracted - hoursConsumed - hoursOnOpen              // all-time: contracted − closed − open
+    : previousBalance - hoursConsumed - hoursOnOpen;             // monthly:  prev balance − this month consumed − open tickets
 
   // Check if a generated report file exists for download (month-specific only)
   const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });

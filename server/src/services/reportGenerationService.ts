@@ -158,15 +158,19 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
 
   const totalContracted = Number(clientInfo?.total_contracted_hours) || 0;
 
-  // Get previous month's report to get the starting balance
-  const prevMonthIdx = month - 2;
-  const prevMonthNum = prevMonthIdx < 0 ? 12 : prevMonthIdx + 1;
-  const prevYearNum = prevMonthIdx < 0 ? year - 1 : year;
+  // Dynamic previous balance: Contracted − hours consumed on ALL cases closed BEFORE this month's start.
+  // This matches the portal dashboard calculation and avoids relying on stale stored Report values.
+  const monthStart = new Date(year, month - 1, 1);
+  const hoursConsumedBeforeThisMonth = allCases
+    .filter((c: any) => {
+      if (!isResolved(c.status_reason)) return false;
+      const updatedD = c.updated_on ? new Date(c.updated_on) : null;
+      return updatedD && updatedD < monthStart;
+    })
+    .reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+  const previousBalance = totalContracted - hoursConsumedBeforeThisMonth;
 
-  const prevReport = await Report.findOne({ client_id: clientId, month: prevMonthNum, year: prevYearNum });
-  const previousBalance = prevReport ? prevReport.remaining_balance : (Number(clientInfo?.previous_balance_hours) || 0);
-
-  // Current Balance = Previous Balance - Hours Consumed (resolved) - Hours On Open Tickets
+  // Current Balance = Previous Balance − Hours Consumed This Month − Hours Allotted to Open Tickets
   const currentBalance = previousBalance - hoursConsumed - hoursOnOpen;
 
   return {
