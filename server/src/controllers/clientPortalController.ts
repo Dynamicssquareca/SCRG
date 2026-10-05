@@ -119,7 +119,7 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
 
   const currentBalance = allTime
     ? totalContracted - hoursConsumed - hoursOnOpen   // all-time: contracted − closed − open
-    : previousBalance - hoursConsumed;                // monthly:  prev balance − this month's closed
+    : previousBalance - hoursConsumed - hoursOnOpen;  // monthly:  prev balance − consumed − open
 
   // Check if a generated report file exists for download (month-specific only)
   const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });

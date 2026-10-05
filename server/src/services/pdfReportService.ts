@@ -871,7 +871,7 @@ export async function generateClientPortalPdf(data: ClientPortalPdfData): Promis
     const isAllTimePdf = data.monthName === 'All Time';
     const hoursRows: [string, number, boolean][] = [
       ['Total Contracted Hours',                                                              data.hoursDetails.totalContracted,  false],
-      [isAllTimePdf ? 'Starting Balance Hours' : 'Previous Balance Hours',                   data.hoursDetails.previousBalance,  false],
+      ...(!isAllTimePdf ? [['Previous Balance Hours', data.hoursDetails.previousBalance, false] as [string, number, boolean]] : []),
       [isAllTimePdf ? 'Hours Consumed (Closed Tickets)' : 'Hours Consumed This Month',       data.hoursDetails.hoursConsumed,    false],
       ['Hours Allotted to Open Tickets',                                                      data.hoursDetails.hoursOnOpen,      false],
       ['Current Balance Hours',                                                               data.hoursDetails.currentBalance,   true],

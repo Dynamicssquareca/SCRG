@@ -490,7 +490,9 @@ const ClientDashboardPreviewPage: React.FC = () => {
                                 delay={0.16}
                             >
                                 <InfoRow label="Total Contracted Hours" value={data.hoursDetails.totalContracted} />
-                                <InfoRow label={allTime ? 'Starting Balance Hours' : 'Previous Balance Hours'} value={data.hoursDetails.previousBalance} />
+                                {!allTime && (
+                                    <InfoRow label="Previous Balance Hours" value={data.hoursDetails.previousBalance} />
+                                )}
                                 <InfoRow label={allTime ? 'Hours Consumed (Closed Tickets)' : 'Hours Consumed This Month'} value={data.hoursDetails.hoursConsumed} />
                                 <InfoRow label="Hours Allotted to Open Tickets" value={data.hoursDetails.hoursOnOpen} />
                                 <InfoRow
