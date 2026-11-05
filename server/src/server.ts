@@ -7,6 +7,7 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import { User } from './models/User';
 import { initScheduler } from './scheduler';
+import { reconcileOctoberHistoricalBalances } from './services/balanceService';
 
 // Ensure storage directories exist
 const dirs = [env.UPLOAD_DIR, env.REPORT_DIR, path.dirname(path.join(__dirname, '../data/scrg.db'))];
@@ -34,6 +35,9 @@ async function start() {
       { upsert: true, new: true }
     );
     logger.info('Admin user credentials synced');
+
+    // Ensure historical milestone balances are reconciled
+    await reconcileOctoberHistoricalBalances();
 
     // Start background jobs
     await initScheduler();

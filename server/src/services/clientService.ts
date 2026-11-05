@@ -3,6 +3,7 @@ import { Report } from '../models/Report';
 import { Case } from '../models/Case';
 import { NotFoundError, ConflictError } from '../utils/apiResponse';
 import mongoose from 'mongoose';
+import { getBatchClientMonthlyBalances } from './balanceService';
 
 const RESOLVED_STATUSES = ['resolved', 'closed', 'problem solved'];
 const closedStatusRegex = new RegExp(RESOLVED_STATUSES.join('|'), 'i');
@@ -37,79 +38,23 @@ export async function getAllClients(query: any) {
 
   const clientIds = clients.map(c => c._id);
 
-  // Fetch current month's reports (only need hours_consumed, NOT remaining_balance which may be stale)
-  const currentReports = await Report.find({
-    client_id: { $in: clientIds },
-    month: currentMonth,
-    year: currentYear,
-  }).select('client_id hours_consumed');
-
-  // Fetch previous month's reports (for starting balance)
-  const prevReports = await Report.find({
-    client_id: { $in: clientIds },
-    month: prevMonth,
-    year: prevYear,
-  }).select('client_id remaining_balance');
-
-  // Build lookup maps
-  const currentConsumedMap: Record<string, number> = {};
-  for (const r of currentReports) {
-    currentConsumedMap[r.client_id.toString()] = r.hours_consumed ?? 0;
-  }
-
-  const prevMap: Record<string, number> = {};
-  for (const r of prevReports) {
-    prevMap[r.client_id.toString()] = r.remaining_balance ?? 0;
-  }
-
-  // Compute open-ticket hours per client via live aggregate (same logic as clientPortalController)
-  const openHoursAgg = await Case.aggregate([
-    {
-      $match: {
-        client_id: { $in: clientIds },
-        $or: [
-          { status_reason: { $not: closedStatusRegex } },
-          { status_reason: null },
-        ],
-      },
-    },
-    {
-      $group: {
-        _id: '$client_id',
-        hoursOnOpen: { $sum: '$billable_duration' },
-      },
-    },
-  ]);
-
-  const openHoursMap: Record<string, number> = {};
-  for (const row of openHoursAgg) {
-    if (row._id) openHoursMap[row._id.toString()] = row.hoursOnOpen ?? 0;
-  }
+  // Authoritative monthly balances from centralized balanceService
+  const balancesMap = await getBatchClientMonthlyBalances(clientIds, currentMonth, currentYear);
 
   const enrichedClients = clients.map(c => {
     const obj = c.toObject() as any;
     const id = c._id.toString();
+    const bal = balancesMap[id];
 
-    const hasPrev    = id in prevMap;
-    const hasCurrent = id in currentConsumedMap;
-
-    if (hasPrev || hasCurrent) {
-      // previousBalance: from prev month report, or fall back to client's static field
-      const previousBalance = hasPrev ? prevMap[id] : (obj.previous_balance_hours ?? 0);
-      const hoursConsumed   = hasCurrent ? currentConsumedMap[id] : 0;
-      const hoursOnOpen     = openHoursMap[id] ?? 0;
-
-      // Current Balance = Previous Balance - Hours Consumed (resolved) - Hours On Open Tickets
-      obj.current_balance    = previousBalance - hoursConsumed - hoursOnOpen;
-      obj.last_month_balance = hasPrev ? prevMap[id] : null;
+    if (bal) {
+      obj.current_balance    = bal.currentBalance;
+      obj.last_month_balance = bal.previousBalance;
     } else {
-      // Fallback: use static previous_balance_hours from Client when no reports exist
       obj.current_balance    = obj.previous_balance_hours ?? 0;
       obj.last_month_balance = null;
     }
     return obj;
   });
-
   return {
     clients: enrichedClients,
     pagination: { 
