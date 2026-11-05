@@ -9,6 +9,7 @@ import { Report } from '../models/Report';
 import { Upload } from '../models/Upload';
 import { env } from '../config/env';
 import logger from '../utils/logger';
+import { getClientMonthlyBalance } from './balanceService';
 
 // Resolved statuses (treated as "closed" for report purposes)
 const RESOLVED_STATUSES = ['resolved', 'closed'];
@@ -153,25 +154,9 @@ async function getClientReportData(clientId: string, uploadId: string, month: nu
   const totalClosed = resolvedCases.length;
   const pending = openCases.length;
 
-  const hoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  const hoursOnOpen = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-
-  const totalContracted = Number(clientInfo?.total_contracted_hours) || 0;
-
-  // Dynamic previous balance: Contracted − hours consumed on ALL cases closed BEFORE this month's start.
-  // This matches the portal dashboard calculation and avoids relying on stale stored Report values.
-  const monthStart = new Date(year, month - 1, 1);
-  const hoursConsumedBeforeThisMonth = allCases
-    .filter((c: any) => {
-      if (!isResolved(c.status_reason)) return false;
-      const updatedD = c.updated_on ? new Date(c.updated_on) : null;
-      return updatedD && updatedD < monthStart;
-    })
-    .reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  const previousBalance = totalContracted - hoursConsumedBeforeThisMonth;
-
-  // Current Balance = Previous Balance − Hours Consumed This Month − Hours Allotted to Open Tickets
-  const currentBalance = previousBalance - hoursConsumed - hoursOnOpen;
+  // Authoritative monthly balances from centralized balanceService
+  const balanceResult = await getClientMonthlyBalance(clientId, month, year, false);
+  const { totalContracted, previousBalance, hoursConsumed, hoursOnOpen, currentBalance } = balanceResult;
 
   return {
     clientInfo,
@@ -456,7 +441,7 @@ export async function generateAllReports(uploadId: string, month: number, year: 
         tickets_closed: reportData.summary.totalClosed,
         tickets_pending: reportData.summary.pending,
         hours_consumed: reportData.hoursDetails.hoursConsumed,
-        remaining_balance: reportData.hoursDetails.currentBalance,
+        remaining_balance: reportData.hoursDetails.previousBalance - reportData.hoursDetails.hoursConsumed,
         is_sync_report: isSyncReport, // Use the sync status from the upload
         generated_by: userId ? new mongoose.Types.ObjectId(userId) : null,
       });
@@ -471,7 +456,7 @@ export async function generateAllReports(uploadId: string, month: number, year: 
       // Update client's previous balance ONLY IF this is a sync upload
       if (isSyncReport) {
         await Client.findByIdAndUpdate(client_id, {
-          previous_balance_hours: reportData.hoursDetails.currentBalance,
+          previous_balance_hours: reportData.hoursDetails.previousBalance - reportData.hoursDetails.hoursConsumed,
         });
       }
 

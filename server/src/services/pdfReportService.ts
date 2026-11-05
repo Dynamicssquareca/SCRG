@@ -5,6 +5,7 @@ import { Client } from '../models/Client';
 import { Case } from '../models/Case';
 import { Report } from '../models/Report';
 import logger from '../utils/logger';
+import { getBatchClientMonthlyBalances } from './balanceService';
 
 const closedStatusRegex = /resolved|closed|problem solved/i;
 
@@ -126,82 +127,41 @@ export async function getMonthlyReportData(month: number, year: number, isBiWeek
   const clients = await Client.find({ is_active: true }).sort({ client_name: 1 });
   const clientBreakdown = [];
 
-  // Fetch previous month's reports for starting balances (batch query)
+  // Authoritative monthly balances from centralized balanceService
   const allClientIds = clients.map(c => c._id);
-  const prevReports = await Report.find({
-    client_id: { $in: allClientIds },
-    month: prevMonthNum,
-    year: prevYearNum,
-  }).select('client_id remaining_balance');
-  const prevBalanceMap: Record<string, number> = {};
-  for (const r of prevReports) {
-    prevBalanceMap[r.client_id.toString()] = r.remaining_balance ?? 0;
-  }
-
-  // Compute open-ticket hours per client via live aggregate
-  const openHoursAgg = await Case.aggregate([
-    {
-      $match: {
-        client_id: { $in: allClientIds },
-        $or: [
-          { status_reason: { $not: closedStatusRegex } },
-          { status_reason: null },
-        ],
-      },
-    },
-    {
-      $group: {
-        _id: '$client_id',
-        hoursOnOpen: { $sum: '$billable_duration' },
-      },
-    },
-  ]);
-  const openHoursMap: Record<string, number> = {};
-  for (const row of openHoursAgg) {
-    if (row._id) openHoursMap[row._id.toString()] = row.hoursOnOpen ?? 0;
-  }
+  const balancesMap = await getBatchClientMonthlyBalances(allClientIds, month, year);
 
   for (const client of clients) {
-    // Only fetch from Report collection for full month, not bi-weekly
     const reportDoc = !isBiWeekly ? await Report.findOne({ client_id: client._id, month, year }) : null;
-    
     let created = 0;
     let resolved = 0;
-    let consumed = 0;
-
-    const clientIdStr = client._id.toString();
-    const prevBalance = clientIdStr in prevBalanceMap
-      ? prevBalanceMap[clientIdStr]
-      : (client.previous_balance_hours ?? 0);
-    const hoursOnOpen = openHoursMap[clientIdStr] ?? 0;
 
     if (reportDoc) {
       created = reportDoc.tickets_opened;
       resolved = reportDoc.tickets_closed;
-      consumed = reportDoc.hours_consumed;
     } else {
-      // Calculate dynamically if report is not pre-generated
       created = await Case.countDocuments({
         client_id: client._id,
         created_on: { $gte: start, $lte: end },
       });
-      const resolvedCases = await Case.find({
+      resolved = await Case.countDocuments({
         client_id: client._id,
         updated_on: { $gte: start, $lte: end },
         status_reason: { $regex: closedStatusRegex },
       });
-      resolved = resolvedCases.length;
-      consumed = resolvedCases.reduce((sum, c) => sum + (Number(c.billable_duration) || 0), 0);
     }
 
-    // Balance = Previous Balance - Hours Consumed (resolved) - Hours On Open Tickets
-    const balance = prevBalance - consumed - hoursOnOpen;
+    const clientIdStr = client._id.toString();
+    const bal = balancesMap[clientIdStr];
+    const contracted = bal ? bal.totalContracted : (client.total_contracted_hours || 0);
+    const consumed = bal ? bal.hoursConsumed : 0;
+    const balance = bal ? bal.currentBalance : 0;
 
     clientBreakdown.push({
       clientName: client.client_name,
       created,
       resolved,
-      contracted: client.total_contracted_hours || 0,
+      contracted,
       consumed,
       balance,
     });

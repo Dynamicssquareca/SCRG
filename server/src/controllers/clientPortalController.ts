@@ -14,6 +14,7 @@ import { env } from '../config/env';
 import logger from '../utils/logger';
 import { successResponse, ForbiddenError, NotFoundError } from '../utils/apiResponse';
 import { generateClientPortalPdf, ClientPortalPdfData } from '../services/pdfReportService';
+import { getClientMonthlyBalance } from '../services/balanceService';
 
 const RESOLVED_STATUSES = ['resolved', 'closed', 'problem solved'];
 
@@ -93,59 +94,10 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
   // currentBalance    = previousBalance − hoursConsumed (this month) − hoursOnOpen (open tickets)
   // All-time balance  = Contracted − consumed (all closed) − allotted (all open)
 
-  // Live hours on open cases (always computed from live Case data)
-  const liveHoursConsumed = resolvedCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-  const hoursOnOpen       = openCases.reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
+  // Compute authoritative balances using centralized balanceService
+  const balanceResult = await getClientMonthlyBalance(clientId, m, y, allTime);
 
-  const totalContracted = Number(clientInfo.total_contracted_hours) || 0;
-
-  // Use stored Report values so the dashboard matches the Client Master exactly.
-  // Client Master uses: prevReport.remaining_balance → previousBalance
-  //                     currentReport.hours_consumed  → hoursConsumed
-  // We fall back to dynamic computation only when no Report document exists yet.
-  let previousBalance: number;
-  let hoursConsumed: number;
-
-  if (allTime) {
-    previousBalance = totalContracted;
-    hoursConsumed   = liveHoursConsumed;
-  } else {
-    const prevMonth = m === 1 ? 12 : m - 1;
-    const prevYear  = m === 1 ? y - 1 : y;
-
-    const [prevReport, currentReport] = await Promise.all([
-      Report.findOne({ client_id: clientId, month: prevMonth, year: prevYear }).select('remaining_balance'),
-      Report.findOne({ client_id: clientId, month: m,       year: y        }).select('hours_consumed'),
-    ]);
-
-    if (prevReport && prevReport.remaining_balance != null) {
-      // ✅ Use stored balance from previous month's report (same as Client Master)
-      previousBalance = prevReport.remaining_balance;
-    } else {
-      // Fallback: dynamically compute when no prior report exists
-      const monthStart = new Date(y, m - 1, 1);
-      const consumedBefore = allCases
-        .filter((c: any) => {
-          if (!isResolved(c.status_reason || '')) return false;
-          const updatedD = c.updated_on ? new Date(c.updated_on) : null;
-          return updatedD && updatedD < monthStart;
-        })
-        .reduce((sum: number, c: any) => sum + (Number(c.billable_duration) || 0), 0);
-      previousBalance = totalContracted - consumedBefore;
-    }
-
-    // ✅ Use stored hours_consumed from current month's report (same as Client Master)
-    hoursConsumed = (currentReport && currentReport.hours_consumed != null)
-      ? currentReport.hours_consumed
-      : liveHoursConsumed;
-  }
-
-  const currentBalance = allTime
-    ? totalContracted - hoursConsumed - hoursOnOpen   // all-time: contracted − closed − open
-    : previousBalance - hoursConsumed - hoursOnOpen;  // monthly:  prev balance − this month consumed − open tickets
-
-  // Check if a generated report file exists for download (month-specific only)
-  const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
+    const report = allTime ? null : await Report.findOne({ client_id: clientId, month: m, year: y, file_data: { $ne: null } });
 
   return {
     clientInfo: {
@@ -157,12 +109,11 @@ export async function getClientDashboardDataHelper(clientId: string, m: number, 
       contract_end_date: clientInfo.contract_end_date ? clientInfo.contract_end_date.toISOString() : null,
     },
     hoursDetails: {
-      totalContracted,
-      // In All-Time mode, base balance on totalContracted; previousBalance not meaningful cross-period
-      previousBalance: allTime ? totalContracted : previousBalance,
-      hoursConsumed,
-      hoursOnOpen,
-      currentBalance,
+      totalContracted: balanceResult.totalContracted,
+      previousBalance: balanceResult.previousBalance,
+      hoursConsumed: balanceResult.hoursConsumed,
+      hoursOnOpen: balanceResult.hoursOnOpen,
+      currentBalance: balanceResult.currentBalance,
     },
     ticketSummary: {
       totalOpened,
